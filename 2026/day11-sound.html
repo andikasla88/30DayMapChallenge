@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#05070F">
+<title>Day 11 · A day of lightning, replayed as thunder</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 11, Sound: every lightning reading from Singapore's stormiest day of the past two months, replayed as thunder. Each flash sends out a ring of sound at 343 m/s, and you hear it when the ring reaches you.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2305070F'/%3E%3Cpath d='M14 4 8 17h5l-2 11 9-14h-5l3-10z' fill='%23EAF27A'/%3E%3Cpath d='M21.5 11.5a6 6 0 0 1 0 9M24.5 8.5a10.5 10.5 0 0 1 0 15' fill='none' stroke='%23EAF27A' stroke-width='1.7' stroke-linecap='round' opacity='.75'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 11: a storm you listen to. Transport bar, captions, a draggable ear ===== */
+:root {
+  --flash: #DCE6FF;
+  --ic: #A9B4FF;
+  --deck-h: 78px;
+  --info-top: 96px;
+}
+.dmc-map { background: #05070F; }
+.th-fx { position: absolute; left: 0; top: 0; width: 100%; height: 100%; pointer-events: none; mix-blend-mode: screen; }
+.th-vignette { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(130% 95% at 50% 42%, transparent 52%, rgba(2, 3, 10, .62)); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- the info card ---- */
+.th-info { top: var(--info-top); left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); width: 288px; padding: 10px 12px 10px;
+  display: grid; gap: 8px; max-height: calc(100% - var(--info-top) - var(--deck-h) - 2 * var(--gutter) - 10px); overflow-y: auto; scrollbar-width: thin; }
+.th-top { display: flex; align-items: flex-start; gap: 8px; }
+.th-hero { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.th-hero b { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: .95; letter-spacing: .01em; color: var(--day-accent); font-variant-numeric: tabular-nums;
+  text-shadow: 0 0 16px rgba(var(--day-accent-rgb), .35); }
+.th-hero span { font-size: 11.5px; line-height: 1.3; color: var(--text-2); }
+.th-hero span strong { color: var(--text); font-weight: 600; }
+.th-toggle { display: none; }
+.th-short { display: none; }
+.th-body { display: grid; gap: 8px; }
+.th-scan { display: grid; gap: 2px; }
+.th-scan svg { display: block; width: 100%; height: 34px; }
+.th-scan .cap { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.th-p { margin: 0; font-size: 12px; line-height: 1.45; color: var(--text-2); }
+.th-p b { color: var(--text); font-weight: 600; }
+.th-legend { list-style: none; margin: 0; padding: 7px 0; display: grid; gap: 5px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.th-legend li { display: grid; grid-template-columns: 22px 1fr; align-items: center; gap: 8px; font-size: 11.5px; line-height: 1.3; color: var(--text-2); }
+.th-legend li b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.th-legend svg { width: 22px; height: 22px; overflow: visible; }
+.th-note { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-2); }
+.th-note a, .th-p a { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.th-how { display: grid; gap: 5px; }
+.th-how summary { cursor: pointer; width: max-content; font-size: 11px; font-weight: 600; color: var(--text); list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 2px 0; }
+.th-how summary::-webkit-details-marker { display: none; }
+.th-how summary::before { content: ""; width: 0; height: 0; border-left: 5px solid var(--day-accent); border-top: 4px solid transparent; border-bottom: 4px solid transparent; transition: transform .2s; }
+.th-how[open] summary::before { transform: rotate(90deg); }
+
+/* ---- the transport deck ---- */
+.th-deck { left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  padding: 9px 12px 9px 10px; display: grid; align-items: center; column-gap: 14px; row-gap: 8px;
+  grid-template-columns: auto auto minmax(0, 1fr) auto auto auto; grid-template-areas: "play clock wave speed loc mute"; }
+.th-play { grid-area: play; position: relative; width: 52px; height: 52px; border-radius: 50%; border: 0; padding: 0; cursor: pointer; display: grid; place-items: center;
+  color: #10130A; background: radial-gradient(circle at 35% 30%, #FBFFD6, var(--day-accent) 60%, #C9D24F);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .4) inset, 0 0 22px rgba(var(--day-accent-rgb), .45); }
+.th-play svg { width: 22px; height: 22px; fill: currentColor; }
+.th-play:hover { filter: brightness(1.06); }
+.th-play .i-pause { display: none; }
+.th-play[aria-pressed="true"] .i-play { display: none; }
+.th-play[aria-pressed="true"] .i-pause { display: block; }
+.th-clock { grid-area: clock; display: grid; gap: 2px; min-width: 0; }
+.th-clock b { font-family: var(--display); font-size: 28px; font-weight: 800; line-height: .9; letter-spacing: .02em; font-variant-numeric: tabular-nums; }
+.th-clock span { font-size: 10.5px; color: var(--text-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.th-clock span em { font-style: normal; color: var(--day-accent); }
+.th-wave { grid-area: wave; position: relative; height: 56px; min-width: 0; }
+.th-wave canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.th-scrub { position: absolute; inset: -4px 0; cursor: pointer; touch-action: none; border-radius: 6px; }
+.th-wtip { position: absolute; bottom: calc(100% + 8px); transform: translateX(-50%); padding: 3px 8px; border-radius: 6px; white-space: nowrap; pointer-events: none;
+  background: rgba(5, 7, 15, .92); border: 1px solid var(--line); font-size: 10.5px; color: var(--text); font-variant-numeric: tabular-nums; }
+.th-wtip[hidden] { display: none; }
+.th-speed { grid-area: speed; }
+.th-speed button { min-width: 34px; padding: 4px 8px; }
+.th-round { position: relative; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; padding: 0; cursor: pointer;
+  color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); }
+.th-round::after { content: ""; position: absolute; inset: -6px; }
+.th-round:hover { background: rgba(255, 255, 255, .15); }
+.th-round svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.th-round[aria-pressed="true"] { color: #10130A; background: var(--day-accent); }
+#loc { grid-area: loc; } #mute { grid-area: mute; }
+#mute .i-off { display: none; }
+#mute[aria-pressed="true"] .i-on { display: none; }
+#mute[aria-pressed="true"] .i-off { display: block; }
+
+/* ---- captions: closed-caption style, above the deck ---- */
+.th-cc { position: fixed; z-index: 3; left: var(--cx, 50%); transform: translateX(-50%); bottom: calc(var(--deck-h) + var(--gutter) + 12px + env(safe-area-inset-bottom, 0px));
+  width: min(540px, calc(100% - 2 * var(--gutter))); display: grid; justify-items: center; gap: 3px; pointer-events: none; }
+.th-cc p { margin: 0; padding: 3px 9px 4px; border-radius: 4px; background: rgba(0, 0, 0, .8); color: #FFF; font-size: 13px; font-weight: 500; line-height: 1.35; text-align: center;
+  transition: opacity .6s; }
+.th-cc p b { color: var(--day-accent); font-weight: 700; }
+.th-cc p.old { opacity: .55; }
+.th-cc p.gone { opacity: 0; }
+
+/* ---- the big Listen button ---- */
+.th-start { position: fixed; z-index: 3; left: var(--sx, 50%); top: var(--cy, 50%); transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 12px; pointer-events: none; }
+.th-start[hidden] { display: none; }
+.th-listen { pointer-events: auto; position: relative; width: 116px; height: 116px; border-radius: 50%; border: 0; cursor: pointer; padding: 0;
+  display: grid; place-items: center; align-content: center; gap: 4px; color: #10130A;
+  background: radial-gradient(circle at 35% 30%, #FDFFE4, var(--day-accent) 58%, #BCC53F);
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .5) inset, 0 0 40px rgba(var(--day-accent-rgb), .5), 0 10px 30px rgba(0, 0, 0, .5); }
+.th-listen svg { width: 34px; height: 34px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.th-listen span { font-family: var(--display); font-size: 21px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; line-height: 1; }
+.th-listen::before, .th-listen::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 1.5px solid rgba(var(--day-accent-rgb), .7); animation: th-wave 2.8s ease-out infinite; pointer-events: none; }
+.th-listen::after { animation-delay: 1.4s; }
+@keyframes th-wave { from { transform: scale(1); opacity: .8; } to { transform: scale(1.9); opacity: 0; } }
+.th-listen:hover { filter: brightness(1.05); }
+.th-listen:focus-visible { outline-offset: 5px; }
+.th-start p { margin: 0; max-width: 270px; padding: 5px 11px; border-radius: 10px; background: rgba(5, 7, 15, .72); font-size: 11.5px; line-height: 1.4; color: var(--text-2); text-align: center; }
+
+/* ---- the ear (listener) ---- */
+.ear { position: relative; width: 36px; height: 36px; cursor: grab; touch-action: none; outline: none; }
+.ear:active { cursor: grabbing; }
+.ear-pin { position: absolute; inset: 0; border-radius: 50%; display: grid; place-items: center; color: var(--day-accent);
+  background: rgba(5, 7, 15, .88); border: 2px solid var(--day-accent);
+  box-shadow: 0 0 0 4px rgba(var(--day-accent-rgb), .16), 0 0 16px rgba(var(--day-accent-rgb), .45); transition: box-shadow .25s; }
+.ear-pin svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.ear:focus-visible .ear-pin { outline: 2px solid #FFF; outline-offset: 3px; }
+.ear.hear .ear-pin { animation: th-hear .55s ease-out; }
+@keyframes th-hear { 0% { transform: scale(1); box-shadow: 0 0 0 4px rgba(var(--day-accent-rgb), .16), 0 0 16px rgba(var(--day-accent-rgb), .45); }
+  25% { transform: scale(calc(1 + var(--loud, .2) * .35)); box-shadow: 0 0 0 calc(4px + var(--loud, .2) * 10px) rgba(var(--day-accent-rgb), .22), 0 0 24px rgba(var(--day-accent-rgb), .6); }
+  100% { transform: scale(1); } }
+.ear-count { position: absolute; bottom: calc(100% + 9px); left: 50%; transform: translateX(-50%); white-space: nowrap; pointer-events: none;
+  padding: 3px 9px; border-radius: 999px; background: rgba(5, 7, 15, .9); border: 1px solid rgba(var(--day-accent-rgb), .45);
+  font-size: 11.5px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+.ear-count b { color: var(--day-accent); font-weight: 700; }
+.ear-count svg { width: 8px; height: 11px; margin-right: 5px; vertical-align: -1px; fill: var(--day-accent); }
+.ear-count[hidden] { display: none; }
+.ear-count.done { border-color: var(--day-accent); }
+
+.th-msg { position: fixed; z-index: 4; left: var(--cx, 50%); top: calc(var(--info-top) + 4px); transform: translateX(-50%); max-width: min(360px, calc(100% - 2 * var(--gutter)));
+  padding: 6px 12px; border-radius: 10px; background: rgba(5, 7, 15, .9); border: 1px solid var(--line); font-size: 12px; color: var(--text); text-align: center; }
+.th-msg[hidden] { display: none; }
+.th-loading { position: fixed; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.th-loading[hidden] { display: none; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .th-info { width: min(250px, calc(100vw - 2 * var(--gutter) - 48px)); padding: 8px 10px; gap: 7px; }
+  .th-hero b { font-size: 22px; }
+  .th-toggle { display: inline-flex; flex: none; min-height: 26px; padding: 3px 10px; font-size: 11px; }
+  .th-info.min .th-body { display: none; }
+  .th-info.min #h-sub { display: none; }
+  .th-info.min .th-short { display: block; }
+  .th-clock b { font-size: 23px; }
+  .th-play { width: 44px; height: 44px; }
+  .th-play svg { width: 19px; height: 19px; }
+  .th-listen { width: 96px; height: 96px; }
+  .th-listen svg { width: 28px; height: 28px; }
+  .th-listen span { font-size: 18px; }
+  .th-cc p { font-size: 12px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .th-deck { left: 0; right: 0; bottom: 0; border-bottom: 0; border-radius: 16px 16px 0 0; padding: 9px 12px calc(9px + env(safe-area-inset-bottom, 0px));
+    grid-template-columns: auto minmax(0, 1fr) auto auto; column-gap: 10px; row-gap: 8px;
+    grid-template-areas: "play clock loc mute" "speed speed speed speed" "wave wave wave wave"; }
+  .th-speed { justify-self: stretch; display: flex; }
+  .th-speed button { flex: 1; }
+  .th-wave { height: 50px; }
+  .th-cc { left: 50%; bottom: calc(var(--deck-h) + 10px); }
+  .th-cc p.old { display: none; }
+  .th-info { max-height: calc(100% - var(--info-top) - var(--deck-h) - 74px); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .th-deck { padding: 6px 10px 6px 8px; column-gap: 10px; }
+  .th-wave { height: 44px; }
+  .th-clock b { font-size: 20px; }
+  .th-clock span { font-size: 9.5px; }
+  .th-speed button { min-width: 0; padding: 3px 7px; font-size: 11px; min-height: 26px; }
+  .th-cc p { font-size: 11.5px; }
+  .th-start { gap: 8px; }
+  .th-start p { font-size: 11px; max-width: 240px; }
+  .th-listen { width: 84px; height: 84px; }
+  .th-listen span { font-size: 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ear.hear .ear-pin { animation: none; box-shadow: 0 0 0 6px rgba(var(--day-accent-rgb), .25), 0 0 20px rgba(var(--day-accent-rgb), .55); }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Dark map of Singapore. Lightning flashes appear where the sensors placed them, and rings of sound spread out from each one towards a movable ear"></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="info" class="dmc-glass th-info" data-dmc-overlay aria-label="About this storm">
+  <div class="th-top">
+    <div class="th-hero"><b id="h-n">&hellip;</b><span id="h-sub">lightning readings in one day</span><span id="h-sub2" class="th-short"></span></div>
+    <button id="more" class="dmc-btn th-toggle" type="button" aria-expanded="true" aria-controls="info-body">Less</button>
+  </div>
+  <div id="info-body" class="th-body">
+    <div class="th-scan">
+      <div id="scan" role="img" aria-label="Strikes per day"></div>
+      <div class="cap"><span id="scan-a"></span><span id="scan-m"></span><span id="scan-b"></span></div>
+    </div>
+    <p class="th-p">Each flash sends out a ring of sound at <b>343&nbsp;m/s</b>. When it reaches the ear, you hear the thunder. Count the seconds: every <b>3&nbsp;s</b> is about <b>1&nbsp;km</b>.</p>
+    <ul class="th-legend">
+      <li><svg viewBox="-11 -11 22 22" aria-hidden="true"><circle r="9" fill="rgba(220,230,255,.18)"/><path d="M0 0l-3-4-1-4M0 0l4-2 2-5M0 0l2 4 5 2M-3-4l-4 1" stroke="#F4F7FF" stroke-width="1.3" fill="none" stroke-linecap="round"/></svg><span>Cloud-to-ground strike: <b id="l-cg"></b> readings</span></li>
+      <li><svg viewBox="-11 -11 22 22" aria-hidden="true"><circle r="9" fill="rgba(169,180,255,.28)"/><circle r="4" fill="rgba(200,210,255,.5)"/></svg><span>Cloud-to-cloud flash: <b id="l-ic"></b> readings</span></li>
+      <li><svg viewBox="-11 -11 22 22" aria-hidden="true"><defs><radialGradient id="hz"><stop offset="0" stop-color="#B9B4FF" stop-opacity=".7"/><stop offset="1" stop-color="#5A4FC0" stop-opacity="0"/></radialGradient></defs><circle r="10" fill="url(#hz)"/></svg><span>Haze: where the day&rsquo;s lightning was thickest</span></li>
+      <li><svg viewBox="-11 -11 22 22" aria-hidden="true"><circle r="9" fill="none" stroke="#EAF27A" stroke-width="1.4"/><circle r="5" fill="none" stroke="#EAF27A" stroke-opacity=".45" stroke-width="1.2"/></svg><span>Its thunder, on the way to you</span></li>
+      <li><svg viewBox="-11 -11 22 22" aria-hidden="true"><circle r="9" fill="#05070F" stroke="#EAF27A" stroke-width="2"/><path d="M-4.5 2v-1.5a4.5 4.5 0 0 1 9 0V2M-4.5 1.5h1.6v3.5h-1.6zM2.9 1.5h1.6v3.5H2.9z" stroke="#EAF27A" stroke-width="1.3" fill="none" stroke-linejoin="round"/></svg><span>You. Drag the ear, tap the map or use your location</span></li>
+    </ul>
+    <p id="near" class="th-p"></p>
+    <details class="th-how">
+      <summary>How this was made</summary>
+      <p class="th-note" id="note"></p>
+    </details>
+    <p id="credits" class="dmc-credits"></p>
+  </div>
+</section>
+
+<div id="start" class="th-start dmc-chrome">
+  <button id="listen" class="th-listen" type="button" aria-describedby="start-tip">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 15v-3a8 8 0 0 1 16 0v3"/><rect x="3.5" y="14" width="4" height="6.5" rx="1.6"/><rect x="16.5" y="14" width="4" height="6.5" rx="1.6"/></svg>
+    <span>Listen</span>
+  </button>
+  <p id="start-tip">Best with headphones. Sound starts only when you press.</p>
+</div>
+
+<div id="cc" class="th-cc" aria-hidden="true"></div>
+<p id="sr" class="sr" aria-live="polite"></p>
+<p id="msg" class="th-msg" role="status" hidden></p>
+<p id="loading" class="th-loading">Gathering the storm&hellip;</p>
+
+<section id="deck" class="dmc-glass th-deck" data-dmc-overlay aria-label="Storm player">
+  <button id="play" class="th-play" type="button" aria-pressed="false" aria-label="Play the storm">
+    <svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5.5v13a1 1 0 0 0 1.5.86l10.6-6.5a1 1 0 0 0 0-1.72L9.5 4.64A1 1 0 0 0 8 5.5z"/></svg>
+    <svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="5" width="4.2" height="14" rx="1.2"/><rect x="13.8" y="5" width="4.2" height="14" rx="1.2"/></svg>
+  </button>
+  <div class="th-clock"><b id="clock">--:--:--</b><span id="clock-sub">&nbsp;</span><span id="counts">&nbsp;</span></div>
+  <div class="th-wave">
+    <canvas id="wave" aria-hidden="true"></canvas>
+    <div id="scrub" class="th-scrub" role="slider" tabindex="0" aria-label="Time of day" aria-valuemin="0" aria-valuemax="1440" aria-valuenow="0"></div>
+    <div id="wtip" class="th-wtip" hidden></div>
+  </div>
+  <div id="speed" class="dmc-seg th-speed" role="group" aria-label="Playback speed"></div>
+  <button id="loc" class="th-round" type="button" aria-label="Listen from my location" title="Listen from my location">
+    <svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="5.5"/><circle cx="10" cy="10" r="1.6" fill="currentColor"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3"/></svg>
+  </button>
+  <button id="mute" class="th-round" type="button" aria-pressed="false" aria-label="Mute" title="Mute (M)">
+    <svg class="i-on" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8v4h3l4 3.5v-11L6 8H3z"/><path d="M13 7.2a4 4 0 0 1 0 5.6M15.3 5a7 7 0 0 1 0 10"/></svg>
+    <svg class="i-off" viewBox="0 0 20 20" aria-hidden="true"><path d="M3 8v4h3l4 3.5v-11L6 8H3z"/><path d="M13.5 7.5l5 5M18.5 7.5l-5 5"/></svg>
+  </button>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 11,
+  title: 'A day of lightning strikes, replayed as thunder',
+  deck: 'Every lightning reading from Singapore\'s sensors on the stormiest day of the past two months, played back as sound. Each flash sends out a ring at the speed of sound, and its thunder plays only when the ring reaches the ear, so a flash 7 km away rumbles about 20 seconds after you see it.',
+  accent: '#EAF27A',
+  basemap: 'esri-imagery',
+  basemapPaint: { 'raster-saturation': -.55, 'raster-contrast': .12 },
+  basemapBg: '#05070F',
+  bounds: [[103.6, 1.2], [104.06, 1.475]],
+  maxBounds: [[102.7, .55], [105.05, 2.05]],
+  minZoom: 7.5, maxZoom: 16,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 50 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Lightning: <a href="https://data.gov.sg/datasets/d_08238953fe0f6dd13f10714ebfbcb9f9/view" target="_blank" rel="noopener noreferrer">NEA Lightning Observation API</a> (Meteorological Service Singapore) via data.gov.sg, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>',
+    'Place names: <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>, <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a>, ' + DMC.OSM_CREDIT,
+    'Speed of sound: <a href="https://www.grc.nasa.gov/www/k-12/airplane/sound.html" target="_blank" rel="noopener noreferrer">NASA Glenn</a>; how far thunder carries: <a href="https://www.weather.gov/safety/lightning-science-thunder" target="_blank" rel="noopener noreferrer">US National Weather Service</a>',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const params = new URLSearchParams(location.search);
+const RMQ = matchMedia('(prefers-reduced-motion: reduce)');
+let still = RMQ.matches || params.has('still');
+RMQ.addEventListener && RMQ.addEventListener('change', e => { still = e.matches || params.has('still'); });
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+
+/* ---------- constants ---------- */
+const SOUND = 343;                 // m/s: dry air at 20 °C
+const C_MS = SOUND / 1000;         // metres per millisecond
+const HEAR = 20, FADE0 = 12;       // km: thunder fades out between 12 and 20 km (NWS: heard to about 16 km)
+const DAY_MS = 86400000;
+const SPEEDS = [1, 5, 20, 60, 300];
+const FLASH_GAP = 350;             // ms between flash onsets: at most 2.9 flashes a second (WCAG 2.3.1)
+const FLASH_LIFE = 620;
+const MAX_SPOTS = 4;               // lit spots per flash
+const RING_SOFT = 120, RING_HARD = 200;
+const LOOK = 300, WIN = 120;       // audio look-ahead and merge window, wall ms
+const DIRS = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+
+/* ---------- data ---------- */
+let D = null, N = 0, T, LNG, LAT, G, MX, MY, ALLPRE;
+let L = [103.8485, 1.351], KX = 111.3195, KY = 110.574;
+let DIST, ARR, ORD, NEARPRE;
+// The strikes come packed in one string (see the build script): per strike, polyline-style
+// varints for the milliseconds since the last strike (with the cloud-to-ground flag in the
+// lowest bit) and the steps in longitude and latitude, in 1e-4 degree units.
+function decode(d) {
+  N = d.n;
+  T = new Float64Array(N); LNG = new Float64Array(N); LAT = new Float64Array(N); G = new Uint8Array(N);
+  const s = d.s;
+  let p = 0, t = 0, x = 0, y = 0;
+  const next = () => { let v = 0, sh = 0, b; do { b = s.charCodeAt(p++) - 63; v += (b & 31) * 2 ** sh; sh += 5; } while (b >= 32); return v; };
+  const zz = v => (v % 2 ? -(v + 1) / 2 : v / 2);
+  for (let i = 0; i < N; i++) {
+    const a = next();
+    t += Math.floor(a / 2); G[i] = a % 2;
+    x += zz(next()); y += zz(next());
+    T[i] = t; LNG[i] = d.x0 + x / d.scale; LAT[i] = d.y0 + y / d.scale;
+  }
+  if (p !== s.length) throw new Error('storm data did not decode cleanly');
+  MX = new Float64Array(N); MY = new Float64Array(N);
+  for (let i = 0; i < N; i++) { MX[i] = (LNG[i] + 180) / 360; MY[i] = .5 - Math.log(Math.tan(Math.PI / 4 + LAT[i] * Math.PI / 360)) / (2 * Math.PI); }
+  ALLPRE = new Uint32Array(1441);
+  for (let i = 0; i < N; i++) ALLPRE[Math.min(1439, Math.floor(T[i] / 60000)) + 1]++;
+  for (let m = 1; m <= 1440; m++) ALLPRE[m] += ALLPRE[m - 1];
+  DIST = new Float32Array(N); ARR = new Float64Array(N);
+}
+// Everything that depends on where the ear is.
+function listen(ll) {
+  L = ll;
+  KX = 111.3195 * Math.cos(L[1] * Math.PI / 180);
+  const aud = [];
+  NEARPRE = new Uint32Array(1441);
+  for (let i = 0; i < N; i++) {
+    const dx = (LNG[i] - L[0]) * KX, dy = (LAT[i] - L[1]) * KY, d = Math.hypot(dx, dy);
+    DIST[i] = d; ARR[i] = T[i] + d * 1000 / C_MS;
+    if (d <= HEAR) { aud.push(i); NEARPRE[Math.min(1439, Math.floor(T[i] / 60000)) + 1]++; }
+  }
+  for (let m = 1; m <= 1440; m++) NEARPRE[m] += NEARPRE[m - 1];
+  ORD = Uint32Array.from(aud).sort((a, b) => ARR[a] - ARR[b]);
+}
+const loud = d => {   // 0..1: how loud a strike d km away sounds
+  const fade = d <= FADE0 ? 1 : d >= HEAR ? 0 : .5 + .5 * Math.cos(Math.PI * (d - FADE0) / (HEAR - FADE0));
+  return fade / (1 + d / 4);
+};
+const lowerT = t => { let lo = 0, hi = N; while (lo < hi) { const m = (lo + hi) >> 1; if (T[m] <= t) lo = m + 1; else hi = m; } return lo; };
+const lowerA = t => { let lo = 0, hi = ORD.length; while (lo < hi) { const m = (lo + hi) >> 1; if (ARR[ORD[m]] <= t) lo = m + 1; else hi = m; } return lo; };
+const dirOf = i => DIRS[Math.round(((Math.atan2((LNG[i] - L[0]) * KX, (LAT[i] - L[1]) * KY) * 180 / Math.PI + 360) % 360) / 45) % 8];
+const fmtKm = d => d < 1 ? `${Math.max(10, Math.round(d * 100) * 10)} m` : `${d.toFixed(1)} km`;
+const fmtSec = s => s < 1 ? 'under a second' : `${Math.round(s)} s`;
+const hms = ms => { const s = Math.floor(ms / 1000); return `${String(Math.floor(s / 3600)).padStart(2, '0')}:${String(Math.floor(s / 60) % 60).padStart(2, '0')}:${String(s % 60).padStart(2, '0')}`; };
+const hm = ms => hms(ms).slice(0, 5);
+
+/* ---------- audio: synthesised thunder ---------- */
+let AC = null, master = null, noiseW = null, noiseB = null, muted = params.has('mute');
+let voices = [];
+function ensureAudio() {
+  if (AC) return true;
+  const Ctx = window.AudioContext || window.webkitAudioContext;
+  if (!Ctx) return false;
+  AC = new Ctx({ latencyHint: 'interactive' });
+  const comp = AC.createDynamicsCompressor();
+  comp.threshold.value = -16; comp.knee.value = 8; comp.ratio.value = 12; comp.attack.value = .002; comp.release.value = .35;
+  master = AC.createGain(); master.gain.value = muted ? 0 : .85;
+  master.connect(comp); comp.connect(AC.destination);
+  const len = AC.sampleRate * 4;
+  noiseW = AC.createBuffer(1, len, AC.sampleRate);
+  noiseB = AC.createBuffer(1, len, AC.sampleRate);
+  const w = noiseW.getChannelData(0), b = noiseB.getChannelData(0);
+  let last = 0;
+  for (let k = 0; k < len; k++) {
+    w[k] = Math.random() * 2 - 1;
+    last = (last + .02 * (Math.random() * 2 - 1)) / 1.02;   // brown noise: integrated white
+    b[k] = last * 3.5;
+  }
+  return true;
+}
+const audioOn = () => AC && !muted && AC.state !== 'closed';
+// One thunder voice: a crack for a close strike, then a low-passed rolling rumble. Far
+// thunder loses its highs and rolls on longer; the pan follows the bearing (facing north).
+function thunder(when, d, s, pan, cg, n) {
+  const ct = AC.currentTime;
+  voices = voices.filter(v => v.end > ct);
+  if (voices.length >= 22 || (voices.length >= 14 && s < .3)) return;
+  const out = AC.createGain();
+  if (AC.createStereoPanner) { const p = AC.createStereoPanner(); p.pan.value = pan; out.connect(p); p.connect(master); } else out.connect(master);
+  const srcs = [];
+  const amp = Math.min(1.25, s * (1 + .12 * Math.log2(Math.max(1, n))));
+  const dur = 1.4 + d * .32 + Math.random() * 1.3 + Math.min(1.5, .35 * Math.log2(Math.max(1, n)));
+  // rumble
+  const r = AC.createBufferSource(); r.buffer = noiseB; r.loop = true;
+  const lp = AC.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 70 + 1500 / (1 + d * .85); lp.Q.value = .4;
+  const sh = AC.createBiquadFilter(); sh.type = 'lowshelf'; sh.frequency.value = 110; sh.gain.value = 5;
+  const g = AC.createGain(); g.gain.value = 0;
+  r.connect(lp); lp.connect(sh); sh.connect(g); g.connect(out);
+  const A = amp * 3.4, atk = .012 + d * .028;
+  g.gain.setValueAtTime(0, when);
+  g.gain.linearRampToValueAtTime(A * (d < 3 ? 1 : .7), when + atk);
+  const rolls = 2 + Math.floor(Math.random() * 3) + (d > 6 ? 2 : 0);
+  let t = when + atk;
+  const seg = (dur - atk) / rolls;
+  for (let k = 0; k < rolls; k++) {
+    const env = Math.exp(-2.4 * (t + seg - when) / dur);
+    g.gain.linearRampToValueAtTime(A * env * (.2 + .2 * Math.random()), t + seg * (.35 + .3 * Math.random()));
+    g.gain.linearRampToValueAtTime(A * env * (.55 + .45 * Math.random()), t + seg);
+    t += seg;
+  }
+  g.gain.linearRampToValueAtTime(0, when + dur + .5);
+  r.start(when, Math.random() * 3); r.stop(when + dur + .6); srcs.push(r);
+  // the crack of a close strike
+  const near = Math.max(0, 1 - d / 3);
+  if (near > 0) {
+    const C = amp * near * (cg ? 2.6 : 1.2);
+    const c = AC.createBufferSource(); c.buffer = noiseW;
+    const hp = AC.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 700 + 1600 * near;
+    const cgn = AC.createGain(); cgn.gain.value = 0;
+    c.connect(hp); hp.connect(cgn); cgn.connect(out);
+    cgn.gain.setValueAtTime(0, when);
+    cgn.gain.linearRampToValueAtTime(C, when + .003);
+    cgn.gain.exponentialRampToValueAtTime(C * .2 + 1e-4, when + .07);
+    cgn.gain.linearRampToValueAtTime(C * .55, when + .1);
+    cgn.gain.exponentialRampToValueAtTime(1e-4, when + .45);
+    c.start(when, Math.random() * 3); c.stop(when + .5); srcs.push(c);
+    // and the thump underneath it
+    const o = AC.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(62, when); o.frequency.exponentialRampToValueAtTime(38, when + .6);
+    const og = AC.createGain(); og.gain.value = 0;
+    o.connect(og); og.connect(out);
+    og.gain.setValueAtTime(0, when);
+    og.gain.linearRampToValueAtTime(amp * near * 2, when + .015);
+    og.gain.exponentialRampToValueAtTime(1e-4, when + .75);
+    o.start(when); o.stop(when + .8); srcs.push(o);
+  }
+  const v = { srcs, end: when + dur + .6 };
+  r.onended = () => { try { out.disconnect(); } catch (e) {} };
+  voices.push(v);
+}
+function stopVoices() {
+  for (const v of voices) for (const s of v.srcs) { try { s.stop(); } catch (e) {} }
+  voices = [];
+}
+
+/* ---------- playback state ---------- */
+let tNow = 0, playing = false, ended = false, speed = 1, iNext = 0, aNext = 0, lastWall = performance.now();
+let rings = [], flashes = [], pend = [], lastFlash = -1e9, open = null, events = [], counting = null, startT = 0;
+function seek(t, keepSound) {
+  tNow = Math.max(0, Math.min(DAY_MS - 1, t));
+  iNext = lowerT(tNow); aNext = lowerA(tNow);
+  rings = []; flashes = []; pend = []; open = null; events = []; counting = null; backlog = null;
+  if (!keepSound) stopVoices();
+  // sound already on its way: rebuild the rings of strikes heard after now
+  const back = HEAR * 1000 / C_MS;
+  for (let i = lowerT(tNow - back); i < iNext; i++) if (DIST[i] <= HEAR && ARR[i] > tNow) addRing(i);
+  ended = false;
+  hud(true); drawWave();
+}
+function addRing(i) {
+  if (rings.length >= RING_HARD) return;
+  if (rings.length >= RING_SOFT && !(G[i] || DIST[i] < 5)) return;
+  rings.push(i);
+}
+function onStrike(i) {
+  if (DIST[i] <= HEAR) {
+    addRing(i);
+    if (!counting) counting = { i, done: 0 };
+  }
+  if (!still && (pend.length < 300 || (G[i] && pend.length < 600))) pend.push(i);
+}
+// Thunder arrivals are gathered a little ahead of the clock, merged when they come within
+// WIN ms of each other, and scheduled on the audio clock so they land exactly in time.
+function scanArrivals(until) {
+  while (aNext < ORD.length) {
+    const i = ORD[aNext], at = ARR[i];
+    if (at > until) break;
+    aNext++;
+    if (at < tNow - 30) continue;
+    const s = loud(DIST[i]);
+    if (open && at - open.at <= WIN * speed) {
+      open.n++;
+      if (DIST[i] < DIST[open.i]) open.i = i;
+      if (s > open.s) open.s = s;
+      if (G[i]) open.cg = 1;
+      continue;
+    }
+    if (open) finalize(open);
+    open = { at, i, n: 1, s, cg: G[i] };
+  }
+  if (open && until >= open.at + WIN * speed) { finalize(open); open = null; }
+}
+function finalize(g) {
+  events.push(g);
+  if (audioOn() && g.s > .004) {
+    const when = AC.currentTime + Math.max(0, (g.at - tNow) / speed / 1000);
+    const i = g.i, d = DIST[i];
+    const pan = d > .05 ? Math.max(-.85, Math.min(.85, (LNG[i] - L[0]) * KX / d * .85)) : 0;
+    thunder(when, d, g.s, pan, g.cg, g.n);
+  }
+}
+
+/* ---------- captions ---------- */
+const cc = $('cc');
+let lastCC = -1e9, backlog = null, lastSR = -1e9, lastPulse = -1e9;
+function ccLine(i, n) {
+  const d = DIST[i], s = d * 1000 / SOUND;
+  if (d < .2) return '<b>Crash!</b> Lightning right above you, the thunder at once';
+  const where = `${fmtKm(d)} ${dirOf(i)}`;
+  const kind = d < 2 ? 'Sharp crack' : d < 9 ? 'Thunder' : 'Low rumble';
+  return `<b>${kind}</b> from ${where}, ${fmtSec(s)} after the flash`;
+}
+function caption(html, now) {
+  const p = document.createElement('p');
+  p.innerHTML = html;
+  cc.append(p);
+  const ps = [...cc.children];
+  if (ps.length > 2) ps.slice(0, ps.length - 2).forEach(e => e.remove());
+  if (cc.children.length > 1) cc.firstElementChild.classList.add('old');
+  setTimeout(() => p.classList.add('gone'), 4200);
+  setTimeout(() => p.remove(), 4900);
+  lastCC = now;
+  if (now - lastSR > 5000) { $('sr').textContent = p.textContent; lastSR = now; }
+}
+function onHear(g, now) {
+  if (now - lastPulse > 400) {
+    const ear = earEl;
+    ear.style.setProperty('--loud', Math.min(1, g.s * 1.6).toFixed(2));
+    ear.classList.remove('hear'); void ear.offsetWidth; ear.classList.add('hear');
+    lastPulse = now;
+  }
+  if (g.s < .004) return;
+  if (backlog) { backlog.n += g.n; if (DIST[g.i] < DIST[backlog.i]) backlog.i = g.i; }
+  else backlog = { i: g.i, n: g.n };
+}
+function flushCaptions(now) {
+  if (backlog && now - lastCC >= 1100) { caption(ccLine(backlog.i, backlog.n), now); backlog = null; }
+}
+
+/* ---------- the map: darkness, lit by the flashes ---------- */
+const mpp = lat => 40075016.686 * Math.cos(lat * Math.PI / 180) / (512 * 2 ** map.getZoom());
+// Lit-spot radius in pixels: about 3 km on the ground, never more than 64 px.
+const revealPx = () => Math.min(64, 3000 / mpp(L[1]));
+// The night layer always holds one weightless point, so it has something to draw and stays dark.
+const restDark = () => ({ type: 'FeatureCollection', features: [{ type: 'Feature', properties: { w: 0 }, geometry: { type: 'Point', coordinates: L.slice() } }] });
+let darkDirty = false;
+function addLayers() {
+  map.addSource('lit', { type: 'geojson', data: restDark(), maxzoom: 12, buffer: 64 });
+  // A heatmap whose colour at zero density is the night itself: the flashes punch soft
+  // holes in it and the satellite image shows through, the way lightning lights the land.
+  map.addLayer({ id: 'night', type: 'heatmap', source: 'lit', paint: {
+    'heatmap-weight': ['get', 'w'],
+    'heatmap-intensity': 2.4,
+    'heatmap-radius': ['interpolate', ['exponential', 2], ['zoom'], 7, 4.9, 10.7, 64, 22, 64],
+    'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(4,6,17,0.83)', .25, 'rgba(6,9,24,0.6)', .7, 'rgba(10,14,34,0.12)', 1, 'rgba(10,14,34,0)'],
+  } });
+  // the whole day's lightning as a faint violet haze: where the storms went
+  const cell = .004, bins = new Map();
+  for (let i = 0; i < N; i++) {
+    const k = Math.round((LNG[i] - 103) / cell) * 4096 + Math.round((LAT[i] - .8) / cell);
+    bins.set(k, (bins.get(k) || 0) + 1);
+  }
+  const haze = [];
+  for (const [k, w] of bins) haze.push({ type: 'Feature', properties: { w }, geometry: { type: 'Point', coordinates: [103 + Math.floor(k / 4096) * cell, .8 + (k % 4096) * cell] } });
+  map.addSource('haze', { type: 'geojson', data: { type: 'FeatureCollection', features: haze } });
+  map.addLayer({ id: 'haze', type: 'heatmap', source: 'haze', paint: {
+    'heatmap-weight': ['interpolate', ['linear'], ['get', 'w'], 0, 0, 300, 1],
+    'heatmap-intensity': .7,
+    'heatmap-radius': ['interpolate', ['exponential', 2], ['zoom'], 8, 3.5, 14, 224],
+    'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(60,50,150,0)', .15, 'rgba(80,70,190,.14)', .5, 'rgba(130,120,240,.26)', 1, 'rgba(185,180,255,.38)'],
+    'heatmap-opacity': .85,
+  } });
+  // place names, faint, so you can tell where the ear is
+  map.setGlyphs('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
+  map.addSource('ofm', { type: 'vector', url: 'https://tiles.openfreemap.org/planet' });
+  const name = ['coalesce', ['get', 'name:en'], ['get', 'name_en'], ['get', 'name']];
+  map.addLayer({ id: 'places', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 9.6,
+    filter: ['match', ['get', 'class'], ['suburb', 'town', 'city', 'quarter'], true, false],
+    layout: { 'text-field': name, 'text-font': ['Noto Sans Regular'], 'text-transform': 'uppercase', 'text-letter-spacing': .12, 'text-max-width': 7,
+      'text-size': ['interpolate', ['linear'], ['zoom'], 10, 9, 13, 11.5], 'text-padding': 6 },
+    paint: { 'text-color': 'rgba(196,206,236,.52)', 'text-halo-color': 'rgba(4,6,17,.85)', 'text-halo-width': 1.2,
+      'text-opacity': ['interpolate', ['linear'], ['zoom'], 9.6, 0, 10.2, 1] } });
+}
+let HOLD = false;   // test hook: keep flashes at their peak for a screenshot
+const env = a => HOLD ? 1 : a < 40 ? a / 40 : Math.exp(-(a - 40) / 165);
+function updateDark(now) {
+  if (!map.getSource('lit')) return;
+  if (!flashes.length) { if (darkDirty) { map.getSource('lit').setData(restDark()); darkDirty = false; } return; }
+  const fs = restDark().features;
+  for (const f of flashes) {
+    const e = env(now - f.w0);
+    for (const s of f.spots) fs.push({ type: 'Feature', properties: { w: e * (s.cg ? 1 : .72) }, geometry: { type: 'Point', coordinates: [LNG[s.i], LAT[s.i]] } });
+  }
+  map.getSource('lit').setData({ type: 'FeatureCollection', features: fs });
+  darkDirty = true;
+}
+// Merge whatever struck since the last flash into one flash, lighting at most MAX_SPOTS places.
+function scheduleFlash(now) {
+  if (!pend.length || now - lastFlash < FLASH_GAP) return;
+  const W = fx.clientWidth, H = fx.clientHeight, R = revealPx();
+  const cand = pend.sort((a, b) => (G[b] - G[a]) || (DIST[a] - DIST[b]));
+  const spots = [];
+  for (const i of cand) {
+    const p = map.project([LNG[i], LAT[i]]);
+    if (p.x < -R || p.y < -R || p.x > W + R || p.y > H + R) continue;
+    if (spots.some(o => Math.hypot(o.x - p.x, o.y - p.y) < R * 1.7)) continue;
+    spots.push({ i, x: p.x, y: p.y, cg: G[i], bolt: G[i] ? bolt(i, R) : null });
+    if (spots.length >= MAX_SPOTS) break;
+  }
+  pend = [];
+  if (!spots.length) return;
+  flashes.push({ w0: now, spots });
+  lastFlash = now;
+}
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+// A cloud-to-ground bolt seen from above: a few jagged branches out from where it struck.
+function bolt(seed, R) {
+  const r = rng(seed * 7919 + 13), lines = [];
+  const branch = (x, y, ang, len, depth) => {
+    const pts = [[x, y]], steps = 4 + Math.floor(r() * 4);
+    for (let s = 0; s < steps; s++) {
+      ang += (r() - .5) * 1.2;
+      const l = len / steps * (.6 + r() * .8);
+      x += Math.cos(ang) * l; y += Math.sin(ang) * l; pts.push([x, y]);
+      if (depth < 2 && r() < .28) branch(x, y, ang + (r() < .5 ? -1 : 1) * (.5 + r() * .6), len * .42, depth + 1);
+    }
+    lines.push({ pts, w: depth ? .8 : 1.5 });
+  };
+  const n = 2 + Math.floor(r() * 2);
+  for (let k = 0; k < n; k++) branch(0, 0, r() * 6.283, Math.max(10, R * .62) * (.7 + r() * .5), 0);
+  return lines;
+}
+
+/* ---------- the effects canvas: rings, dots, glow ---------- */
+const fx = document.createElement('canvas');
+fx.className = 'th-fx';
+const canvasBox = map.getCanvasContainer();
+canvasBox.insertBefore(fx, map.getCanvas().nextSibling);
+const vig = document.createElement('div'); vig.className = 'th-vignette';
+map.getContainer().insertBefore(vig, map.getContainer().querySelector('.maplibregl-control-container'));
+const g2 = fx.getContext('2d');
+let fxW = 0, fxH = 0, dpr = 1;
+function sizeFx() {
+  dpr = Math.min(2, devicePixelRatio || 1);
+  fxW = fx.clientWidth; fxH = fx.clientHeight;
+  fx.width = Math.round(fxW * dpr); fx.height = Math.round(fxH * dpr);
+}
+function circlePath(lng, lat, rM, pxR, pitched, cx, cy) {
+  if (!pitched) { g2.moveTo(cx + pxR, cy); g2.arc(cx, cy, pxR, 0, 6.2832); return; }
+  const n = Math.max(24, Math.min(90, Math.round(pxR / 3)));
+  const kx = 111320 * Math.cos(lat * Math.PI / 180), ky = 110574;
+  for (let k = 0; k <= n; k++) {
+    const a = k / n * 6.2832, p = map.project([lng + rM * Math.cos(a) / kx, lat + rM * Math.sin(a) / ky]);
+    if (k) g2.lineTo(p.x, p.y); else g2.moveTo(p.x, p.y);
+  }
+}
+// With the map flat, Web Mercator to screen is an affine map: fit it from three projected
+// points once a frame, then place thousands of strikes without calling map.project for each.
+let AF = null, PX = 0, PY = 0;
+const toLL = (x, y) => [x * 360 - 180, 360 / Math.PI * Math.atan(Math.exp((1 - 2 * y) * Math.PI)) - 90];
+function fitAffine() {
+  if (map.getPitch() > .5) { AF = null; return; }
+  const c = map.getCenter(), d = 1e-3;
+  const m0x = (c.lng + 180) / 360, m0y = .5 - Math.log(Math.tan(Math.PI / 4 + c.lat * Math.PI / 360)) / (2 * Math.PI);
+  const p0 = map.project(toLL(m0x, m0y)), p1 = map.project(toLL(m0x + d, m0y)), p2 = map.project(toLL(m0x, m0y + d));
+  AF = { m0x, m0y, x0: p0.x, y0: p0.y, ax: (p1.x - p0.x) / d, ay: (p1.y - p0.y) / d, bx: (p2.x - p0.x) / d, by: (p2.y - p0.y) / d };
+}
+function proj(i) {   // strike i to screen pixels, into PX, PY
+  if (AF) { const dx = MX[i] - AF.m0x, dy = MY[i] - AF.m0y; PX = AF.x0 + AF.ax * dx + AF.bx * dy; PY = AF.y0 + AF.ay * dx + AF.by * dy; }
+  else { const p = map.project([LNG[i], LAT[i]]); PX = p.x; PY = p.y; }
+}
+const RANGES = [5, 10, 15, 20];
+function draw(now) {
+  if (!D) return;
+  if (fx.clientWidth !== fxW || fx.clientHeight !== fxH) sizeFx();
+  g2.setTransform(dpr, 0, 0, dpr, 0, 0);
+  g2.clearRect(0, 0, fxW, fxH);
+  fitAffine();
+  const pitched = map.getPitch() > .5, m = mpp(L[1]);
+  const lp = map.project(L);
+  g2.font = '600 10px "Instrument Sans", system-ui, sans-serif';
+
+  // the sensors' box
+  if (D.coverage) {
+    const [w, s, e, n] = D.coverage;
+    const c = [[w, n], [e, n], [e, s], [w, s]].map(q => map.project(q));
+    g2.beginPath(); c.forEach((p, k) => k ? g2.lineTo(p.x, p.y) : g2.moveTo(p.x, p.y)); g2.closePath();
+    g2.setLineDash([5, 5]); g2.strokeStyle = 'rgba(200,210,255,.26)'; g2.lineWidth = 1; g2.stroke(); g2.setLineDash([]);
+    if (c[0].x > -40 && c[0].y > -10 && c[0].x < fxW - 160) { g2.fillStyle = 'rgba(200,210,255,.5)'; g2.fillText('Edge of the sensors’ view', c[0].x + 6, c[0].y + 14); }
+  }
+  // earshot: soft disc and range rings around the ear
+  const r20 = HEAR * 1000 / m;
+  const gr = g2.createRadialGradient(lp.x, lp.y, 0, lp.x, lp.y, r20);
+  gr.addColorStop(0, 'rgba(234,242,122,.07)'); gr.addColorStop(.6, 'rgba(234,242,122,.035)'); gr.addColorStop(1, 'rgba(234,242,122,0)');
+  if (!pitched) { g2.fillStyle = gr; g2.beginPath(); g2.arc(lp.x, lp.y, r20, 0, 6.2832); g2.fill(); }
+  g2.setLineDash([2, 5]); g2.lineWidth = 1;
+  for (const km of RANGES) {
+    g2.beginPath(); circlePath(L[0], L[1], km * 1000, km * 1000 / m, pitched, lp.x, lp.y);
+    g2.strokeStyle = `rgba(234,242,122,${km === HEAR ? .3 : .17})`; g2.stroke();
+  }
+  g2.setLineDash([]);
+  if (!pitched) {
+    // each ring's label sits where it fits: up-right first, then up-left, down-right, down-left
+    g2.fillStyle = 'rgba(234,242,122,.62)';
+    const bottom = fxH - deckH - 10, right = fxW - (COMPACT.matches ? 50 : 60);
+    for (const km of RANGES) {
+      const rr = km * 1000 / m;
+      if (rr < 26) continue;
+      const txt = `${km} km · ${Math.round(km * 1000 / SOUND)} s${km === HEAR && !COMPACT.matches ? ' · out of earshot' : ''}`, tw = g2.measureText(txt).width;
+      for (const a of [-.7854, -2.3562, .7854, 2.3562]) {
+        const lx = lp.x + rr * Math.cos(a), ly = lp.y + rr * Math.sin(a), leftSide = Math.cos(a) < 0;
+        const x = leftSide ? lx - 4 - tw : lx + 4, y = ly + (Math.sin(a) < 0 ? -2 : 11);
+        if (x < 8 || x + tw > right || y < 12 || y > bottom) continue;
+        if (sheets.some(r => x < r.right && x + tw > r.left && y > r.top && y - 10 < r.bottom)) continue;
+        g2.textAlign = 'left'; g2.fillText(txt, x, y);
+        break;
+      }
+    }
+  }
+
+  // strike dots: recent strikes fade over about a minute and a half of storm time
+  const life = Math.max(90000, 6000 * speed);
+  let lo = lowerT(tNow - life);
+  if (iNext - lo > 6000) lo = iNext - 6000;
+  const buckets = [[], [], [], [], []];
+  for (let i = lo; i < iNext; i++) {
+    const age = tNow - T[i];
+    let a = 1 - age / life;
+    if (still) a *= Math.min(1, age / speed / 1200);   // gentle fade-in instead of a flash
+    if (a <= .02) continue;
+    buckets[Math.min(4, Math.floor(a * 5))].push(i);
+  }
+  buckets.forEach((list, b) => {
+    if (!list.length) return;
+    const a = (b + .5) / 5;
+    g2.fillStyle = `rgba(169,180,255,${(a * .75).toFixed(3)})`;
+    g2.beginPath();
+    for (const i of list) if (!G[i]) { proj(i); g2.rect(PX - .9, PY - .9, 1.8, 1.8); }
+    g2.fill();
+    g2.fillStyle = `rgba(250,252,215,${a.toFixed(3)})`;
+    g2.beginPath();
+    for (const i of list) if (G[i]) { proj(i); g2.rect(PX - 2.6, PY - .7, 5.2, 1.4); g2.rect(PX - .7, PY - 2.6, 1.4, 5.2); }
+    g2.fill();
+  });
+
+  // the counted strike: a dashed line from the ear to it
+  if (counting && !counting.done) {
+    const p = map.project([LNG[counting.i], LAT[counting.i]]);
+    g2.setLineDash([3, 4]); g2.strokeStyle = 'rgba(234,242,122,.55)'; g2.lineWidth = 1;
+    g2.beginPath(); g2.moveTo(lp.x, lp.y); g2.lineTo(p.x, p.y); g2.stroke(); g2.setLineDash([]);
+  }
+
+  // sound rings: each grows at 343 m/s (times the speed) until it has passed the ear
+  if (!still) {
+    const keep = [];
+    for (const i of rings) {
+      const rM = (tNow - T[i]) * C_MS, dM = DIST[i] * 1000;
+      if (rM > dM + 1500) continue;
+      keep.push(i);
+      if (rM <= 0) continue;
+      let a = .06 + .6 * loud(DIST[i]);
+      if (rM < 300) a *= rM / 300;
+      if (rM > dM) a *= 1 - (rM - dM) / 1500;
+      const hot = counting && counting.i === i;
+      proj(i);
+      g2.beginPath(); circlePath(LNG[i], LAT[i], rM, rM / mpp(LAT[i]), pitched, PX, PY);
+      g2.strokeStyle = `rgba(234,242,122,${Math.min(1, hot ? a + .35 : a).toFixed(3)})`;
+      g2.lineWidth = hot ? 2.2 : G[i] ? 1.5 : DIST[i] < 8 ? 1 : .8;
+      g2.stroke();
+    }
+    rings = keep;
+  } else {
+    rings = rings.filter(i => (tNow - T[i]) * C_MS <= DIST[i] * 1000 + 1500);
+  }
+
+  // flashes: glow, and a bolt for cloud-to-ground strikes
+  if (flashes.length) {
+    const R = revealPx();
+    if (!HOLD) flashes = flashes.filter(f => now - f.w0 < FLASH_LIFE);
+    for (const f of flashes) {
+      const e = env(now - f.w0);
+      for (const s of f.spots) {
+        proj(s.i); const p = { x: PX, y: PY };
+        const rr = R * (s.cg ? 1.05 : 1.25);
+        const gl = g2.createRadialGradient(p.x, p.y, 0, p.x, p.y, rr);
+        const tint = s.cg ? '225,232,255' : '190,198,255';
+        gl.addColorStop(0, `rgba(${tint},${(e * (s.cg ? .5 : .3)).toFixed(3)})`);
+        gl.addColorStop(.45, `rgba(${tint},${(e * .14).toFixed(3)})`);
+        gl.addColorStop(1, `rgba(${tint},0)`);
+        g2.fillStyle = gl; g2.beginPath(); g2.arc(p.x, p.y, rr, 0, 6.2832); g2.fill();
+        if (s.bolt) {
+          g2.lineCap = 'round'; g2.lineJoin = 'round';
+          for (const ln of s.bolt) {
+            g2.beginPath();
+            ln.pts.forEach(([x, y], k) => k ? g2.lineTo(p.x + x, p.y + y) : g2.moveTo(p.x + x, p.y + y));
+            g2.strokeStyle = `rgba(190,205,255,${(e * .35).toFixed(3)})`; g2.lineWidth = ln.w + 3; g2.stroke();
+            g2.strokeStyle = `rgba(248,250,255,${(e * .95).toFixed(3)})`; g2.lineWidth = ln.w; g2.stroke();
+          }
+        }
+      }
+    }
+  }
+}
+
+/* ---------- the ear ---------- */
+const earEl = document.createElement('div');
+earEl.className = 'ear';
+earEl.tabIndex = 0;
+earEl.setAttribute('role', 'button');
+earEl.setAttribute('aria-label', 'The ear: where you listen from. Drag it, or use the arrow keys to move it.');
+earEl.innerHTML = '<div id="count" class="ear-count" hidden></div><div class="ear-pin"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 15v-3a7.5 7.5 0 0 1 15 0v3"/><rect x="4" y="14" width="3.6" height="6" rx="1.4"/><rect x="16.4" y="14" width="3.6" height="6" rx="1.4"/></svg></div>';
+const ear = new maplibregl.Marker({ element: earEl, draggable: true, anchor: 'center' }).setLngLat(L).addTo(map);
+const countEl = earEl.querySelector('#count');
+function moveEar(ll, quiet) {
+  if (!D) return;
+  ear.setLngLat(ll);
+  listen(ll);
+  seek(tNow, true);
+  updateNear();
+  if (!quiet) caption(`<b>Moved the ear.</b> ${nf.format(NEARPRE[1440])} of the day’s readings were within earshot here`, performance.now());
+}
+ear.on('drag', () => { const p = ear.getLngLat(); L = [p.lng, p.lat]; KX = 111.3195 * Math.cos(L[1] * Math.PI / 180); });
+ear.on('dragend', () => { const p = ear.getLngLat(); moveEar([p.lng, p.lat]); });
+let nudgeT = 0;
+earEl.addEventListener('keydown', e => {
+  const step = (e.shiftKey ? 1500 : 300);
+  const k = { ArrowUp: [0, 1], ArrowDown: [0, -1], ArrowLeft: [-1, 0], ArrowRight: [1, 0] }[e.key];
+  if (!k) return;
+  e.preventDefault(); e.stopPropagation();
+  const p = ear.getLngLat();
+  const ll = [p.lng + k[0] * step / (111320 * Math.cos(p.lat * Math.PI / 180)), p.lat + k[1] * step / 110574];
+  ear.setLngLat(ll); L = ll;
+  clearTimeout(nudgeT); nudgeT = setTimeout(() => moveEar(ll), 180);
+});
+map.on('click', e => {
+  if (!D || (e.originalEvent && e.originalEvent.target.closest && e.originalEvent.target.closest('.ear'))) return;
+  moveEar([e.lngLat.lng, e.lngLat.lat]);
+});
+
+/* ---------- flash-to-bang counter on the ear ---------- */
+let countText = '';
+function updateCount(now) {
+  let txt = '';
+  if (counting) {
+    const i = counting.i;
+    if (!counting.done && tNow >= ARR[i]) counting.done = now;
+    if (counting.done) {
+      if (now - counting.done > (still ? 3200 : 2400)) { counting = null; pickCount(); }
+      else txt = `<b>${DIST[i] < 2 ? 'Crack!' : DIST[i] < 9 ? 'Boom.' : 'Rumble.'}</b> ${Math.round((ARR[i] - T[i]) / 1000)} s → ${fmtKm(DIST[i])}`;
+    } else {
+      const s = Math.floor((tNow - T[i]) / 1000);
+      txt = `<svg viewBox="0 0 10 14" aria-hidden="true"><path d="M6.5 0 1 8h3.2L3 14l6-8.4H5.6L6.5 0z"/></svg>${s} s…`;
+    }
+  }
+  if (txt !== countText) {
+    countText = txt;
+    countEl.innerHTML = txt;
+    countEl.hidden = !txt;
+    countEl.classList.toggle('done', !!(counting && counting.done));
+  }
+}
+// After a count, follow the nearest strike whose sound is still on the way.
+function pickCount() {
+  let best = -1;
+  for (const i of rings) if (ARR[i] > tNow + 900 * speed && (best < 0 || DIST[i] < DIST[best])) best = i;
+  if (best >= 0) counting = { i: best, done: 0 };
+}
+
+/* ---------- the waveform scrubber ---------- */
+const wave = $('wave'), wg = wave.getContext('2d'), scrub = $('scrub'), wtip = $('wtip');
+let waveBins = 0;
+function drawWave() {
+  if (!D) return;
+  const w = wave.clientWidth, h = wave.clientHeight, r = Math.min(2, devicePixelRatio || 1);
+  if (!w || !h) return;
+  if (wave.width !== Math.round(w * r) || wave.height !== Math.round(h * r)) { wave.width = Math.round(w * r); wave.height = Math.round(h * r); }
+  wg.setTransform(r, 0, 0, r, 0, 0);
+  wg.clearRect(0, 0, w, h);
+  const B = waveBins = Math.max(48, Math.floor(w / 3)), bw = w / B;
+  const top = 2, base = h - 12, mid = top + (base - top) / 2, half = (base - top) / 2 - 1;
+  const all = new Array(B), near = new Array(B);
+  let max = 1;
+  for (let b = 0; b < B; b++) {
+    const m0 = Math.floor(b * 1440 / B), m1 = Math.floor((b + 1) * 1440 / B);
+    const span = Math.max(1, m1 - m0);   // bins can hold 2 or 3 minutes: draw readings per minute
+    all[b] = (ALLPRE[m1] - ALLPRE[m0]) / span; near[b] = (NEARPRE[m1] - NEARPRE[m0]) / span;
+    if (all[b] > max) max = all[b];
+  }
+  const px = tNow / DAY_MS * w;
+  for (let b = 0; b < B; b++) {
+    const x = b * bw, played = x + bw <= px;
+    if (all[b]) {
+      const hu = Math.max(1, Math.sqrt(all[b] / max) * half);
+      wg.fillStyle = played ? 'rgba(220,228,255,.9)' : 'rgba(220,228,255,.3)';
+      wg.fillRect(x, mid - hu, Math.max(1, bw - 1), hu);
+    }
+    if (near[b]) {
+      const hd = Math.max(1, Math.sqrt(near[b] / max) * half);
+      wg.fillStyle = played ? 'rgba(234,242,122,1)' : 'rgba(234,242,122,.34)';
+      wg.fillRect(x, mid + 1, Math.max(1, bw - 1), hd);
+    }
+  }
+  wg.fillStyle = 'rgba(255,255,255,.12)'; wg.fillRect(0, mid, w, 1);
+  // hour ticks
+  wg.font = '500 9.5px "Instrument Sans", system-ui, sans-serif'; wg.textBaseline = 'alphabetic';
+  const step = w < 360 ? 6 : 3;
+  for (let hr = 0; hr <= 24; hr += step) {
+    const x = hr / 24 * w;
+    wg.fillStyle = 'rgba(238,242,247,.18)'; wg.fillRect(Math.min(w - 1, x), base - 2, 1, 3);
+    wg.fillStyle = 'rgba(238,242,247,.55)';
+    wg.textAlign = hr === 0 ? 'left' : hr === 24 ? 'right' : 'center';
+    wg.fillText(String(hr).padStart(2, '0'), x, h - 1);
+  }
+  // playhead
+  wg.fillStyle = '#EAF27A'; wg.fillRect(Math.max(0, Math.min(w - 2, px - 1)), 0, 2, base);
+  wg.beginPath(); wg.arc(Math.max(3, Math.min(w - 3, px)), 1.5, 3.2, 0, 6.2832); wg.fill();
+}
+const tAtX = x => Math.max(0, Math.min(1, x / wave.clientWidth)) * DAY_MS;
+let scrubbing = false;
+scrub.addEventListener('pointerdown', e => {
+  if (!D) return;
+  scrubbing = true; scrub.setPointerCapture(e.pointerId);
+  seek(tAtX(e.clientX - wave.getBoundingClientRect().left));
+  e.preventDefault();
+});
+scrub.addEventListener('pointermove', e => {
+  if (!D) return;
+  const x = e.clientX - wave.getBoundingClientRect().left;
+  if (scrubbing) seek(tAtX(x));
+  if (e.pointerType === 'mouse' || scrubbing) {
+    const B = waveBins || 480, b = Math.min(B - 1, Math.max(0, Math.floor(x / wave.clientWidth * B)));
+    const m0 = Math.floor(b * 1440 / B), m1 = Math.floor((b + 1) * 1440 / B);
+    const a = ALLPRE[m1] - ALLPRE[m0], n = NEARPRE[m1] - NEARPRE[m0];
+    wtip.textContent = `${hm(m0 * 60000)}–${hm(m1 * 60000)} · ${nf.format(a)} readings · ${nf.format(n)} within earshot`;
+    wtip.hidden = false;
+    wtip.style.left = `${Math.max(wtip.offsetWidth / 2, Math.min(wave.clientWidth - wtip.offsetWidth / 2, x))}px`;
+  }
+});
+const endScrub = () => { scrubbing = false; };
+scrub.addEventListener('pointerup', endScrub); scrub.addEventListener('pointercancel', endScrub);
+scrub.addEventListener('pointerleave', () => { if (!scrubbing) wtip.hidden = true; });
+scrub.addEventListener('keydown', e => {
+  if (!D) return;
+  const min = 60000;
+  const k = { ArrowRight: min, ArrowUp: min, ArrowLeft: -min, ArrowDown: -min, PageUp: 60 * min, PageDown: -60 * min }[e.key];
+  if (k != null) { seek(tNow + (e.shiftKey ? k * 10 : k)); e.preventDefault(); }
+  else if (e.key === 'Home') { seek(0); e.preventDefault(); }
+  else if (e.key === 'End') { seek(DAY_MS - 60000); e.preventDefault(); }
+});
+
+/* ---------- the HUD ---------- */
+let hudAt = 0;
+function hud(force) {
+  const now = performance.now();
+  if (!force && now - hudAt < 90) return;
+  hudAt = now;
+  $('clock').textContent = hms(tNow);
+  const heard = lowerA(tNow);
+  $('counts').innerHTML = `${nf.format(iNext)} readings so far · <em>${nf.format(heard)}</em> heard`;
+  scrub.setAttribute('aria-valuenow', String(Math.floor(tNow / 60000)));
+  scrub.setAttribute('aria-valuetext', `${hms(tNow)}, ${nf.format(iNext)} lightning readings so far`);
+}
+function updateNear() {
+  const n = NEARPRE[1440];
+  $('near').innerHTML = `<b>${nf.format(n)}</b> readings (${Math.round(100 * n / N)}%) were within 20&nbsp;km of the ear, close enough to hear: the bars below the line in the timeline.`;
+}
+
+/* ---------- controls ---------- */
+const playBtn = $('play');
+function setPlaying(on) {
+  if (!D) return;
+  if (on) {
+    if (ensureAudio()) AC.resume();
+    if (ended || tNow >= DAY_MS - 1) seek(startT);
+    playing = true; lastWall = performance.now();
+    $('start').hidden = true;
+  } else {
+    playing = false;
+    if (AC && AC.state === 'running') AC.suspend();
+  }
+  playBtn.setAttribute('aria-pressed', String(playing));
+  playBtn.setAttribute('aria-label', playing ? 'Pause the storm' : 'Play the storm');
+}
+playBtn.addEventListener('click', () => setPlaying(!playing));
+$('listen').addEventListener('click', () => { setPlaying(true); playBtn.focus({ preventScroll: true }); });
+const speedBox = $('speed');
+SPEEDS.forEach(s => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.textContent = `${s}×`; b.dataset.s = s;
+  b.setAttribute('aria-pressed', 'false');
+  b.title = s === 1 ? 'Real time' : `${s} times real time`;
+  b.setAttribute('aria-label', s === 1 ? 'Real time' : `${s} times faster`);
+  b.addEventListener('click', () => setSpeed(s));
+  speedBox.append(b);
+});
+function setSpeed(s) {
+  speed = s;
+  for (const b of speedBox.children) b.setAttribute('aria-pressed', String(+b.dataset.s === s));
+  $('clock-sub').innerHTML = `${D ? dateLabel : ''}${s === 1 ? ' · <em>real time</em>' : ` · <em>${s}× faster</em>`}`;
+}
+function setMuted(m) {
+  muted = m;
+  $('mute').setAttribute('aria-pressed', String(m));
+  $('mute').setAttribute('aria-label', m ? 'Unmute' : 'Mute');
+  if (master) master.gain.setTargetAtTime(m ? 0 : .85, AC.currentTime, .04);
+  if (m) stopVoices();
+}
+$('mute').addEventListener('click', () => setMuted(!muted));
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea, select, button, [role="slider"], .ear')) return;
+  if (e.key === ' ') { e.preventDefault(); setPlaying(!playing); }
+  else if (e.key === 'm' || e.key === 'M') setMuted(!muted);
+});
+document.addEventListener('visibilitychange', () => { if (document.hidden && playing) setPlaying(false); });
+map.on('moveend', () => { if (D && !$('start').hidden) layout(); });
+let msgT = 0;
+function say(text) { const m = $('msg'); m.textContent = text; m.hidden = false; clearTimeout(msgT); msgT = setTimeout(() => { m.hidden = true; }, 4200); }
+$('loc').addEventListener('click', () => {
+  if (!navigator.geolocation) { say('This browser can’t share your location.'); return; }
+  say('Finding you…');
+  navigator.geolocation.getCurrentPosition(p => {
+    const ll = [p.coords.longitude, p.coords.latitude], [w, s, e, n] = D.coverage;
+    if (ll[0] < w - .2 || ll[0] > e + .2 || ll[1] < s - .2 || ll[1] > n + .2) { say('You’re outside the area the sensors cover, so the ear stays where it is.'); return; }
+    moveEar(ll);
+    map.easeTo({ center: ll, duration: still ? 0 : 900 });
+    say('The ear is where you are.');
+  }, () => say('Your location isn’t available, so the ear stays where it is.'), { enableHighAccuracy: false, timeout: 10000, maximumAge: 600000 });
+});
+$('more').addEventListener('click', () => {
+  const min = $('info').classList.toggle('min');
+  $('more').setAttribute('aria-expanded', String(!min));
+  $('more').textContent = min ? 'More' : 'Less';
+});
+if (COMPACT.matches) { $('info').classList.add('min'); $('more').setAttribute('aria-expanded', 'false'); $('more').textContent = 'More'; }
+
+/* ---------- layout ---------- */
+let deckH = 90, sheets = [];
+function layout() {
+  const st = $('dmc-stamp'), root = document.documentElement.style;
+  if (!st.classList.contains('open')) root.setProperty('--info-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+  const dr = $('deck').getBoundingClientRect();
+  root.setProperty('--deck-h', `${Math.round(dr.height)}px`);
+  deckH = innerHeight - dr.top;
+  sheets = ['dmc-stamp', 'info'].map(id => $(id).getBoundingClientRect()).filter(r => r.width);
+  // the Listen button and captions sit in the middle of the free part of the map, but never on the ear
+  const p = DMC.overlayPadding();
+  let cx = (p.left + innerWidth - p.right) / 2, cy = (p.top + innerHeight - p.bottom) / 2;
+  root.setProperty('--cx', `${Math.round(Math.max(150, Math.min(innerWidth - 150, cx)))}px`);
+  if (D) {
+    const e = map.project(L), s = $('start').getBoundingClientRect(), hw = Math.max(70, s.width / 2), hh = Math.max(70, s.height / 2);
+    if (Math.abs(e.x - cx) < hw + 26 && Math.abs(e.y - cy) < hh + 26) {
+      const portrait = innerHeight > innerWidth;
+      if (portrait) cy = e.y + (e.y - hh - 40 > p.top ? -(hh + 34) : hh + 34);
+      else cx = e.x + (e.x + hw * 2 + 40 < innerWidth - p.right ? hw + 40 : -(hw + 40));
+    }
+  }
+  root.setProperty('--sx', `${Math.round(cx)}px`);
+  root.setProperty('--cy', `${Math.round(Math.max(100, cy))}px`);
+  drawWave();
+}
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(layout, 120); });
+new ResizeObserver(() => { clearTimeout(rT); rT = setTimeout(layout, 60); }).observe($('info'));
+
+/* ---------- the loop ---------- */
+let waveAt = 0;
+function frame(now) {
+  requestAnimationFrame(frame);
+  const dt = Math.min(250, now - lastWall);
+  lastWall = now;
+  if (playing && D) {
+    const t0 = tNow;
+    tNow = Math.min(DAY_MS - 1, tNow + dt * speed);
+    for (const g of D.stats.gaps || []) if (t0 < g[0] && tNow >= g[0]) caption(`<b>No data:</b> the feed is missing ${hm(g[0])} to ${hm(g[1])}, so these two minutes are silent`, now);
+    while (iNext < N && T[iNext] <= tNow) onStrike(iNext++);
+    scanArrivals(tNow + LOOK * speed);
+    while (events.length && events[0].at <= tNow) onHear(events.shift(), now);
+    // Nothing on screen and nothing on its way: jump to just before the next strike.
+    if (!rings.length && !events.length && !open && !flashes.length && iNext < N) {
+      const next = Math.min(T[iNext], aNext < ORD.length ? ARR[ORD[aNext]] : Infinity);
+      if ((next - tNow) / speed > 3500) {
+        const to = next - 1500 * speed, gap = to - tNow;
+        if (gap >= 60000) caption(`<b>No lightning for ${gap >= 5400000 ? `${Math.round(gap / 3600000)} hours` : `${Math.round(gap / 60000)} minutes`}.</b> Skipping ahead to ${hm(next)}`, now);
+        tNow = to;
+      }
+    }
+    if (iNext >= N && !rings.length && !events.length && !open && aNext >= ORD.length) {
+      setPlaying(false); ended = true;
+      caption(`<b>That was the last lightning of the day</b>, at ${hm(T[N - 1])}. Press play to hear the storm again`, now);
+    }
+    if (counting === null) pickCount();
+  }
+  if (!still) scheduleFlash(now);
+  updateDark(now);
+  flushCaptions(now);
+  updateCount(now);
+  draw(now);
+  hud();
+  if (now - waveAt > 120) { waveAt = now; drawWave(); }
+}
+
+/* ---------- load ---------- */
+let dateLabel = '';
+const dataP = fetch('data/day11/storm.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([d]) => {
+  D = d;
+  decode(d);
+  // dates spelt out by hand, so every browser shows the same "Tue 30 Sep"
+  const [yy, mo, dd] = d.date.split('-').map(Number), wd = new Date(Date.UTC(yy, mo - 1, dd)).getUTCDay();
+  const WD = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  const MO = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  const dateShort = `${WD[wd].slice(0, 3)} ${dd} ${MO[mo - 1].slice(0, 3)}`;
+  dateLabel = `${dateShort} ${yy}`;
+  const dayLong = `${WD[wd]} ${dd} ${MO[mo - 1]}`;
+  const S = d.stats, scan = d.scan.days;
+  $('h-n').textContent = nf.format(N);
+  $('h-sub').innerHTML = `times the sensors caught lightning on <strong>${dayLong}</strong>, the stormiest of the ${scan.length} days checked`;
+  $('h-sub2').innerHTML = `lightning readings on <strong>${dateShort}</strong>, the most in ${scan.length} days`;
+  $('l-cg').textContent = nf.format(S.cg);
+  $('l-ic').textContent = nf.format(S.ic);
+  drawScan(scan, d.date);
+  const [cw, ch] = S.coverageKm;
+  const gapTxt = (S.gaps || []).map(g => `${hm(g[0])} to ${hm(g[1])}`);
+  $('note').innerHTML = `${Math.round(S.sameMsShare * 100)}% of readings share their exact millisecond with another, so many are likely parts of the same flash. ` +
+    (gapTxt.length ? `The feed has no readings from ${gapTxt.join(' or ')}, so ${gapTxt.length > 1 ? 'those minutes are' : 'that stretch is'} silent. ` : '') +
+    `The sensors cover a box about ${Math.round(cw)} by ${Math.round(ch)}&nbsp;km and place lightning to within 0.2 to 2&nbsp;km. ` +
+    `Distances run along the ground, though cloud-to-cloud flashes are kilometres up. 343&nbsp;m/s is for air at 20&nbsp;&deg;C; a warm storm is about 1% faster. ` +
+    `The thunder is synthesised and fades out from 12 to 20&nbsp;km (it carries about 16&nbsp;km, says the US National Weather Service). Thunder from the east plays in your right ear.`;
+  const at = (params.get('at') || '').split(',').map(Number);
+  listen(at.length === 2 && at.every(isFinite) ? at : d.listener);
+  ear.setLngLat(L);
+  updateNear();
+  const q = (params.get('t') || '').match(/^(\d{1,2}):(\d{2})$/);
+  startT = q ? (+q[1] * 60 + +q[2]) * 60000 : d.start;
+  const sp = +params.get('speed');
+  setSpeed(SPEEDS.includes(sp) ? sp : 1);
+  setMuted(muted);
+  addLayers();
+  sizeFx();
+  seek(startT);
+  layout();
+  map.once('idle', () => { $('loading').hidden = true; });
+  requestAnimationFrame(frame);
+}).catch(err => {
+  $('loading').textContent = 'The storm could not be loaded. Please reload the page.';
+  console.error(err);
+});
+
+function drawScan(days, best) {
+  const W = 264, H = 34, n = days.length, bw = W / n;
+  let max = 1; for (const r of days) max = Math.max(max, r[1]);
+  let s = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true">`;
+  days.forEach((r, k) => {
+    const h = Math.max(1, Math.sqrt(r[1] / max) * (H - 2));
+    s += `<rect x="${(k * bw + .5).toFixed(2)}" y="${(H - h).toFixed(2)}" width="${Math.max(1, bw - 1).toFixed(2)}" height="${h.toFixed(2)}" rx=".6" fill="${r[0] === best ? '#EAF27A' : 'rgba(220,228,255,.38)'}"><title>${r[0]}: ${nf.format(r[1])} readings</title></rect>`;
+  });
+  $('scan').innerHTML = s + '</svg>';
+  const fmt = x => `${+x.slice(8, 10)} ${'JanFebMarAprMayJunJulAugSepOctNovDec'.substr((+x.slice(5, 7) - 1) * 3, 3)}`;
+  const rank = days.slice().sort((a, b) => b[1] - a[1]);
+  $('scan').setAttribute('aria-label', `Lightning readings per day from ${fmt(days[0][0])} to ${fmt(days[n - 1][0])}. The most: ${fmt(rank[0][0])}, ${nf.format(rank[0][1])}. Next: ${fmt(rank[1][0])}, ${nf.format(rank[1][1])}.`);
+  $('scan-a').textContent = fmt(days[0][0]);
+  $('scan-m').textContent = `readings a day (square-root scale) · next most: ${nf.format(rank[1][1])}`;
+  $('scan-b').textContent = fmt(days[n - 1][0]);
+}
+
+// for testing
+window.__th = { hold: on => { HOLD = on; }, get t() { return tNow; }, seek: t => seek(t), speed: s => setSpeed(s), play: on => setPlaying(on), get rings() { return rings.length; }, get flashes() { return flashes.length; },
+  get voices() { return voices.length; }, ear: ll => moveEar(ll, true), state: () => ({ tNow, iNext, aNext, rings: rings.length, flashes: flashes.length, events: events.length, playing, speed, voices: voices.length, audio: AC && AC.state }) };
+</script>
+</body>
+</html>
