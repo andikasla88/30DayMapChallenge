@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#10305E">
+<title>Day 10 · The Singapore in Claude's head</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 10, Prompting only: Claude drew Singapore's coast and every MRT and LRT station it could recall from memory. Slide from memory to reality and watch each guess walk to its true place on OneMap.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2310305E'/%3E%3Cpath d='M5 18c2-5 6-8 11-8s9 2 11 6c-3 3-7 5-12 5-4 0-7-1-10-3z' fill='none' stroke='%23EAF2FF' stroke-width='2' stroke-dasharray='3 2'/%3E%3Ccircle cx='13' cy='15' r='2.4' fill='%23B79CFF'/%3E%3Ccircle cx='20' cy='17' r='2.4' fill='%23B79CFF'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Caveat:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 10: a chat-window panel on the right, a memory-to-reality dial at the bottom ===== */
+:root {
+  --chat-w: 364px;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --hand: "Caveat", "Segoe Print", "Comic Sans MS", cursive;
+  --bp: #10305E;
+  --forgot: #FF5D8F; --made: #7A5AF8; --good: #6FDDB3;
+}
+.dmc-map { background: var(--bp); }
+/* the map buttons sit left of the chat panel */
+body .maplibregl-ctrl-top-right { right: calc(var(--chat-w) + 2 * var(--gutter) + env(safe-area-inset-right, 0px)); }
+
+/* ---- the chat panel ---- */
+.chat { top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--chat-w); display: flex; flex-direction: column; overflow: hidden; }
+.chat-head { flex: none; display: grid; gap: 8px; padding: 10px 12px 9px; border-bottom: 1px solid var(--line); }
+.who { display: flex; align-items: center; gap: 9px; }
+.av { flex: none; width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-size: 17px; font-weight: 900; color: #1B1240;
+  background: radial-gradient(circle at 35% 30%, #E4DAFF, var(--day-accent) 60%, #8E6EF0); box-shadow: 0 0 12px rgba(var(--day-accent-rgb), .45); }
+.who b { display: block; font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.who small { display: block; font-size: 10.5px; color: var(--text-2); line-height: 1.25; }
+.who .live { margin-left: auto; white-space: nowrap; display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; color: var(--text-2); }
+.who .live i { width: 7px; height: 7px; border-radius: 50%; background: var(--day-accent); box-shadow: 0 0 8px var(--day-accent); }
+.min-btn { display: none; position: relative; width: 28px; height: 28px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); color: var(--text); cursor: pointer; padding: 0; }
+.min-btn::after { content: ""; position: absolute; inset: -8px; }
+.min-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; transition: transform .25s; }
+.chat.min .min-btn svg { transform: rotate(180deg); }
+.tabs { display: flex; width: 100%; }
+.tabs button { flex: 1; }
+.tabs button[aria-selected="true"] { color: #0B1220; background: var(--day-accent); box-shadow: 0 0 12px rgba(var(--day-accent-rgb), .4); }
+.chat-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent; }
+.pane { padding: 11px 12px 14px; display: grid; gap: 10px; align-content: start; }
+.pane[hidden] { display: none; }
+.chat-foot { flex: none; margin: 0; padding: 6px 12px 8px; border-top: 1px solid var(--line); font-size: 10px; color: var(--text-2); display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.chat-foot img { width: 12px; height: 12px; vertical-align: -2px; margin-right: 3px; }
+.chat-foot a, .linkish { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.linkish { font: inherit; background: none; border: 0; padding: 0; cursor: pointer; text-decoration: underline; }
+
+/* ---- scorecard ---- */
+.kick { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--day-accent); }
+.lede { margin: 0; font-family: var(--display); font-size: 25px; font-weight: 800; line-height: 1; letter-spacing: .01em; text-wrap: balance; }
+.pane p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.pane p b, .pane li b { color: var(--text); font-weight: 600; }
+.card { display: grid; gap: 8px; padding: 10px 11px; border-radius: 11px; background: rgba(255, 255, 255, .045); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .07); }
+.card h3 { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); display: flex; justify-content: space-between; }
+.hero { display: flex; align-items: baseline; gap: 8px; }
+.hero b { flex: none; font-family: var(--display); font-size: 34px; font-weight: 800; line-height: .9; font-variant-numeric: tabular-nums; color: var(--text); }
+.hero span { font-size: 11.5px; line-height: 1.3; color: var(--text-2); }
+.nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.nums div { display: grid; gap: 1px; }
+.nums b { font-family: var(--display); font-size: 20px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.nums span { font-size: 10.5px; line-height: 1.25; color: var(--text-2); }
+.facts { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; font-size: 12px; line-height: 1.45; color: var(--text-2); }
+.facts li { padding-left: 13px; position: relative; }
+.facts li::before { content: ""; position: absolute; left: 2px; top: .62em; width: 5px; height: 5px; border-radius: 50%; background: rgba(255, 255, 255, .35); }
+.facts li.forgot::before { background: var(--forgot); border-radius: 1px; }
+.facts li.made::before { background: var(--made); border-radius: 1px; }
+.hist { display: grid; gap: 3px; }
+.hist svg { display: block; width: 100%; height: auto; overflow: visible; }
+.hist .ax { font: 400 9.5px var(--font); fill: rgba(238, 242, 247, .55); }
+.hist .med { font: 600 9.5px var(--font); fill: var(--text); }
+.hist rect.hit { fill: transparent; }
+.hist g.bin:hover rect.hit, .hist g.bin:focus rect.hit { fill: rgba(255, 255, 255, .07); }
+.hist g.bin:focus { outline: none; }
+.hist-tip { min-height: 1.45em; font-size: 11px !important; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.tbl th { text-align: left; font-weight: 600; font-size: 10px; letter-spacing: .04em; text-transform: uppercase; color: var(--text-2); padding: 0 4px 4px 0; }
+.tbl td { padding: 4px 4px 4px 0; border-top: 1px solid rgba(255, 255, 255, .07); color: var(--text-2); vertical-align: top; }
+.tbl td:first-child { color: var(--text); }
+.tbl .r { text-align: right; }
+.self td { line-height: 1.35; }
+.self q { font-family: var(--hand); font-size: 15px; line-height: 1.05; color: #E6DCFF; quotes: "\201C" "\201D"; }
+.verdict { display: inline-block; margin-top: 2px; padding: 0 6px; border-radius: 999px; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.verdict.yes { color: #0E2B22; background: var(--good); }
+.verdict.no { color: #3A0D1C; background: #FF9DBA; }
+.verdict.half { color: #1B1240; background: #D8CBFF; }
+.note { font-size: 11px !important; }
+.dmc-credits { font-size: 10px; }
+
+/* ---- most lost ---- */
+.lost-head { display: grid; gap: 8px; }
+.lost-head .row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lost { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.lost button { width: 100%; display: grid; grid-template-columns: 22px 1fr 44px 46px; align-items: center; gap: 6px; padding: 5px 6px; border: 0; border-radius: 8px; background: transparent; color: var(--text); font: inherit; font-size: 12px; text-align: left; cursor: pointer; }
+.lost button:hover { background: rgba(255, 255, 255, .07); }
+.lost button[aria-current="true"] { background: rgba(var(--day-accent-rgb), .16); box-shadow: inset 0 0 0 1px rgba(var(--day-accent-rgb), .45); }
+.lost .rk { font-size: 10.5px; color: var(--text-2); font-variant-numeric: tabular-nums; text-align: right; }
+.lost .nm { min-width: 0; display: flex; align-items: center; gap: 5px; overflow: hidden; white-space: nowrap; }
+.lost .nm span { overflow: hidden; text-overflow: ellipsis; }
+.chips { display: inline-flex; gap: 2px; flex: none; }
+.chip { display: inline-block; padding: 0 4px; border-radius: 4px; font-size: 9px; font-weight: 700; line-height: 14px; color: #fff; letter-spacing: .02em; }
+.lost .bar { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.lost .bar i { display: block; height: 100%; border-radius: 3px; }
+.lost .m { text-align: right; font-variant-numeric: tabular-nums; font-size: 11.5px; color: var(--text-2); }
+.lost .gone .m { color: var(--forgot); font-weight: 600; }
+.lost-sub { margin: 4px 0 2px; font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+
+/* ---- transcript ---- */
+.msg { display: grid; gap: 5px; }
+.msg .from { font-size: 10.5px; font-weight: 600; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.msg .from .av { width: 18px; height: 18px; font-size: 11px; box-shadow: none; }
+.bubble { padding: 9px 11px; border-radius: 12px; font-size: 12px; line-height: 1.5; }
+.msg.user .bubble { background: rgba(255, 255, 255, .09); border-top-right-radius: 4px; margin-left: 14px; }
+.msg.user .from { justify-content: flex-end; }
+.msg.claude .bubble { background: rgba(var(--day-accent-rgb), .1); box-shadow: inset 0 0 0 1px rgba(var(--day-accent-rgb), .25); border-top-left-radius: 4px; padding: 8px 9px; }
+.bubble h1, .bubble h2, .bubble h3 { margin: 4px 0 4px; font-size: 12.5px; font-weight: 600; }
+.bubble p { margin: 0 0 6px; font-size: 12px !important; color: var(--text) !important; }
+.bubble ol, .bubble ul { margin: 0 0 6px; padding-left: 18px; }
+.bubble li { margin: 2px 0; }
+.bubble hr { border: 0; border-top: 1px solid var(--line); margin: 6px 0; }
+.bubble code { font-family: var(--mono); font-size: 11px; padding: 0 3px; border-radius: 3px; background: rgba(255, 255, 255, .08); }
+.answer { margin: 0; font-family: var(--mono); font-size: 10.5px; line-height: 1.5; color: #DCD3FF; white-space: pre-wrap; word-break: break-word; }
+.answer .k { color: #9CC8FF; } .answer .s { color: #F2EEFF; } .answer .n { color: #FFC9A8; }
+.answer .jl { cursor: pointer; border-radius: 3px; }
+.answer .jl:hover { background: rgba(var(--day-accent-rgb), .22); }
+.seal { font-family: var(--mono); font-size: 10.5px !important; word-break: break-all; }
+.seal.ok b { color: var(--good) !important; }
+
+/* ---- the dial (memory -> reality) ---- */
+.dial-wrap { position: absolute; z-index: 3; left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); right: calc(var(--chat-w) + 2 * var(--gutter) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); display: flex; justify-content: center; pointer-events: none; }
+.dial { position: relative; pointer-events: auto; width: min(760px, 100%); display: grid; grid-template-columns: auto auto 1fr auto; align-items: center; gap: 10px 12px; padding: 9px 12px; }
+.tblock { display: grid; grid-template-columns: auto auto; gap: 1px 8px; padding-right: 12px; border-right: 1px solid var(--line); font-family: var(--mono); font-size: 9.5px; line-height: 1.35; color: var(--text-2); text-transform: uppercase; letter-spacing: .04em; }
+.tblock b { font-weight: 500; color: var(--text); text-transform: none; letter-spacing: 0; }
+.tblock .chk b { color: var(--good); }
+.play { position: relative; width: 40px; height: 40px; border-radius: 50%; border: 0; display: grid; place-items: center; cursor: pointer; color: #1B1240;
+  background: radial-gradient(circle at 35% 30%, #EFE8FF, var(--day-accent) 65%); box-shadow: 0 0 0 3px rgba(var(--day-accent-rgb), .25), 0 4px 16px rgba(var(--day-accent-rgb), .35); }
+.play::after { content: ""; position: absolute; inset: -4px; }
+.play svg { width: 16px; height: 16px; fill: currentColor; }
+.play:hover { filter: brightness(1.06); }
+.play:focus-visible { outline: 2px solid #fff; outline-offset: 4px; }
+.track { display: grid; gap: 3px; min-width: 0; }
+.ends { display: flex; justify-content: space-between; gap: 8px; font-size: 11px; font-weight: 600; }
+.ends span:first-child { color: var(--day-accent); }
+.ends span:last-child { color: #DDEBE4; }
+.state { font-size: 10.5px; color: var(--text-2); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 1.3em; }
+input[type=range].t { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; margin: 0; background: transparent; cursor: pointer; }
+input[type=range].t::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, var(--day-accent) 0%, var(--day-accent) var(--p, 0%), rgba(255, 255, 255, .16) var(--p, 0%)); }
+input[type=range].t::-moz-range-track { height: 6px; border-radius: 3px; background: rgba(255, 255, 255, .16); }
+input[type=range].t::-moz-range-progress { height: 6px; border-radius: 3px; background: var(--day-accent); }
+input[type=range].t::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: #fff; border: 3px solid var(--day-accent); box-shadow: 0 2px 8px rgba(0, 0, 0, .4); }
+input[type=range].t::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 3px solid var(--day-accent); }
+.opts { display: grid; gap: 4px; }
+.tog { position: relative; display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 6px; min-height: 26px; border-radius: 999px; border: 1px solid var(--line); background: rgba(255, 255, 255, .05);
+  color: var(--text-2); font: inherit; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; }
+.tog::after { content: ""; position: absolute; inset: -5px -2px; }
+.tog i { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid currentColor; display: grid; place-items: center; }
+.tog[aria-pressed="true"] { color: var(--text); }
+.tog[aria-pressed="true"] i { background: var(--day-accent); border-color: var(--day-accent); }
+.tog[aria-pressed="true"] i::before { content: ""; width: 7px; height: 4px; border-left: 2px solid #1B1240; border-bottom: 2px solid #1B1240; transform: rotate(-45deg) translate(1px, -1px); }
+.home { position: absolute; top: -36px; right: 0; }
+.home[hidden] { display: none; }
+.home, .glass-btn { background: var(--glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+
+/* ---- on-map annotations ---- */
+.note-pin { pointer-events: none; font-family: var(--hand); font-weight: 700; font-size: 18px; line-height: 1; color: #EAF2FF; text-shadow: 0 1px 0 #10305E, 0 0 6px #10305E; white-space: nowrap; transition: opacity .3s; }
+.note-pin i { font-style: normal; color: var(--day-accent); }
+.far-pin { pointer-events: none; display: grid; justify-items: start; transition: opacity .35s; }
+.far-pin .tag { padding: 3px 8px 4px; border-radius: 7px; background: rgba(43, 35, 80, .9); color: #fff; font-size: 11px; line-height: 1.25; box-shadow: 0 4px 12px rgba(0, 0, 0, .25); white-space: nowrap; }
+.far-pin .tag b { display: block; font-size: 12px; color: #FFC2D4; }
+.far-pin .stem { width: 1.5px; height: 16px; margin-left: 6px; background: rgba(43, 35, 80, .8); }
+.far-pin .dot { width: 11px; height: 11px; margin-left: 1px; border-radius: 50%; background: var(--forgot); box-shadow: 0 0 0 2px #fff; }
+.far-pin.l { justify-items: end; }
+.far-pin.l .stem { margin: 0 6px 0 0; }
+.far-pin.l .dot { margin: 0 1px 0 0; }
+.mk { pointer-events: none; }
+.sel-pin { pointer-events: none; display: grid; justify-items: center; }
+.sel-pin .tag { padding: 2px 7px 3px; border-radius: 6px; font-size: 11px; font-weight: 600; white-space: nowrap; box-shadow: 0 3px 10px rgba(0, 0, 0, .3); }
+.sel-pin.g .tag { background: var(--day-accent); color: #1B1240; }
+.sel-pin.t .tag { background: #2B2350; color: #fff; }
+.sel-pin .stem { width: 1.5px; height: 12px; background: currentColor; }
+.sel-pin .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--day-accent); box-shadow: 0 0 0 2px #fff, 0 0 8px rgba(var(--day-accent-rgb), .8); }
+.sel-pin.g .stem { background: var(--day-accent); } .sel-pin.t .stem { background: #2B2350; }
+.sel-mid { pointer-events: none; padding: 2px 8px 3px; border-radius: 999px; background: #fff; color: #2B2350; font-size: 12px; font-weight: 700; box-shadow: 0 2px 10px rgba(0, 0, 0, .25); white-space: nowrap; }
+.tip { position: fixed; z-index: 6; left: 0; top: 0; max-width: 240px; pointer-events: none; padding: 7px 10px 8px; background: rgba(9, 14, 24, .92); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 26px rgba(0, 0, 0, .4); display: grid; gap: 3px; font-size: 11.5px; line-height: 1.35; color: var(--text-2); }
+.tip[hidden] { display: none; }
+.tip b { color: var(--text); font-size: 12.5px; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 45%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.loading[hidden] { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- medium widths: drop the title block ---- */
+@media (max-width: 1180px) { .tblock { display: none; } .dial { grid-template-columns: auto 1fr auto; } }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .lede { font-size: 22px; }
+  .hero b { font-size: 29px; }
+  .note-pin { font-size: 15px; }
+  .note-pin.wide, .far-pin .w { display: none; }
+  .far-pin .tag { font-size: 10.5px; padding: 2px 6px 3px; }
+  .far-pin .tag b { font-size: 11px; }
+  .dial { padding: 7px 10px; gap: 6px 9px; }
+  .play { width: 36px; height: 36px; }
+}
+/* phones held upright: the chat becomes a bottom sheet, the dial sits on top of it */
+@media (max-width: 640px) and (orientation: portrait) {
+  :root { --chat-w: 0px; }
+  body .maplibregl-ctrl-top-right { right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); }
+  .chat { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: 43vh; border-radius: 16px 16px 0 0; border-bottom: 0; }
+  .chat.min { height: auto; }
+  .chat.min .chat-body, .chat.min .tabs { display: none; }
+  .chat-foot { padding-bottom: calc(7px + env(safe-area-inset-bottom, 0px)); }
+  .min-btn { display: grid; place-items: center; }
+  .far-pin.roomy { display: none; }
+  .who .live { display: none; }
+  .dial-wrap { left: 8px; right: 8px; bottom: calc(var(--sheet-h, 43vh) + 8px); }
+  .dial { grid-template-columns: auto 1fr; }
+  .opts { grid-column: 1 / -1; display: flex; justify-content: center; gap: 6px; }
+  .ends { font-size: 10.5px; }
+  .home { top: -34px; }
+}
+/* phones held sideways: the chat is a right-hand column */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --chat-w: min(318px, 42vw); }
+  .chat-head { padding: 7px 10px 6px; gap: 6px; }
+  .who small { display: none; }
+  .pane { padding: 9px 10px 12px; }
+  .dial { grid-template-columns: auto 1fr auto; }
+  .state { display: none; }
+  .opts { display: flex; flex-direction: column; }
+}
+@media (prefers-reduced-motion: reduce) { .note-pin, .far-pin { transition: none; } }
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore: Claude's from-memory drawing of the island and its MRT and LRT stations, blending into the real coast and station locations on OneMap"></div>
+<div id="tip" class="tip dmc-chrome" hidden></div>
+<p id="loading" class="loading dmc-chrome">Unfolding Claude's drawing&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<div class="dial-wrap">
+  <section id="dial" class="dmc-glass dial" data-dmc-overlay aria-label="Blend from Claude's memory to the real Singapore">
+    <button id="home" class="dmc-btn home" type="button" hidden>Whole island</button>
+    <div class="tblock" aria-hidden="true">
+      <span>Drawn by</span><b>Claude, Opus 5.5</b>
+      <span>Source</span><b>memory only</b>
+      <span id="tb-k">Checked</span><b id="tb-v">not yet</b>
+    </div>
+    <button id="play" class="play" type="button" aria-label="Reveal the real Singapore"><svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-ico" d="M4 2.5v11l9.5-5.5z"/></svg></button>
+    <div class="track">
+      <div class="ends" aria-hidden="true"><span>In Claude's head</span><span>On the ground</span></div>
+      <input id="t" class="t" type="range" min="0" max="1000" step="1" value="0" aria-label="Blend from Claude's memory to the real Singapore" aria-valuetext="Claude's memory">
+      <p id="state" class="state" aria-live="polite"></p>
+    </div>
+    <div class="opts">
+      <button id="tog-wh" class="tog" type="button" aria-pressed="true"><i aria-hidden="true"></i>Error whiskers</button>
+      <button id="tog-mi" class="tog" type="button" aria-pressed="true"><i aria-hidden="true"></i>Land mix-ups</button>
+    </div>
+  </section>
+</div>
+
+<aside id="chat" class="dmc-glass chat" data-dmc-overlay aria-label="Scorecard, most lost stations and the transcript">
+  <div class="chat-head">
+    <div class="who">
+      <span class="av" aria-hidden="true">C</span>
+      <div><b>Claude &middot; Opus 5.5</b><small>claude-opus-5-5 · from memory</small></div>
+      <span class="live" aria-hidden="true"><i></i>no maps, no tools</span>
+      <button id="min" class="min-btn" type="button" aria-expanded="true" aria-controls="chat-body" aria-label="Fold the panel"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4"/></svg></button>
+    </div>
+    <div class="dmc-seg tabs" role="tablist" aria-label="Panels">
+      <button id="tab-score" role="tab" type="button" aria-selected="true" aria-controls="p-score">Scorecard</button>
+      <button id="tab-lost" role="tab" type="button" aria-selected="false" aria-controls="p-lost" tabindex="-1">Most lost</button>
+      <button id="tab-trans" role="tab" type="button" aria-selected="false" aria-controls="p-trans" tabindex="-1">Transcript</button>
+    </div>
+  </div>
+  <div id="chat-body" class="chat-body">
+    <section id="p-score" class="pane" role="tabpanel" aria-labelledby="tab-score">
+      <p class="kick">The verdict</p>
+      <h2 class="lede">Claude knows the trains, not the tide.</h2>
+      <p id="sum">&hellip;</p>
+
+      <div class="card">
+        <h3>Stations <span id="st-n"></span></h3>
+        <div class="hero"><b id="h-med">&ndash;</b><span id="h-med-s">median distance between Claude's dot and the real station</span></div>
+        <div class="nums">
+          <div><b id="n-named">&ndash;</b><span id="n-named-s">named</span></div>
+          <div><b id="n-inv">&ndash;</b><span>invented</span></div>
+          <div><b id="n-gone">&ndash;</b><span>left out</span></div>
+        </div>
+        <div class="hist">
+          <div id="hist"></div>
+          <p id="hist-tip" class="hist-tip" aria-live="polite"></p>
+        </div>
+        <ul id="st-facts" class="facts"></ul>
+      </div>
+
+      <div class="card">
+        <h3>Coastline <span>main island</span></h3>
+        <div class="hero"><b id="h-coast">&ndash;</b><span>average distance from Claude's <span id="h-corners"></span> corners to the real coast</span></div>
+        <div class="nums">
+          <div><b id="n-gkm">&ndash;</b><span>km&sup2; drawn</span></div>
+          <div><b id="n-rkm">&ndash;</b><span>km&sup2; real</span></div>
+          <div><b id="n-iou">&ndash;</b><span title="Area inside both outlines, divided by the area inside either">overlap</span></div>
+        </div>
+        <ul id="co-facts" class="facts"></ul>
+        <table class="tbl" aria-label="The four islands: area drawn, area real and overlap">
+          <thead><tr><th>Island</th><th class="r">Drawn</th><th class="r">Real</th><th class="r">Overlap</th></tr></thead>
+          <tbody id="isl"></tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3>Did Claude know itself?</h3>
+        <p>Its answer ended with a note on where it felt unsure. Here is each line of that note against the scores.</p>
+        <table class="tbl self"><tbody id="self"></tbody></table>
+      </div>
+
+      <p class="note" id="method"></p>
+      <div class="card" id="sources">
+        <h3>Sources</h3>
+        <p id="credits" class="dmc-credits"></p>
+      </div>
+    </section>
+
+    <section id="p-lost" class="pane" role="tabpanel" aria-labelledby="tab-lost" hidden>
+      <div class="lost-head">
+        <p>Every station Claude placed, ranked by how far its dot was from the real one. Pick a station to fly there.</p>
+        <div class="row">
+          <div class="dmc-seg" role="group" aria-label="Sort the list">
+            <button id="sort-lost" type="button" aria-pressed="true">Most lost first</button>
+            <button id="sort-best" type="button" aria-pressed="false">Spot on first</button>
+          </div>
+        </div>
+      </div>
+      <p class="lost-sub" id="gone-h">Left out</p>
+      <ol id="gone" class="lost"></ol>
+      <p class="lost-sub" id="lost-h">Placed</p>
+      <ol id="lost" class="lost"></ol>
+    </section>
+
+    <section id="p-trans" class="pane" role="tabpanel" aria-labelledby="tab-trans" hidden>
+      <p>The prompt and Claude's answer, exactly as saved before any map or station list was opened. Every score on this page is computed from this file. Click a station line to see where it really is.</p>
+      <div class="msg user"><p class="from">The prompt</p><div id="prompt" class="bubble">Loading&hellip;</div></div>
+      <div class="msg claude"><p class="from"><span class="av" aria-hidden="true">C</span>Claude &middot; claude-opus-5-5 &middot; answer.json</p><div class="bubble"><pre id="answer" class="answer">Loading&hellip;</pre></div></div>
+      <p id="seal" class="seal">Checking the seal&hellip;</p>
+    </section>
+  </div>
+  <p class="chat-foot"><span id="foot-om"></span><button id="src-btn" class="linkish" type="button">Sources</button></p>
+</aside>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const MEM = { pitch: 50, bearing: -22 };   // the camera on Claude's drawing; reality is flat and north-up
+const DAY = {
+  n: 10,
+  title: 'The Singapore in Claude\'s head',
+  deck: 'Claude (model Opus 5.5) was asked to draw Singapore\'s coast and every MRT and LRT station it could recall, from memory alone, and its answer was saved before it saw any map. Slide from memory to reality to watch each guess walk to its true place on OneMap.',
+  accent: '#B79CFF',
+  basemap: 'LandLot',
+  basemapPaint: { 'raster-opacity': 0, 'raster-saturation': -0.25, 'raster-contrast': -0.08 },
+  basemapBg: '#10305E',
+  bounds: [[103.6, 1.2], [104.09, 1.475]],
+  minZoom: 8.6, maxZoom: 18.5,
+  camera: { pitch: MEM.pitch, bearing: MEM.bearing, tiltPitch: 50 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Coast: <a href="https://data.gov.sg/datasets/d_29f066d67df3eae91df8a42f443863c8/view" target="_blank" rel="noopener noreferrer">SLA National Map Polygon</a> (Coastal Outlines, Oct 2026) via data.gov.sg, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>',
+    'Stations: LTA station points via <a href="https://github.com/cheeaun/sgraildata" target="_blank" rel="noopener noreferrer">sgraildata</a> 5.1.0 (12 Jul 2026); line order from its Citymapper routes',
+    'Circle Line Stage 6 opening, 12 Jul 2026: <a href="https://www.lta.gov.sg/content/ltagov/en/newsroom/2026/5/news-releases/circle-line-stage-6-to-open-for-public-preview-on-4-july-2026.html" target="_blank" rel="noopener noreferrer">LTA</a>',
+    'Map labels: <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a> fonts',
+    'The drawing: Claude (Anthropic), model claude-opus-5-5, from memory, 1 Nov 2026',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const clamp = (x, a = 0, b = 1) => Math.max(a, Math.min(b, x));
+const smooth = x => x * x * (3 - 2 * x);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const fmtM = m => m < 10 ? `${m.toFixed(1)} m` : m < 1000 ? `${nf.format(Math.round(m))} m` : `${(m / 1000).toFixed(1)} km`;
+$('foot-om').innerHTML = DMC.ONEMAP_CREDIT.replace(/<a /g, '<a target="_blank" rel="noopener noreferrer" ');
+
+/* ---------- colours ---------- */
+const ACCENT = '#B79CFF', INK = '#2B2350', CHALK = '#F2F6FF', BP = '#10305E', DAYBG = '#F3F5F2';
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const mix = (a, b, t) => { const A = hex(a), B = hex(b); return '#' + A.map((v, i) => Math.round(v + (B[i] - v) * t).toString(16).padStart(2, '0')).join(''); };
+// one hue, light to dark: small errors recede, big ones stand out
+const ERR_STOPS = [[0, '#D6C8FF'], [60, '#9A7BF7'], [140, '#6A3FE6'], [230, '#3E1A9E']];
+const errColor = m => { for (let i = 1; i < ERR_STOPS.length; i++) if (m <= ERR_STOPS[i][0]) { const [a, ca] = ERR_STOPS[i - 1], [b, cb] = ERR_STOPS[i]; return mix(ca, cb, (m - a) / (b - a)); } return ERR_STOPS[ERR_STOPS.length - 1][1]; };
+const ERR_EXPR = ['interpolate', ['linear'], ['get', 'err'], ...ERR_STOPS.flat()];
+
+/* ---------- data ---------- */
+const dec = a => { const out = []; let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / 1e5, y / 1e5]); } return out; };
+let D = null, S = [], PIECES = [], LINES = [], LINECOL = {};
+function prep(d) {
+  D = d;
+  // stations: [name, real codes, guessed codes, gLng, gLat, tLng, tLat, error m]
+  S = d.st.map((r, i) => ({ i, name: r[0], codes: r[1].split('-'), gcodes: r[2] ? r[2].split('-') : [], g: r[3] == null ? null : [r[3], r[4]], t: [r[5], r[6]], err: r[7],
+    w: r[3] == null ? 1 : clamp((r[3] - 103.6) / 0.48) }));
+  PIECES = d.morph.map(p => {
+    const g = dec(p.g), r = dec(p.r);
+    return { name: p.name, g, r, w: g.map(c => clamp((c[0] - 103.6) / 0.48)) };
+  });
+  LINES = d.lines.map(([code, name, color, idx]) => ({ code, name, color, idx }));
+  for (const l of LINES) for (const i of l.idx) for (const c of S[i].codes) { const p = c.replace(/\d.*$/, ''); if (!LINECOL[p]) LINECOL[p] = l.color; }
+  LINECOL.CG = LINECOL.EW; LINECOL.STC = LINECOL.SE; LINECOL.PTC = LINECOL.PE;
+}
+const prefix = c => c.replace(/\d.*$/, '');
+const chips = codes => `<span class="chips">${codes.map(c => `<span class="chip" style="background:${LINECOL[prefix(c)] || '#748477'}">${esc(c)}</span>`).join('')}</span>`;
+
+/* ---------- the morph ---------- */
+let T = 0;                       // 0 = Claude's memory, 1 = the real Singapore
+const prog = (w, t) => smooth(clamp((t - 0.3 * w) / 0.7));   // a wave of reality, west to east
+const lerp = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k];
+function posOf(s, t) { return s.g ? lerp(s.g, s.t, prog(s.w, t)) : s.t; }
+function frame(t) {
+  const morph = { type: 'FeatureCollection', features: PIECES.map((p, k) => {
+    const ring = p.g.map((g, i) => lerp(g, p.r[i], prog(p.w[i], t)));
+    ring.push(ring[0]);
+    return { type: 'Feature', id: k, properties: { name: p.name }, geometry: { type: 'Polygon', coordinates: [ring] } };
+  }) };
+  const pos = S.map(s => posOf(s, t));
+  const pts = { type: 'FeatureCollection', features: S.map((s, i) => ({ type: 'Feature', id: i,
+    properties: { i, name: s.name, err: s.err ?? -1, gone: s.g ? 0 : 1 }, geometry: { type: 'Point', coordinates: pos[i] } })) };
+  const net = { type: 'FeatureCollection', features: LINES.map(l => ({ type: 'Feature', properties: { c: l.color },
+    geometry: { type: 'LineString', coordinates: l.idx.map(i => pos[i]) } })) };
+  map.getSource('morph').setData(morph);
+  map.getSource('stn').setData(pts);
+  map.getSource('net').setData(net);
+}
+let lastStyleT = -1;
+function styleFor(t) {
+  const e = smooth(t), base = clamp((t - 0.08) / 0.6), late = clamp((t - 0.82) / 0.18);
+  map.setPaintProperty('background', 'background-color', mix(BP, DAYBG, smooth(base)));
+  DMC.setBasemapOpacity(map, 'LandLot', 0.9 * smooth(base));
+  map.setPaintProperty('grid', 'line-opacity', 1 - smooth(base));
+  map.setPaintProperty('morph-fill', 'fill-opacity', 0.07 * (1 - e));
+  map.setPaintProperty('morph-glow', 'line-opacity', 0.4 * (1 - e));
+  // chalk on the blueprint, Claude's violet on the way, map ink at the end
+  map.setPaintProperty('morph-line', 'line-color', e < 0.5 ? mix(CHALK, '#9B7BFF', e * 2) : mix('#9B7BFF', INK, e * 2 - 1));
+  map.setPaintProperty('others', 'line-opacity', 0.9 * late);
+  map.setPaintProperty('ghost', 'line-opacity', 0.95 * clamp(t * 4));
+  map.setPaintProperty('net', 'line-opacity', 0.95 - 0.15 * e);
+  map.setPaintProperty('stn', 'circle-stroke-color', mix(ACCENT, INK, e));
+  map.setPaintProperty('stn', 'circle-opacity', ['case', ['==', ['get', 'gone'], 1], late, 1]);
+  map.setPaintProperty('stn', 'circle-stroke-opacity', ['case', ['==', ['get', 'gone'], 1], late, 1]);
+  map.setPaintProperty('gone-ring', 'circle-opacity', late);
+  map.setPaintProperty('gone-ring', 'circle-stroke-opacity', late);
+  map.setPaintProperty('missed', 'line-opacity', 0.95 * late);
+  map.setPaintProperty('whisk', 'line-opacity', wantWhiskers ? 0.95 * clamp(t * 3) : 0);
+  map.setPaintProperty('forgot', 'fill-opacity', wantMixups ? 0.85 * late : 0);
+  map.setPaintProperty('made', 'fill-opacity', wantMixups ? 0.85 * late : 0);
+  map.setPaintProperty('stn-label', 'text-color', mix(CHALK, INK, e));
+  map.setPaintProperty('stn-label', 'text-halo-color', mix(BP, '#FFFFFF', e));
+  notes.forEach(n => { n.el.style.opacity = String(1 - clamp(t * 2.2)); });
+  farPins.forEach(n => { n.el.style.opacity = String(wantMixups ? late : 0); });
+  document.querySelector('meta[name="theme-color"]').content = mix(BP, '#2B2350', e);
+}
+function setT(t, { camera = true } = {}) {
+  T = clamp(t);
+  if (!ready) return;
+  frame(T);
+  styleFor(T);
+  if (camera && coupled && base) map.jumpTo(camAt(T));
+  const r = $('t');
+  r.value = String(Math.round(T * 1000));
+  r.style.setProperty('--p', `${T * 100}%`);
+  const pct = Math.round(T * 100);
+  r.setAttribute('aria-valuetext', pct === 0 ? 'Claude\'s memory' : pct === 100 ? 'The real Singapore' : `${pct}% of the way to the real Singapore`);
+  $('state').textContent = pct === 0 ? 'Claude\'s Singapore, drawn from memory on a blank sheet' : pct === 100 ? 'The real Singapore: SLA coast and LTA stations, on OneMap' : `Walking every guess to where it really is: ${pct}%`;
+  $('play-ico').setAttribute('d', T >= 0.999 ? 'M12 2.5v11L2.5 8z' : 'M4 2.5v11l9.5-5.5z');
+  $('play').setAttribute('aria-label', T >= 0.999 ? 'Back to Claude\'s memory' : 'Reveal the real Singapore');
+  $('tb-k').textContent = T >= 0.999 ? 'Checked by' : 'Checked';
+  $('tb-v').textContent = T >= 0.999 ? 'SLA and LTA' : 'not yet';
+  $('tb-v').parentElement.classList.toggle('chk', T >= 0.999);
+}
+
+/* ---------- playing the reveal ---------- */
+let raf = 0;
+function stop() { cancelAnimationFrame(raf); raf = 0; }
+function animateTo(target, dur = 4200) {
+  stop();
+  if (reduceMotion) { setT(target); return; }
+  const from = T, t0 = performance.now(), d = dur * Math.abs(target - from);
+  if (d < 16) { setT(target); return; }
+  const step = now => {
+    const k = clamp((now - t0) / d);
+    setT(from + (target - from) * (k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2));
+    if (k < 1) raf = requestAnimationFrame(step); else raf = 0;
+  };
+  raf = requestAnimationFrame(step);
+}
+$('play').addEventListener('click', () => {
+  const to = T >= 0.999 ? 0 : 1;
+  if (coupled) animateTo(to); else overview(false, () => animateTo(to));
+});
+$('t').addEventListener('input', e => { stop(); setT(+e.target.value / 1000); });
+
+/* ---------- camera ---------- */
+// While coupled, the camera moves with the blend: Claude's drawing lies tilted and turned on the
+// desk, a little closer; reality is flat, north-up and framed on the whole island.
+let coupled = true, base = null;
+const DZ = () => (isSheet() ? 0 : -0.25);   // turned and tilted, the drawing needs a little more room (a phone held upright has it)
+// The camera pivots on the middle of the free map area (map padding), so the tilt never pushes
+// the drawing under a panel.
+const B_CENTER = [(DAY.bounds[0][0] + DAY.bounds[1][0]) / 2, (DAY.bounds[0][1] + DAY.bounds[1][1]) / 2];
+function camAt(t) {
+  const e = smooth(t);
+  return { center: base.center, zoom: Math.max(map.getMinZoom(), base.zoom + DZ() * (1 - e)), pitch: MEM.pitch * (1 - e), bearing: MEM.bearing * (1 - e), padding: base.padding };
+}
+function overview(instant, then) {
+  coupled = true;
+  clearSelection();
+  $('home').hidden = true;
+  map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });   // the kit may have left a padding behind
+  const padding = DMC.overlayPadding();
+  const cam = map.cameraForBounds(DAY.bounds, { padding, bearing: 0 });
+  base = { center: B_CENTER, zoom: cam ? cam.zoom : map.getMinZoom(), padding };
+  if (instant || reduceMotion) { map.jumpTo(camAt(T)); if (then) then(); }
+  else { map.easeTo({ ...camAt(T), duration: 1300, essential: true }); if (then) map.once('moveend', then); }
+}
+$('home').addEventListener('click', () => overview());
+map.on('movestart', e => {   // the viewer took the camera: stop steering it
+  if (!e.originalEvent) return;
+  if (raf) stop();
+  coupled = false;
+  $('home').hidden = false;
+});
+
+/* ---------- picking a station ---------- */
+let selMarkers = [], selected = -1;
+function clearSelection() {
+  selMarkers.forEach(m => m.remove()); selMarkers = [];
+  selected = -1;
+  if (map.getLayer('whisk-sel')) map.setFilter('whisk-sel', ['==', ['get', 'i'], -1]);
+  document.querySelectorAll('.lost button[aria-current]').forEach(b => b.removeAttribute('aria-current'));
+}
+const WINDS = ['north', 'north-north-east', 'north-east', 'east-north-east', 'east', 'east-south-east', 'south-east', 'south-south-east',
+  'south', 'south-south-west', 'south-west', 'west-south-west', 'west', 'west-north-west', 'north-west', 'north-north-west'];
+function direction(a, b) {
+  const dx = (b[0] - a[0]) * Math.cos(1.33 * Math.PI / 180), dy = b[1] - a[1];
+  const az = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+  return WINDS[Math.round(az / 22.5) % 16];
+}
+function pin(cls, html, at, anchor = 'bottom') {
+  const el = document.createElement('div');
+  el.className = cls;
+  el.innerHTML = html;
+  const m = new maplibregl.Marker({ element: el, anchor }).setLngLat(at).addTo(map);
+  selMarkers.push(m);
+  return m;
+}
+function pick(i, { fly = true } = {}) {
+  const s = S[i];
+  if (!s) return;
+  clearSelection();
+  selected = i;
+  coupled = false;
+  $('home').hidden = false;
+  if (T < 0.999) animateTo(1, 2400);
+  map.setFilter('whisk-sel', ['==', ['get', 'i'], i]);
+  document.querySelectorAll(`.lost button[data-i="${i}"]`).forEach(b => b.setAttribute('aria-current', 'true'));
+  if (s.g) {
+    const flip = s.g[1] > s.t[1];
+    pin('sel-pin g', `<div class="tag">Claude's guess</div><div class="stem"></div><div class="dot"></div>`, s.g, 'bottom').setOffset([0, 5]);
+    pin('sel-pin t', `<div class="tag">${esc(s.name)}, really</div><div class="stem"></div>`, s.t, 'bottom');
+    pin('sel-mid', fmtM(s.err), [(s.g[0] + s.t[0]) / 2, (s.g[1] + s.t[1]) / 2], flip ? 'bottom-left' : 'top-left');
+  } else {
+    pin('sel-pin t', `<div class="tag">${esc(s.name)}: left out</div><div class="stem"></div>`, s.t, 'bottom');
+  }
+  if (!fly) return;
+  const pad = DMC.overlayPadding();
+  const padding = { top: pad.top + 60, right: pad.right + 50, bottom: pad.bottom + 40, left: pad.left + 50 };
+  const pts = s.g ? [s.g, s.t] : [s.t];
+  const b = [[Math.min(...pts.map(p => p[0])), Math.min(...pts.map(p => p[1]))], [Math.max(...pts.map(p => p[0])), Math.max(...pts.map(p => p[1]))]];
+  const opts = { padding, maxZoom: s.g ? 17.4 : 16.2, pitch: 0, bearing: 0 };
+  map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+  const cam = map.cameraForBounds(b, opts);
+  if (!cam) return;
+  const go = { center: cam.center, zoom: Math.min(cam.zoom, opts.maxZoom), pitch: 0, bearing: 0, padding: { top: 0, right: 0, bottom: 0, left: 0 } };
+  if (reduceMotion) map.jumpTo(go); else map.flyTo({ ...go, speed: 1.4, curve: 1.5, maxDuration: 3200, essential: true });
+}
+
+/* ---------- toggles ---------- */
+let wantWhiskers = true, wantMixups = true;
+function tog(id, get, set) {
+  const b = $(id);
+  b.addEventListener('click', () => { set(!get()); b.setAttribute('aria-pressed', String(get())); if (ready) styleFor(T); });
+}
+tog('tog-wh', () => wantWhiskers, v => { wantWhiskers = v; });
+tog('tog-mi', () => wantMixups, v => { wantMixups = v; });
+
+/* ---------- tabs and the phone sheet ---------- */
+const TABS = ['score', 'lost', 'trans'];
+function showTab(k, focus) {
+  for (const t of TABS) {
+    const on = t === k, b = $(`tab-${t}`);
+    b.setAttribute('aria-selected', String(on)); b.tabIndex = on ? 0 : -1;
+    $(`p-${t}`).hidden = !on;
+    if (on && focus) b.focus();
+  }
+  $('chat-body').scrollTop = 0;
+}
+TABS.forEach((t, i) => {
+  const b = $(`tab-${t}`);
+  b.addEventListener('click', () => showTab(t));
+  b.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (d) { e.preventDefault(); showTab(TABS[(i + d + TABS.length) % TABS.length], true); }
+  });
+});
+$('src-btn').addEventListener('click', () => { setMin(false); showTab('score'); requestAnimationFrame(() => $('sources').scrollIntoView({ block: 'start', behavior: reduceMotion ? 'auto' : 'smooth' })); });
+function setMin(on) {
+  $('chat').classList.toggle('min', on);
+  $('min').setAttribute('aria-expanded', String(!on));
+  $('min').setAttribute('aria-label', on ? 'Open the panel' : 'Fold the panel');
+  sheetH();
+}
+$('min').addEventListener('click', () => setMin(!$('chat').classList.contains('min')));
+function sheetH() {
+  const r = $('chat').getBoundingClientRect();
+  document.documentElement.style.setProperty('--sheet-h', `${Math.max(0, innerHeight - r.top)}px`);
+}
+new ResizeObserver(sheetH).observe($('chat'));
+addEventListener('resize', sheetH);
+sheetH();
+
+/* ---------- the scorecard ---------- */
+function fillScore() {
+  const st = D.stats, c = st.coast.main, placed = S.filter(s => s.g), nTruth = D.meta.truth_stations;
+  $('st-n').textContent = `${st.matched} placed`;
+  $('h-med').textContent = fmtM(st.median_m);
+  $('h-med-s').textContent = `median distance between Claude's dot and the real station; the mean is ${fmtM(st.mean_m)}`;
+  $('n-named').textContent = nf.format(st.matched);
+  $('n-named-s').textContent = `of ${nTruth} named`;
+  $('n-inv').textContent = st.invented.length;
+  $('n-gone').textContent = st.forgotten.length;
+  const worst = S.find(s => s.name === st.worst[0]), best = S.find(s => s.name === st.best[0]);
+  const pairs = st.pairs;
+  $('sum').innerHTML = `It put <b>${st.matched}</b> stations a median of <b>${fmtM(st.median_m)}</b> from the real spot, yet drew a coast that strays <b>${fmtM(c.mean_m)}</b> on average and leaves out <b>${c.forgot_land_km2.toFixed(1)} km&sup2;</b> of land.`;
+  $('st-facts').innerHTML = [
+    `Best: <b>${esc(best.name)}</b> ${chips(best.codes)}, ${fmtM(best.err)} off.`,
+    `Worst: <b>${esc(worst.name)}</b> ${chips(worst.codes)}, ${fmtM(worst.err)} off.`,
+    `<b>${st.bands.within_100m}</b> of ${st.matched} within 100 m; all ${st.bands.within_250m} within 250 m.`,
+    `Station order: <b>${pairs.right} of ${pairs.guessed}</b> next-door pairs right and ${pairs.wrong.length ? pairs.wrong.length : 'none'} wrong. The ${pairs.missed.length} it missed all lead to the left-out stations.`,
+    `Left out: <b>${st.forgotten.join(', ').replace(/, ([^,]*)$/, ' and $1')}</b>. Claude named them, but thought they were still being built. They opened on 12 July 2026.`,
+  ].map(h => `<li>${h}</li>`).join('');
+  drawHist(placed.map(s => s.err), st.median_m);
+  $('h-coast').textContent = fmtM(c.mean_m);
+  $('h-corners').textContent = c.corners;
+  $('n-gkm').textContent = c.guess_km2.toFixed(1);
+  $('n-rkm').textContent = c.real_km2.toFixed(1);
+  $('n-iou').textContent = `${Math.round(c.iou * 100)}%`;
+  const short = 100 * (1 - c.guess_km2 / c.real_km2);
+  $('co-facts').innerHTML = [
+    `<li>The drawn island is <b>${short.toFixed(1)}%</b> too small. <b>${c.at_sea}</b> of its ${c.corners} corners are out at sea; the farthest is ${fmtM(c.max_m)} from shore.</li>`,
+    `<li class="forgot"><b>${c.forgot_land_km2.toFixed(1)} km&sup2;</b> of real land left out. The worst miss is at Tuas, where the real shore runs ${fmtM(c.far3[0][2])} beyond Claude's line.</li>`,
+    `<li class="made"><b>${c.made_land_km2.toFixed(1)} km&sup2;</b> of sea drawn as land.</li>`,
+    `<li>Claude's coast is <b>${c.guess_coast_km.toFixed(1)} km</b> long. The real one, traced in full detail, is <b>${c.real_coast_km.toFixed(1)} km</b>.</li>`,
+  ].join('');
+  $('isl').innerHTML = ['Sentosa', 'Pulau Ubin', 'Pulau Tekong', 'Jurong Island'].map(k => {
+    const v = st.coast[k];
+    return `<tr><td>${k}</td><td class="r">${v.guess_km2.toFixed(1)} km&sup2;</td><td class="r">${v.real_km2.toFixed(1)} km&sup2;</td><td class="r">${Math.round(v.iou * 100)}%</td></tr>`;
+  }).join('');
+  // the self-assessment, line by line
+  const g = st.groups, R = c.regions, all = g.all.median_m, cm = c.mean_m;
+  const rows = [
+    ['The city centre … I know well', `Stations within 3 km of City Hall: median <b>${fmtM(g.centre_3km.median_m)}</b>, about twice the overall ${fmtM(all)}. Coast there: ${fmtM(R.city.mean_m)} off, better than average.`, 'half', 'Half right'],
+    ['the older lines I know well', `North South and East West Lines together: median <b>${fmtM(g.old_lines_ns_ew.median_m)}</b>; they are the two most accurate MRT lines. The newest, Thomson-East Coast, is the least: ${fmtM(st.by_line.TE.median_m)}.`, 'yes', 'Right'],
+    ['The far west (Tuas) … fuzzy', `Tuas coast corners: <b>${fmtM(R.tuas.mean_m)}</b> off on average, the worst of the four stretches named here (all corners: ${fmtM(cm)}).`, 'yes', 'Right'],
+    ['the north coast … fuzzy', `North coast corners: <b>${fmtM(R.north.mean_m)}</b> off, better than average.`, 'no', 'Too modest'],
+    ['the Changi reclamation … fuzzy', `Changi corners: <b>${fmtM(R.changi.mean_m)}</b> off, worse than average.`, 'yes', 'Right'],
+    ['LRT loops are rough guesses', `The ${g.lrt.n} LRT stations: median <b>${fmtM(g.lrt.median_m)}</b>, better than any MRT line.`, 'no', 'Too modest'],
+  ];
+  $('self').innerHTML = rows.map(([q, a, cls, v]) => `<tr><td><q>${q}</q></td><td>${a}<br><span class="verdict ${cls}">${v}</span></td></tr>`).join('');
+  $('method').textContent = `How it was scored: station error is the straight-line distance on the ground between Claude's point and LTA's station point (${D.meta.truth_stations} stations in sgraildata, 12 July 2026). The coast is SLA's full-detail outline; on the map it is drawn simplified to 20 m (islands 12 m). Areas are measured on the WGS84 ellipsoid.`;
+}
+
+/* ---------- histogram: how far off each station was ---------- */
+function drawHist(errs, med) {
+  const BIN = 10, MAXV = Math.ceil(Math.max(...errs) / BIN) * BIN, nb = MAXV / BIN;
+  const counts = Array(nb).fill(0);
+  errs.forEach(e => { counts[Math.min(nb - 1, Math.floor(e / BIN))]++; });
+  const W = 320, H = 70, top = 12, bot = 14, bw = W / nb, ymax = Math.max(...counts);
+  const y = v => top + (H - top - bot) * (1 - v / ymax);
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="How far off each of the ${errs.length} stations was, in 10 metre bins: ${counts.map((c, i) => `${i * BIN} to ${(i + 1) * BIN} m: ${c}`).join('; ')}">`;
+  s += `<line x1="0" x2="${W}" y1="${H - bot}" y2="${H - bot}" stroke="rgba(255,255,255,.18)"/>`;
+  counts.forEach((c, i) => {
+    const x = i * bw, h = (H - bot) - y(c);
+    s += `<g class="bin" tabindex="0" data-i="${i}" aria-label="${c} stations ${i * BIN} to ${(i + 1) * BIN} m off"><rect class="hit" x="${x}" y="0" width="${bw}" height="${H - bot}"/>`;
+    if (c) s += `<rect x="${x + 1}" y="${y(c)}" width="${Math.max(1, bw - 2)}" height="${h}" rx="1.5" fill="${errColor(i * BIN + BIN / 2)}"/>`;
+    s += '</g>';
+  });
+  const mx = med / MAXV * W;
+  s += `<line x1="${mx}" x2="${mx}" y1="${top - 4}" y2="${H - bot}" stroke="#fff" stroke-dasharray="2 2" stroke-opacity=".8"/>`;
+  s += `<text class="med" x="${mx + 4}" y="${top - 3}">median ${fmtM(med)}</text>`;
+  for (const v of [0, 50, 100, 150, 200]) if (v <= MAXV) s += `<text class="ax" x="${v / MAXV * W}" y="${H - 2}" text-anchor="${v ? 'middle' : 'start'}">${v}${v === 200 ? ' m' : ''}</text>`;
+  s += '</svg>';
+  $('hist').innerHTML = s;
+  const out = $('hist-tip'), def = 'Stations by how far off they were. Hover a bar for its count.';
+  out.textContent = def;
+  $('hist').querySelectorAll('g.bin').forEach(g => {
+    const k = +g.dataset.i;
+    const show = () => { out.innerHTML = `<b>${counts[k]}</b> station${counts[k] === 1 ? '' : 's'} ${k * BIN}&ndash;${(k + 1) * BIN} m off`; };
+    g.addEventListener('mouseenter', show); g.addEventListener('focus', show);
+    g.addEventListener('mouseleave', () => { out.textContent = def; }); g.addEventListener('blur', () => { out.textContent = def; });
+  });
+}
+
+/* ---------- most lost ---------- */
+let sortLost = true;
+function fillLost() {
+  const placed = S.filter(s => s.g), gone = S.filter(s => !s.g), maxE = Math.max(...placed.map(s => s.err));
+  const row = (s, rank) => `<li${s.g ? '' : ' class="gone"'}><button type="button" data-i="${s.i}" aria-label="${esc(s.name)}, ${s.g ? `${fmtM(s.err)} off` : 'left out'}. Fly there.">
+    <span class="rk">${rank}</span><span class="nm"><span>${esc(s.name)}</span>${chips(s.codes)}</span>
+    <span class="bar">${s.g ? `<i style="width:${Math.max(2, 100 * s.err / maxE)}%;background:${errColor(s.err)}"></i>` : ''}</span>
+    <span class="m">${s.g ? fmtM(s.err) : 'left out'}</span></button></li>`;
+  $('gone').innerHTML = gone.map(s => row(s, '–')).join('');
+  const list = sortLost ? placed : placed.slice().reverse();
+  $('lost').innerHTML = list.map((s, k) => row(s, sortLost ? k + 1 : placed.length - k)).join('');
+  $('lost-h').textContent = `Placed: ${placed.length}, ${sortLost ? 'most lost first' : 'spot on first'}`;
+  $('gone-h').textContent = `Left out: ${gone.length}`;
+  if (selected >= 0) document.querySelectorAll(`.lost button[data-i="${selected}"]`).forEach(b => b.setAttribute('aria-current', 'true'));
+}
+// On a phone the sheet folds first, so the camera frames the station in the space it leaves
+function pickFromPanel(i) {
+  if (!isSheet()) { pick(i); return; }
+  setMin(true);
+  requestAnimationFrame(() => requestAnimationFrame(() => pick(i)));
+}
+$('p-lost').addEventListener('click', e => { const b = e.target.closest('.lost button'); if (b) pickFromPanel(+b.dataset.i); });
+for (const [id, v] of [['sort-lost', true], ['sort-best', false]]) $(id).addEventListener('click', () => {
+  sortLost = v; $('sort-lost').setAttribute('aria-pressed', String(v)); $('sort-best').setAttribute('aria-pressed', String(!v)); fillLost();
+});
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+
+/* ---------- the transcript ---------- */
+function md(src) {   // just enough Markdown for the prompt file
+  const inline = t => esc(t).replace(/`([^`]+)`/g, '<code>$1</code>').replace(/\*\*([^*]+)\*\*/g, '<b>$1</b>');
+  const out = []; let list = null, para = [];
+  const flushP = () => { if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; } };
+  const flush = () => { flushP(); if (list) { out.push(`<${list.t}>${list.items.map(i => `<li>${inline(i)}</li>`).join('')}</${list.t}>`); list = null; } };
+  for (const raw of src.split(/\r?\n/)) {
+    const l = raw.trimEnd();
+    let m;
+    if (!l.trim()) { flushP(); continue; }   // a blank line ends a paragraph, not a list
+    if (/^[A-Z][\w ]{1,12}: /.test(l)) flushP();   // "Asked of: ..." lines each stay on their own
+    if ((m = l.match(/^(#{1,3})\s+(.*)$/))) { flush(); out.push(`<h${m[1].length + 1}>${inline(m[2])}</h${m[1].length + 1}>`); continue; }
+    if (/^---+$/.test(l)) { flush(); out.push('<hr>'); continue; }
+    if ((m = l.match(/^\s*(\d+)\.\s+(.*)$/)) || (m = l.match(/^\s*[-*]\s+()(.*)$/))) {
+      const t = /^\s*\d/.test(l) ? 'ol' : 'ul';
+      if (para.length) { out.push(`<p>${inline(para.join(' '))}</p>`); para = []; }
+      if (!list || list.t !== t) { if (list) flush(); list = { t, items: [] }; }
+      list.items.push(m[2]); continue;
+    }
+    if (list && /^\s{2,}/.test(raw)) { list.items[list.items.length - 1] += ' ' + l.trim(); continue; }
+    if (list) flush();
+    para.push(l.trim());
+  }
+  flush();
+  return out.join('');
+}
+function highlightJSON(text) {
+  return text.split('\n').map(line => {
+    let h = esc(line)
+      .replace(/(&quot;[^&]*?&quot;)(\s*:)/g, '<span class="k">$1</span>$2')
+      .replace(/(:\s*|\[|,\s*)(&quot;[^&]*?&quot;)/g, '$1<span class="s">$2</span>')
+      .replace(/(-?\b\d+\.\d+\b)/g, '<span class="n">$1</span>');
+    const m = line.match(/^\s*\{"name": "([^"]+)", "codes"/);
+    if (m) h = `<span class="jl" data-name="${esc(m[1])}" title="Fly to ${esc(m[1])}">${h}</span>`;
+    return h;
+  }).join('\n');
+}
+async function loadTranscript() {
+  try {
+    const [pr, an] = await Promise.all([
+      fetch('data/day10/build/prompt.md').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
+      fetch('data/day10/build/answer.json').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
+    ]);
+    $('prompt').innerHTML = md(pr.replace(/^# The prompt\s*/, ''));
+    const text = new TextDecoder().decode(an);
+    $('answer').innerHTML = highlightJSON(text);
+    const seal = $('seal');
+    let digest = '';
+    if (crypto.subtle) {
+      const buf = await crypto.subtle.digest('SHA-256', an);
+      digest = [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+    }
+    await dataP;
+    const want = D.meta.answer_sha256;
+    if (digest && digest === want) { seal.classList.add('ok'); seal.innerHTML = `<b>Seal intact.</b> SHA-256 of this answer, worked out in your browser just now: ${digest}. It matches the file the scores were computed from.`; }
+    else if (digest) seal.innerHTML = `SHA-256 here: ${digest}. Expected: ${want}. The file has changed since it was scored.`;
+    else seal.textContent = `SHA-256 of the scored answer: ${want}.`;
+  } catch (err) {
+    $('prompt').textContent = 'The transcript could not be loaded.';
+    console.error(err);
+  }
+}
+$('answer').addEventListener('click', e => {
+  const l = e.target.closest('.jl');
+  if (!l) return;
+  const s = S.find(s => s.name === l.dataset.name);
+  if (s) pickFromPanel(s.i);
+});
+
+/* ---------- map layers ---------- */
+function graticule() {
+  const f = [];
+  for (let x = 103.40; x <= 104.30 + 1e-9; x += 0.01) f.push({ type: 'Feature', properties: { m: Math.round(x * 100) % 5 === 0 ? 1 : 0 }, geometry: { type: 'LineString', coordinates: [[x, 1.0], [x, 1.7]] } });
+  for (let y = 1.00; y <= 1.70 + 1e-9; y += 0.01) f.push({ type: 'Feature', properties: { m: Math.round(y * 100) % 5 === 0 ? 1 : 0 }, geometry: { type: 'LineString', coordinates: [[103.4, y], [104.3, y]] } });
+  return { type: 'FeatureCollection', features: f };
+}
+function hatch(color) {
+  const S2 = 16, c = document.createElement('canvas'); c.width = c.height = S2;
+  const g = c.getContext('2d');
+  g.fillStyle = color + '2E'; g.fillRect(0, 0, S2, S2);
+  g.strokeStyle = color; g.lineWidth = 2.2; g.lineCap = 'square';
+  for (const o of [-S2, 0, S2]) { g.beginPath(); g.moveTo(o, S2); g.lineTo(o + S2, 0); g.stroke(); }
+  return g.getImageData(0, 0, S2, S2);
+}
+const polyFC = list => ({ type: 'FeatureCollection', features: list.map(rings => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: rings.map(r => { const c = dec(r); c.push(c[0]); return c; }) } })) });
+function addLayers() {
+  map.setGlyphs('https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf');
+  map.addImage('h-forgot', hatch('#FF5D8F'), { pixelRatio: 2 });
+  map.addImage('h-made', hatch('#7A5AF8'), { pixelRatio: 2 });
+  const empty = { type: 'FeatureCollection', features: [] };
+  map.addSource('grid', { type: 'geojson', data: graticule() });
+  map.addSource('others', { type: 'geojson', data: { type: 'FeatureCollection', features: D.others.map(r => { const c = dec(r); c.push(c[0]); return { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [c] } }; }) } });
+  map.addSource('forgot', { type: 'geojson', data: polyFC(D.forgot) });
+  map.addSource('made', { type: 'geojson', data: polyFC(D.made) });
+  map.addSource('ghost', { type: 'geojson', data: { type: 'FeatureCollection', features: PIECES.map(p => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [...p.g, p.g[0]] } })) } });
+  map.addSource('morph', { type: 'geojson', data: empty, tolerance: 0.2 });
+  map.addSource('net', { type: 'geojson', data: empty, tolerance: 0.2 });
+  map.addSource('stn', { type: 'geojson', data: empty });
+  map.addSource('whisk', { type: 'geojson', data: { type: 'FeatureCollection', features: S.filter(s => s.g).map(s => ({ type: 'Feature', properties: { i: s.i, err: s.err }, geometry: { type: 'LineString', coordinates: [s.g, s.t] } })) } });
+  map.addSource('missed', { type: 'geojson', data: { type: 'FeatureCollection', features: D.missed.map(([a, b]) => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [S[a].t, S[b].t] } })) } });
+  const W = (a, b, c) => ['interpolate', ['exponential', 1.6], ['zoom'], 9, a, 13, b, 17, c];
+  map.addLayer({ id: 'grid', type: 'line', source: 'grid', paint: { 'line-color': '#A9CBFF', 'line-width': ['case', ['==', ['get', 'm'], 1], 1, 0.5], 'line-opacity': 1,
+    'line-opacity-transition': { duration: 0 } } });
+  map.setPaintProperty('grid', 'line-color', ['case', ['==', ['get', 'm'], 1], 'rgba(169,203,255,0.30)', 'rgba(169,203,255,0.13)']);
+  map.addLayer({ id: 'forgot', type: 'fill', source: 'forgot', paint: { 'fill-pattern': 'h-forgot', 'fill-opacity': 0 } });
+  map.addLayer({ id: 'made', type: 'fill', source: 'made', paint: { 'fill-pattern': 'h-made', 'fill-opacity': 0 } });
+  map.addLayer({ id: 'others', type: 'line', source: 'others', paint: { 'line-color': INK, 'line-width': 1, 'line-opacity': 0 } });
+  map.addLayer({ id: 'morph-fill', type: 'fill', source: 'morph', paint: { 'fill-color': '#FFFFFF', 'fill-opacity': 0.07 } });
+  map.addLayer({ id: 'morph-glow', type: 'line', source: 'morph', layout: { 'line-join': 'round' }, paint: { 'line-color': '#8FC0FF', 'line-width': W(5, 9, 14), 'line-blur': W(4, 7, 10), 'line-opacity': 0.4 } });
+  map.addLayer({ id: 'ghost', type: 'line', source: 'ghost', layout: { 'line-join': 'round' }, paint: { 'line-color': '#7A5AF8', 'line-width': W(1.3, 2, 3), 'line-dasharray': [2.2, 1.6], 'line-opacity': 0 } });
+  map.addLayer({ id: 'morph-line', type: 'line', source: 'morph', layout: { 'line-join': 'round' }, paint: { 'line-color': CHALK, 'line-width': W(1.5, 2.2, 3) } });
+  map.addLayer({ id: 'net', type: 'line', source: 'net', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ['get', 'c'], 'line-width': W(1.4, 3, 6), 'line-opacity': 0.95 } });
+  map.addLayer({ id: 'missed', type: 'line', source: 'missed', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#FF5D8F', 'line-width': W(1.6, 3, 5), 'line-dasharray': [1.2, 1.4], 'line-opacity': 0 } });
+  map.addLayer({ id: 'whisk', type: 'line', source: 'whisk', layout: { 'line-cap': 'round' }, paint: { 'line-color': ERR_EXPR, 'line-width': W(1, 2.4, 4), 'line-opacity': 0 } });
+  map.addLayer({ id: 'whisk-sel', type: 'line', source: 'whisk', filter: ['==', ['get', 'i'], -1], layout: { 'line-cap': 'round' }, paint: { 'line-color': '#FF5D8F', 'line-width': W(2, 4, 6), 'line-dasharray': [1, 1.2] } });
+  map.addLayer({ id: 'gone-ring', type: 'circle', source: 'stn', filter: ['==', ['get', 'gone'], 1], paint: { 'circle-radius': W(6, 10, 18), 'circle-color': 'rgba(255,93,143,0.18)', 'circle-stroke-color': '#FF5D8F', 'circle-stroke-width': 1.5, 'circle-opacity': 0, 'circle-stroke-opacity': 0 } });
+  map.addLayer({ id: 'stn', type: 'circle', source: 'stn', paint: { 'circle-radius': W(1.8, 3.6, 7), 'circle-color': '#FFFFFF', 'circle-stroke-color': ACCENT, 'circle-stroke-width': W(1, 1.6, 2.6) } });
+  map.addLayer({ id: 'stn-label', type: 'symbol', source: 'stn', minzoom: 13.2, layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11.5,
+    'text-offset': [0, 1.1], 'text-anchor': 'top', 'text-optional': true, 'text-padding': 3 }, paint: { 'text-color': CHALK, 'text-halo-color': BP, 'text-halo-width': 1.6 } });
+}
+
+/* ---------- on-map notes: the self-assessment, then the biggest misses ---------- */
+let notes = [], farPins = [];
+function addNotes() {
+  // where Claude said it was unsure (or sure), pinned on its own drawing; words quoted from answer.json
+  const N = [   // [on Claude's drawing, before the arrow, text, after the arrow, anchor, wide screens only]
+    [[103.612, 1.352], '↙ ', 'the far west: fuzzy', '', 'bottom-left', 0],
+    [[103.800, 1.470], '', 'north coast: fuzzy', ' ↓', 'bottom', 1],
+    [[104.032, 1.346], '↖ ', 'Changi reclamation: fuzzy', '', 'top-left', 1],
+    [[103.853, 1.262], '↑ ', 'city centre: I know well', '', 'top', 0],
+    [[103.930, 1.420], '↙ ', 'LRT loops: rough guesses', '', 'bottom-left', 1],
+  ];
+  // MapLibre owns each marker's own opacity, so the fading happens on an inner element
+  const marker = (cls, html, at, anchor, offset = [0, 0]) => {
+    const root = document.createElement('div'), el = document.createElement('div');
+    root.className = 'mk dmc-chrome';
+    el.className = cls;
+    el.innerHTML = html;
+    root.append(el);
+    new maplibregl.Marker({ element: root, anchor, offset }).setLngLat(at).addTo(map);
+    return { el };
+  };
+  notes = N.map(([at, pre, text, post, anchor, wide]) => marker(`note-pin${wide ? ' wide' : ''}`, `<i>${pre}</i>${esc(text)}<i>${post}</i>`, at, anchor));
+  const c = D.stats.coast;
+  const F = [   // [far point, place, what, side the tag hangs]
+    [c.main.far3[0], 'Tuas', 'reclaimed land beyond Claude\'s coast', 'up-r'],
+    [c['Pulau Tekong'].far3[0], 'Pulau Tekong', 'its reclaimed south, missed', 'up-l'],
+    [c.main.far3[2], 'Changi East', 'reclaimed shore, missed', 'down-l'],
+  ];
+  farPins = F.map(([p, place, what, side]) => {
+    const tag = `<div class="tag"><b>${fmtM(p[2])} off</b>${place}<span class="w">: ${what}</span></div>`, stem = '<div class="stem"></div><div class="dot"></div>';
+    const up = side.startsWith('up'), left = side.endsWith('l');
+    const html = up ? tag + stem : '<div class="dot"></div><div class="stem"></div>' + tag;
+    const anchor = (up ? 'bottom' : 'top') + (left ? '-right' : '-left');
+    const m = marker(`far-pin${left ? ' l' : ''}${place === 'Pulau Tekong' ? ' roomy' : ''}`, html, [p[0], p[1]], anchor, [left ? 6 : -6, up ? 5 : -5]);
+    m.el.style.opacity = '0';
+    return m;
+  });
+}
+
+/* ---------- hover ---------- */
+const tip = $('tip');
+function hideTip() { tip.hidden = true; map.getCanvas().style.cursor = ''; }
+function probe(e) {
+  const f = map.queryRenderedFeatures([[e.point.x - 6, e.point.y - 6], [e.point.x + 6, e.point.y + 6]], { layers: ['stn'] }).filter(f => f.properties.gone === 0 || T > 0.85)[0];
+  if (!f) { hideTip(); return null; }
+  const s = S[f.properties.i];
+  tip.innerHTML = s.g
+    ? `<b>${esc(s.name)}</b> ${chips(s.codes)}<span>Claude's dot was <b>${fmtM(s.err)}</b> off: the real station is ${fmtM(s.err)} to the ${direction(s.g, s.t)}.</span>`
+    : `<b>${esc(s.name)}</b> ${chips(s.codes)}<span>Left out: Claude thought it was still being built. It opened on 12 July 2026.</span>`;
+  tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.originalEvent.clientX + 14, y = e.originalEvent.clientY + 14;
+  if (x + w > innerWidth - 8) x -= w + 28;
+  if (y + h > innerHeight - 8) y -= h + 28;
+  tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${Math.max(8, y)}px`;
+  map.getCanvas().style.cursor = 'pointer';
+  return s;
+}
+if (matchMedia('(hover: hover)').matches) { map.on('mousemove', e => { if (ready) probe(e); }); map.getCanvas().addEventListener('mouseleave', hideTip); }
+map.on('click', e => { if (!ready) return; const s = probe(e); if (s) pick(s.i, { fly: false }); else clearSelection(); setTimeout(hideTip, 2600); });
+map.on('movestart', e => { if (e.originalEvent) hideTip(); });
+
+/* ---------- load ---------- */
+let ready = false;
+const dataP = fetch('data/day10/memory.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => { prep(d); return d; });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+loadTranscript();
+Promise.all([dataP, styleP]).then(() => {
+  addLayers();
+  addNotes();
+  fillScore();
+  fillLost();
+  ready = true;
+  const t0 = params.has('t') ? clamp(+params.get('t') || 0) : 0;
+  const tab = params.get('tab');
+  if (TABS.includes(tab)) showTab(tab);
+  setT(t0, { camera: false });
+  if (!params.has('view')) overview(true);
+  const st = params.get('station');
+  if (st) { const s = S.find(s => s.name.toLowerCase() === st.toLowerCase()); if (s) { if (isSheet()) setMin(true); setTimeout(() => pick(s.i), 300); } }
+  setTimeout(() => { $('loading').hidden = true; }, 1500);   // the drawing is up; hidden basemap tiles may still be loading
+  map.once('idle', () => {
+    $('loading').hidden = true;
+    if (!params.has('t') && !st && !reduceMotion) setTimeout(() => { if (T === 0 && !raf) animateTo(1); }, 2600);
+  });
+}).catch(err => {
+  $('loading').textContent = 'The drawing could not be loaded. Please reload.';
+  console.error(err);
+});
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if (ready && coupled) overview(true); }, 180); });
+document.addEventListener('dmc:focus', () => { if (ready && coupled) setTimeout(() => overview(), 60); });
+</script>
+</body>
+</html>
