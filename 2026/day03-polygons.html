@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#3B2618">
+<title>Day 03 · Singapore, quilted</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 3, Polygons: every land-use polygon in URA's Master Plan 2019 sewn as a patch of fabric, with Singapore's roads as the seams. Gingham homes, denim industry, camouflage for military land.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,600;1,9..144,500;1,9..144,600&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 03: a quilt on a walnut table ===== */
+:root {
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+  --cotton: #F4ECDB; --cotton-2: #E9DEC6; --ink: #33261C; --ink-2: #6E5B4A; --thread: #B5523B;
+}
+/* The table: walnut planks, grain from SVG noise, lit by a warm lamp. The map canvas is transparent. */
+body {
+  background-color: #4A2F1D;
+  background-image:
+    radial-gradient(85% 75% at 55% 45%, rgba(255, 214, 160, .20), transparent 62%),
+    radial-gradient(140% 110% at 55% 45%, transparent 45%, rgba(12, 6, 2, .62) 100%),
+    repeating-linear-gradient(90deg, rgba(0, 0, 0, .34) 0 1.5px, rgba(255, 220, 180, .06) 1.5px 3px, transparent 3px 212px),
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='424' height='1400'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.11 0.0045' numOctaves='4' seed='7' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .32 0 0 0 0 .19 0 0 0 0 .10 0 0 0 1.25 -.3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E"),
+    linear-gradient(90deg, #6A4228, #5B3922 30%, #6E4429 55%, #57361F 80%, #684027);
+  background-size: auto, auto, auto, 424px 1400px, 424px 100%;
+}
+.dmc-map { background: transparent; }
+
+/* ---- swatch book (left) ---- */
+.q-book {
+  position: absolute; z-index: 2;
+  top: calc(var(--gutter) + 104px + env(safe-area-inset-top, 0px)); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  width: 252px; max-height: calc(100% - 104px - 2 * var(--gutter));
+  display: grid; grid-template-rows: auto 1fr auto; gap: 6px;
+  padding: 11px 10px 9px; color: var(--ink);
+  background: var(--cotton) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='6' height='6'%3E%3Cpath d='M0 .5h6M.5 0v6' stroke='%23000' stroke-opacity='.035'/%3E%3C/svg%3E");
+  border-radius: 6px; box-shadow: 0 1px 0 rgba(255, 255, 255, .5) inset, 0 10px 26px rgba(10, 4, 0, .5), 0 2px 4px rgba(10, 4, 0, .35);
+  transform: rotate(-.6deg);
+}
+.q-book::before { content: ""; position: absolute; inset: 4px; border: 1.2px dashed rgba(181, 82, 59, .55); border-radius: 4px; pointer-events: none; }
+.q-book h2 { margin: 0; padding: 0 4px; display: flex; align-items: baseline; justify-content: space-between; gap: 6px; font-family: var(--serif); font-style: italic; font-weight: 600; font-size: 15px; line-height: 1.1; }
+.q-book h2 small { font-family: var(--mono); font-style: normal; font-weight: 500; font-size: 9.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); }
+.q-list { list-style: none; margin: 0; padding: 0 2px; overflow-y: auto; scrollbar-width: thin; display: grid; gap: 1px; }
+.q-sw {
+  position: relative; width: 100%; display: grid; grid-template-columns: 38px 1fr auto; align-items: center; gap: 8px;
+  padding: 2px 5px 2px 3px; min-height: 30px; text-align: left; font: inherit; color: inherit; background: transparent; border: 0; border-radius: 5px; cursor: pointer;
+}
+.q-sw:hover { background: rgba(110, 91, 74, .09); }
+.q-sw[aria-pressed="true"] { background: rgba(181, 82, 59, .13); box-shadow: inset 0 0 0 1px rgba(181, 82, 59, .45); }
+.q-sw .cloth { width: 38px; height: 25px; background-repeat: repeat; filter: drop-shadow(0 1px 1px rgba(40, 20, 8, .45)); }
+.q-sw .nm { display: grid; min-width: 0; line-height: 1.15; }
+.q-sw .nm b { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.q-sw .nm i { font-family: var(--serif); font-size: 11px; color: var(--ink-2); }
+.q-sw .pc { display: grid; justify-items: end; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.q-sw .pc b { font-size: 12px; font-weight: 700; }
+.q-sw .pc span { font-size: 10.5px; color: var(--ink-2); }
+.q-sel .q-sw[aria-pressed="false"] .cloth { opacity: .45; filter: grayscale(.6) drop-shadow(0 1px 1px rgba(40, 20, 8, .3)); }
+.q-sw.seam { cursor: default; }
+.q-sw.seam:hover { background: transparent; }
+.q-hint { margin: 0; padding: 0 4px; font-size: 10.5px; line-height: 1.35; color: var(--ink-2); }
+
+/* ---- pattern tag (bottom right): kraft card with an eyelet and string ---- */
+.q-tag {
+  position: absolute; z-index: 2;
+  right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: 300px; padding: 12px 14px 10px 30px; color: #2E2116;
+  display: grid; gap: 7px;
+  background: #D7BE95 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' seed='3'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .24 0 0 0 0 .12 0 0 0 .5 -.18'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  border-radius: 4px 10px 10px 4px;
+  clip-path: polygon(16px 0, 100% 0, 100% 100%, 16px 100%, 0 calc(100% - 16px), 0 16px);
+  filter: drop-shadow(0 8px 14px rgba(10, 4, 0, .5));
+  transform: rotate(.8deg);
+}
+.q-tag::before { content: ""; position: absolute; left: 10px; top: 50%; width: 11px; height: 11px; margin-top: -5.5px; border-radius: 50%; background: #3B2618; box-shadow: 0 0 0 2.5px #B89A6A, inset 0 1px 2px rgba(0, 0, 0, .6); }
+.q-tag-k { font-family: var(--mono); font-size: 9.5px; font-weight: 500; letter-spacing: .12em; text-transform: uppercase; color: #6B5233; margin: 0; }
+.q-tag h2 { margin: 0; font-family: var(--serif); font-weight: 600; font-size: 17px; line-height: 1.15; }
+.q-nums { display: grid; grid-template-columns: repeat(3, auto); justify-content: space-between; gap: 2px 10px; border-top: 1px dashed rgba(46, 33, 22, .35); border-bottom: 1px dashed rgba(46, 33, 22, .35); padding: 6px 0; }
+.q-nums div { display: grid; }
+.q-nums b { font-family: var(--serif); font-size: 22px; font-weight: 600; line-height: 1; font-variant-numeric: lining-nums tabular-nums; }
+.q-nums span { font-size: 10.5px; color: #5E4A33; }
+.q-pick { margin: 0; font-size: 12px; line-height: 1.45; min-height: 3em; }
+.q-pick b { font-weight: 700; }
+.q-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.q-btn {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 5px 12px;
+  font: inherit; font-size: 12px; font-weight: 700; color: var(--cotton); background: #3B2A3F; border: 0; border-radius: 999px; cursor: pointer;
+  box-shadow: inset 0 0 0 1.5px #3B2A3F, inset 0 0 0 3px rgba(244, 236, 219, .0), 0 2px 0 rgba(0, 0, 0, .25);
+}
+.q-btn::after { content: ""; position: absolute; inset: -7px -4px; }
+.q-btn:hover { background: #4E3954; }
+.q-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.q-btn[aria-pressed="true"] { background: var(--thread); box-shadow: inset 0 0 0 1.5px var(--thread), 0 2px 0 rgba(0, 0, 0, .25); }
+.q-btn.ghost { color: #2E2116; background: rgba(255, 255, 255, .28); box-shadow: inset 0 0 0 1px rgba(46, 33, 22, .35); }
+.q-btn.ghost:hover { background: rgba(255, 255, 255, .45); }
+.q-btn[hidden] { display: none; }
+.q-tag .dmc-credits { color: #5E4A33; font-size: 10px; }
+.q-tag .dmc-credits a { text-decoration-color: rgba(46, 33, 22, .4); }
+
+/* ---- care label tooltip ---- */
+.q-care {
+  position: absolute; z-index: 4; left: 0; top: 0; pointer-events: none; width: 196px;
+  padding: 10px 12px 9px; color: #2A2A2E; font-family: var(--mono); font-size: 10.5px; line-height: 1.4; text-transform: uppercase; letter-spacing: .04em;
+  background: #FBF8F1 url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='4' height='3'%3E%3Cpath d='M0 .5h4' stroke='%23000' stroke-opacity='.045'/%3E%3C/svg%3E");
+  border-radius: 2px; box-shadow: 0 6px 18px rgba(10, 4, 0, .45), 0 1px 2px rgba(10, 4, 0, .3);
+  transform: rotate(-1.2deg);
+}
+.q-care::before { content: ""; position: absolute; left: 0; right: 0; top: 0; height: 7px; background: repeating-linear-gradient(90deg, rgba(42, 42, 46, .5) 0 1px, transparent 1px 3px); opacity: .45; }
+.q-care[hidden] { display: none; }
+.q-care p { margin: 0; }
+.q-care .brand { margin-top: 4px; text-align: center; font-size: 9.5px; font-weight: 600; letter-spacing: .18em; color: #8A3B2C; }
+.q-care .fab { margin: 6px 0 1px; text-align: center; font-size: 13px; font-weight: 600; letter-spacing: .08em; }
+.q-care .lu { text-align: center; text-transform: none; letter-spacing: 0; font-size: 11px; color: #55555C; }
+.q-care dl { margin: 7px 0 0; padding-top: 6px; border-top: 1px solid rgba(42, 42, 46, .2); display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; }
+.q-care dt { color: #77777E; }
+.q-care dd { margin: 0; text-align: right; font-weight: 600; text-transform: none; letter-spacing: 0; }
+.q-care .made { margin-top: 6px; text-align: center; font-weight: 600; letter-spacing: .1em; }
+.q-care .icons { display: flex; justify-content: center; gap: 7px; margin-top: 6px; }
+.q-care .icons svg { width: 17px; height: 15px; fill: none; stroke: #2A2A2E; stroke-width: 1.1; stroke-linejoin: round; }
+.q-care .wash { margin-top: 5px; text-align: center; text-transform: none; letter-spacing: 0; font-size: 10.5px; font-style: italic; color: #55555C; }
+
+.q-load { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 8px 14px; border-radius: 999px; background: rgba(244, 236, 219, .92); color: var(--ink); font-size: 12px; font-weight: 600; box-shadow: 0 6px 16px rgba(0, 0, 0, .35); }
+.q-load[hidden] { display: none; }
+
+/* ---- compact: phones ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .q-tag { width: 270px; padding: 9px 11px 8px 26px; gap: 5px; }
+  .q-tag h2 { font-size: 15px; }
+  .q-nums b { font-size: 18px; }
+  .q-pick { min-height: 0; font-size: 11.5px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .q-book {
+    top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: none; transform: none;
+    border-radius: 12px 12px 0 0; padding: 8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); gap: 4px; grid-template-rows: auto auto;
+  }
+  .q-book::before { inset: 3px 3px 0; border-bottom: 0; border-radius: 9px 9px 0 0; }
+  .q-book h2 { font-size: 13.5px; }
+  .q-hint { display: none; }
+  .q-list { display: flex; gap: 4px; overflow-x: auto; overflow-y: hidden; padding: 2px 2px 3px; scroll-snap-type: x proximity; }
+  .q-list li { flex: none; scroll-snap-align: start; }
+  .q-sw { width: 74px; grid-template-columns: 1fr; grid-template-rows: auto auto auto; justify-items: center; gap: 2px; padding: 4px 3px; text-align: center; }
+  .q-sw .cloth { width: 56px; height: 26px; }
+  .q-sw .nm b { font-size: 10.5px; white-space: normal; line-height: 1.1; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; min-height: 2.2em; }
+  .q-sw .nm i { display: none; }
+  .q-sw .pc { justify-items: center; }
+  .q-sw .pc b { font-size: 11px; }
+  .q-sw .pc span { display: none; }
+  .q-tag { right: var(--gutter); bottom: calc(var(--q-book-h, 120px) + 8px); width: calc(100% - 2 * var(--gutter)); transform: none; }
+  .q-pick:empty, #pick.idle { display: none; }
+  .q-tag .q-tag-k, .q-tag .dmc-credits { display: none; }
+  .q-tag.open .dmc-credits { display: block; }
+  .q-nums { padding: 4px 0; }
+  .q-care { width: 184px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .q-book { top: calc(var(--gutter) + 92px); width: 220px; max-height: calc(100% - 92px - 2 * var(--gutter)); }
+  .q-hint { display: none; }
+  .q-tag { right: calc(var(--gutter) + 48px); width: 250px; }
+  .q-tag .q-tag-k, #pick.idle, .q-tag .dmc-credits { display: none; }
+  .q-tag.open .dmc-credits { display: block; }
+}
+#q-more { display: none; }
+@media (max-width: 640px) and (orientation: portrait), (max-height: 520px) and (orientation: landscape) { #q-more { display: inline-flex; } }
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Singapore drawn as a quilt: each Master Plan 2019 land-use zone is a patch of fabric, with roads as the seams"></div>
+<div id="care" class="q-care dmc-chrome" hidden aria-live="polite"></div>
+<p id="load" class="q-load dmc-chrome">Cutting 13,000 patches&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="book" class="q-book" data-dmc-overlay aria-label="Swatch book: one fabric per land use">
+  <h2>Swatch book <small>share of island</small></h2>
+  <ul id="swatches" class="q-list" role="list"></ul>
+  <p class="q-hint">Pick a fabric to find it in the quilt. Hover any patch to read its care label.</p>
+</aside>
+
+<section id="tag" class="q-tag" data-dmc-overlay aria-label="Pattern tag: quilt totals and controls">
+  <p class="q-tag-k">Pattern No. 03 &middot; URA Master Plan 2019</p>
+  <h2>Singapore, quilted</h2>
+  <div class="q-nums">
+    <div><b id="n-patch">&ndash;</b><span>patches</span></div>
+    <div><b>16</b><span>fabrics</span></div>
+    <div><b id="n-seam">&ndash;</b><span>km&sup2; of seams</span></div>
+  </div>
+  <p id="pick" class="q-pick" aria-live="polite"></p>
+  <div class="q-row">
+    <button id="drape" class="q-btn" type="button" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.5 11.5 8 14.5l6.5-3M1.5 11.5 8 8.5l6.5 3M3 8.6c1.4-4.6 8.6-4.6 10 0"/></svg>Drape the quilt</button>
+    <button id="clear" class="q-btn ghost" type="button" hidden>Show all fabrics</button>
+    <button id="q-more" class="q-btn ghost" type="button" aria-expanded="false" aria-controls="credits">Credits</button>
+  </div>
+  <p id="credits" class="dmc-credits"></p>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 3,
+  title: 'Singapore, quilted',
+  deck: 'URA\'s Master Plan zones every parcel of Singapore for a use. Here each use is a fabric (gingham homes, denim industry, camouflage for military land) and the 13,000-odd zones are patches sewn into one quilt, with the roads left showing as its seams. Pick a fabric in the swatch book, hover a patch for its care label, or drape the quilt to see it puff up.',
+  accent: '#E0A458',
+  basemap: [],
+  basemapBg: 'rgba(0, 0, 0, 0)',
+  bounds: [[103.6, 1.155], [104.092, 1.474]],
+  maxBounds: [[102.9, 0.75], [104.8, 1.9]],
+  minZoom: 9, maxZoom: 17.5,
+  camera: { pitch: 0, bearing: -8, tiltPitch: 55 },
+  buildings: false,
+  creditsEl: 'credits',
+  author: '',
+  nav: null,
+  attribution: ['Land use: <a href="https://data.gov.sg/datasets/d_90d86daa5bfaa371668b84fa5f01424f/view" target="_blank" rel="noopener noreferrer">URA Master Plan 2019 Land Use layer</a>; planning areas: <a href="https://data.gov.sg/datasets/d_4765db0e87b9c86336792efe8a1f7a66/view" target="_blank" rel="noopener noreferrer">URA MP2019 Planning Area Boundary</a>, via data.gov.sg, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>. Roads (the seams) are the MP2019 road zones left unsewn. Fabrics are drawn in your browser.'],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+// Kit v3 workaround: frame() calls setPadding() before it flags its own move, so the kit treats
+// its first re-fit as the viewer moving and stops re-fitting. The panels here only take their
+// final size once the data is in, so re-frame ourselves until the viewer really moves the map.
+let viewerMoved = new URLSearchParams(location.search).has('view');
+map.on('movestart', e => { if (e.originalEvent) viewerMoved = true; });
+const reframe = () => { if (!viewerMoved) DMC.frame(map); };
+let reframeT = 0;
+addEventListener('resize', () => { clearTimeout(reframeT); reframeT = setTimeout(reframe, 200); });
+if (document.fonts) document.fonts.ready.then(reframe);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const nf1 = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+
+/* ---------- fabrics ----------
+   Each fabric is a small seamless tile drawn on a canvas at 2x, registered with map.addImage
+   and used as fill-pattern (flat) and fill-extrusion-pattern (draped). */
+const R = 2;
+function rng(seed) { return () => { seed = (seed + 0x6D2B79F5) | 0; let t = Math.imul(seed ^ (seed >>> 15), 1 | seed); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
+const wrap = (w, h, fn) => { for (const dx of [-w, 0, w]) for (const dy of [-h, 0, h]) fn(dx, dy); };
+// Thread texture: every column and row of the weave a touch lighter or darker.
+function grain(x, w, h, a, r) {
+  for (let i = 0; i < w; i += .5) { x.fillStyle = `rgba(255,250,240,${(a * r()).toFixed(3)})`; x.fillRect(i, 0, .5, h); }
+  for (let j = 0; j < h; j += .5) { x.fillStyle = `rgba(30,15,5,${(a * r()).toFixed(3)})`; x.fillRect(0, j, w, .5); }
+}
+const diag = (x, w, h, step, dir, style, width) => {   // seamless 45-degree lines (w, h multiples of step)
+  x.strokeStyle = style; x.lineWidth = width; x.beginPath();
+  for (let k = -h - w; k <= w + h; k += step) {
+    if (dir > 0) { x.moveTo(k, 0); x.lineTo(k + h, h); } else { x.moveTo(k, h); x.lineTo(k + h, 0); }
+  }
+  x.stroke();
+};
+function blob(x, cx, cy, rad, r) {   // camouflage blob: a wobbly closed curve
+  const n = 9, pts = [];
+  for (let i = 0; i < n; i++) { const a = i / n * Math.PI * 2, rr = rad * (.65 + .55 * r()); pts.push([cx + Math.cos(a) * rr, cy + Math.sin(a) * rr * (.7 + .3 * r())]); }
+  x.beginPath();
+  for (let i = 0; i <= n; i++) {
+    const p = pts[i % n], q = pts[(i + 1) % n], m = [(p[0] + q[0]) / 2, (p[1] + q[1]) / 2];
+    if (i === 0) x.moveTo(m[0], m[1]); else x.quadraticCurveTo(p[0], p[1], m[0], m[1]);
+  }
+  x.fill();
+}
+const ikatDiamond = (x, cx, cy, hw, hh, col, r) => {   // a lozenge whose rows bleed sideways, like resist-dyed ikat
+  x.fillStyle = col;
+  for (let y = -hh; y < hh; y += 1.5) {
+    const t = 1 - Math.abs(y + .75) / hh, half = hw * t, j = (r() - .5) * 2.4;
+    if (half > .3) x.fillRect(cx - half + j, cy + y, half * 2 + (r() - .5) * 1.6, 1.5);
+  }
+};
+
+const FABRICS = [
+  { key: 'res', name: 'Residential', cloth: 'Gingham', w: 12, h: 12, thread: '#7A2E22', puff: 1,
+    wash: 'Machine wash. Dry on a bamboo pole outside the kitchen window.',
+    draw(x, w, h, r) { x.fillStyle = '#F4EBDD'; x.fillRect(0, 0, w, h); x.fillStyle = 'rgba(190, 88, 70, .48)'; x.fillRect(0, 0, 6, h); x.fillRect(0, 0, w, 6); grain(x, w, h, .07, r); } },
+  { key: 'mix', name: 'Shops under homes', cloth: 'Seersucker', w: 10, h: 8, thread: '#5B4116', puff: 1,
+    wash: 'Shophouse cotton. Do not iron the five-foot way.',
+    draw(x, w, h, r) { x.fillStyle = '#F2E6CC'; x.fillRect(0, 0, w, h); x.fillStyle = '#C9963A'; x.fillRect(0, 0, 4.5, h);
+      for (let y = 0; y < h; y += 2) { x.fillStyle = 'rgba(255,245,220,.28)'; x.fillRect(0, y, 4.5, .8); x.fillStyle = 'rgba(80,50,10,.12)'; x.fillRect(4.5, y + 1, w - 4.5, .7); }
+      x.fillStyle = 'rgba(120,80,20,.35)'; x.fillRect(4.5, 0, .5, h); grain(x, w, h, .06, r); } },
+  { key: 'com', name: 'Commercial & hotels', cloth: 'Tartan', w: 24, h: 24, thread: '#F1DDA0', puff: 1.1,
+    wash: 'Dry clean only. Open late.',
+    draw(x, w, h, r) { x.fillStyle = '#93392F'; x.fillRect(0, 0, w, h);
+      x.fillStyle = 'rgba(30, 62, 48, .55)'; x.fillRect(3, 0, 8, h); x.fillRect(0, 3, w, 8);
+      x.fillStyle = 'rgba(28, 34, 62, .5)'; x.fillRect(15, 0, 3, h); x.fillRect(0, 15, w, 3);
+      x.fillStyle = 'rgba(232, 196, 96, .85)'; x.fillRect(20.5, 0, .9, h); x.fillRect(0, 20.5, w, .9);
+      x.fillStyle = 'rgba(240, 230, 210, .5)'; x.fillRect(13, 0, .6, h); x.fillRect(0, 13, w, .6);
+      diag(x, w, h, 2, 1, 'rgba(0,0,0,.1)', .6); } },
+  { key: 'biz', name: 'Industry', cloth: 'Denim twill', w: 12, h: 12, thread: '#E6A24A', puff: 1,
+    wash: 'Heavy-duty twill. Wash warm, work hard.',
+    draw(x, w, h, r) { x.fillStyle = '#35507A'; x.fillRect(0, 0, w, h); diag(x, w, h, 3, -1, 'rgba(160, 185, 220, .42)', 1); diag(x, w, h, 3, -1, 'rgba(10, 20, 45, .25)', .4);
+      for (let i = 0; i < 26; i++) { x.fillStyle = `rgba(255,255,255,${(.08 + .14 * r()).toFixed(2)})`; x.fillRect(r() * w, r() * h, 1.2, .5); } grain(x, w, h, .05, r); } },
+  { key: 'bpark', name: 'Business parks', cloth: 'Pinstripe', w: 8, h: 8, thread: '#F0EEE8', puff: 1,
+    wash: 'Smart casual. Iron on low.',
+    draw(x, w, h, r) { x.fillStyle = '#56637A'; x.fillRect(0, 0, w, h); x.fillStyle = 'rgba(236, 236, 240, .75)'; x.fillRect(0, 0, .7, h); grain(x, w, h, .08, r); } },
+  { key: 'inst', name: 'Schools, civic & health', cloth: 'Polka dot', w: 14, h: 14, thread: '#F1E4C6', puff: 1,
+    wash: 'Wash before the new school term.',
+    draw(x, w, h, r) { x.fillStyle = '#3B7A7E'; x.fillRect(0, 0, w, h); grain(x, w, h, .05, r); x.fillStyle = '#F3E6C6';
+      for (const [cx, cy] of [[3.5, 3.5], [10.5, 10.5]]) { x.beginPath(); x.arc(cx, cy, 2.3, 0, Math.PI * 2); x.fill(); } } },
+  { key: 'park', name: 'Parks & beaches', cloth: 'Leaf batik', w: 36, h: 36, thread: '#F4EEDA', puff: 1,
+    wash: 'Air dry in a garden city.',
+    draw(x, w, h, r) { x.fillStyle = '#90AA78'; x.fillRect(0, 0, w, h);
+      x.strokeStyle = 'rgba(52, 72, 40, .3)'; x.lineWidth = .5;   // wax crackle
+      for (let i = 0; i < 9; i++) { let px = r() * w, py = r() * h; x.beginPath(); x.moveTo(px, py); for (let k = 0; k < 4; k++) { px += (r() - .5) * 14; py += (r() - .5) * 14; x.lineTo(px, py); } x.stroke(); }
+      const leaves = Array.from({ length: 5 }, () => [r() * w, r() * h, r() * Math.PI, 3.6 + r() * 2.2]);
+      for (const [lx, ly, ang, len] of leaves) wrap(w, h, (dx, dy) => {
+        x.save(); x.translate(lx + dx, ly + dy); x.rotate(ang);
+        x.fillStyle = '#4F7146'; x.beginPath(); x.ellipse(0, 0, len, len * .42, 0, 0, Math.PI * 2); x.fill();
+        x.strokeStyle = '#D3DFB4'; x.lineWidth = .6; x.beginPath(); x.moveTo(-len * .9, 0); x.lineTo(len * .9, 0); x.stroke();
+        x.restore();
+      });
+      x.fillStyle = 'rgba(245, 240, 215, .7)'; for (let i = 0; i < 22; i++) { x.beginPath(); x.arc(r() * w, r() * h, .5, 0, 7); x.fill(); } } },
+  { key: 'open', name: 'Open space & nature', cloth: 'Forest ikat', w: 24, h: 36, thread: '#D9C98F', puff: 1.15,
+    wash: 'Do not trim. Let it grow wild.',
+    draw(x, w, h, r) { x.fillStyle = '#2E4C3A'; x.fillRect(0, 0, w, h);
+      for (const [cx, cy] of [[12, 18], [0, 0], [24, 0], [0, 36], [24, 36]]) { ikatDiamond(x, cx, cy, 9, 15, '#86A877', r); ikatDiamond(x, cx, cy, 4.2, 7, '#D7C68A', r); ikatDiamond(x, cx, cy, 1.6, 2.6, '#2E4C3A', r); }
+      grain(x, w, h, .06, r); } },
+  { key: 'sport', name: 'Sports & recreation', cloth: 'Argyle', w: 16, h: 24, thread: '#E8C878', puff: 1,
+    wash: 'Sweat-proof. Tumble dry after the match.',
+    draw(x, w, h, r) { x.fillStyle = '#6A4760'; x.fillRect(0, 0, w, h); x.fillStyle = '#A26F8C';
+      x.beginPath(); x.moveTo(8, 0); x.lineTo(16, 12); x.lineTo(8, 24); x.lineTo(0, 12); x.closePath(); x.fill();
+      x.strokeStyle = '#E8C878'; x.lineWidth = .7; x.setLineDash([1.6, 1.2]); x.beginPath(); x.moveTo(0, 0); x.lineTo(16, 24); x.moveTo(16, 0); x.lineTo(0, 24); x.stroke(); x.setLineDash([]);
+      grain(x, w, h, .06, r); } },
+  { key: 'water', name: 'Water bodies', cloth: 'Wave chambray', w: 24, h: 10, thread: '#F4F1E8', puff: .35,
+    wash: 'Already wet. Do not wring.',
+    draw(x, w, h, r) { x.fillStyle = '#7393B2'; x.fillRect(0, 0, w, h);
+      for (let i = 0; i < 18; i++) { x.fillStyle = `rgba(235,242,250,${(.12 + .18 * r()).toFixed(2)})`; x.fillRect(r() * w, Math.floor(r() * h * 2) / 2, 1.5 + r() * 3, .5); }
+      x.strokeStyle = 'rgba(244, 248, 252, .8)'; x.lineWidth = 1; x.beginPath();
+      for (let i = 0; i <= w; i += .5) { const y = 5 + 2 * Math.sin(i / w * Math.PI * 2); i ? x.lineTo(i, y) : x.moveTo(i, y); } x.stroke(); } },
+  { key: 'agri', name: 'Agriculture', cloth: 'Hessian', w: 6, h: 6, thread: '#4A3520', puff: .9,
+    wash: 'Hand wash. Grows on you.',
+    draw(x, w, h, r) { x.fillStyle = '#A9884F'; x.fillRect(0, 0, w, h); x.fillStyle = 'rgba(232, 205, 150, .55)'; x.fillRect(0, 0, 3, 3); x.fillRect(3, 3, 3, 3);
+      x.fillStyle = 'rgba(60, 40, 15, .35)'; x.fillRect(0, 2.6, w, .4); x.fillRect(2.6, 0, .4, h); x.fillRect(0, 5.6, w, .4); x.fillRect(5.6, 0, .4, h); } },
+  { key: 'cem', name: 'Cemeteries', cloth: 'Damask', w: 20, h: 20, thread: '#F0EAF2', puff: .9,
+    wash: 'Handle gently. Do not disturb.',
+    draw(x, w, h, r) { x.fillStyle = '#8E829C'; x.fillRect(0, 0, w, h); x.fillStyle = 'rgba(232, 224, 238, .5)';
+      for (const [dx, dy] of [[2.6, 0], [-2.6, 0], [0, 2.6], [0, -2.6]]) { x.beginPath(); x.arc(10 + dx, 10 + dy, 2.5, 0, 7); x.fill(); }
+      for (const [cx, cy] of [[0, 0], [20, 0], [0, 20], [20, 20]]) { x.beginPath(); x.moveTo(cx, cy - 2.4); x.lineTo(cx + 1.6, cy); x.lineTo(cx, cy + 2.4); x.lineTo(cx - 1.6, cy); x.fill(); }
+      grain(x, w, h, .05, r); } },
+  { key: 'trans', name: 'Port, airport & transport', cloth: 'Herringbone', w: 12, h: 8, thread: '#EADCC4', puff: 1,
+    wash: 'Reinforced seams. Carries heavy loads.',
+    draw(x, w, h, r) { x.fillStyle = '#655A50'; x.fillRect(0, 0, w, h); x.strokeStyle = 'rgba(222, 206, 184, .55)'; x.lineWidth = .8; x.beginPath();
+      for (let k = -16; k <= 24; k += 2) { x.moveTo(0, k); x.lineTo(6, k - 6); x.moveTo(6, k - 6); x.lineTo(12, k); }
+      x.stroke(); x.fillStyle = 'rgba(30, 20, 10, .25)'; x.fillRect(5.8, 0, .4, h); x.fillRect(0, 0, .4, h); } },
+  { key: 'util', name: 'Utilities', cloth: 'Ticking stripe', w: 14, h: 8, thread: '#2E3A55', puff: 1,
+    wash: 'Load-bearing threads. Do not unpick.',
+    draw(x, w, h, r) { x.fillStyle = '#C8C2B2'; x.fillRect(0, 0, w, h); x.fillStyle = '#2E3A55'; x.fillRect(2, 0, 2.6, h); x.fillRect(6.2, 0, .8, h); x.fillRect(8.6, 0, .8, h); grain(x, w, h, .08, r); } },
+  { key: 'special', name: 'Special use (military)', cloth: 'Camouflage', w: 48, h: 48, thread: '#D9D2A8', puff: 1.1,
+    wash: 'Authorised hands only.',
+    draw(x, w, h, r) { x.fillStyle = '#787A50'; x.fillRect(0, 0, w, h);
+      for (const col of ['#9A9568', '#54583A', '#3F3B2C', '#8D8A5C', '#54583A']) {
+        x.fillStyle = col; for (let i = 0; i < 4; i++) { const cx = r() * w, cy = r() * h, rad = 4 + r() * 6; const seed = r() * 1e9 | 0; wrap(w, h, (dx, dy) => blob(x, cx + dx, cy + dy, rad, rng(seed))); }
+      } grain(x, w, h, .05, r); } },
+  { key: 'reserve', name: 'Reserve sites', cloth: 'Calico', w: 18, h: 18, thread: '#7A3226', puff: 1,
+    wash: 'Set aside for a future project.',
+    draw(x, w, h, r) { x.fillStyle = '#E3C485'; x.fillRect(0, 0, w, h); grain(x, w, h, .06, r);
+      const flowers = [[4, 4], [13, 9.5], [6, 14.5]];
+      for (const [fx, fy] of flowers) wrap(w, h, (dx, dy) => {
+        const a0 = r() * 7;
+        x.fillStyle = '#A8453A'; for (let k = 0; k < 5; k++) { const a = a0 + k * Math.PI * 2 / 5; x.beginPath(); x.arc(fx + dx + Math.cos(a) * 1.6, fy + dy + Math.sin(a) * 1.6, 1.2, 0, 7); x.fill(); }
+        x.fillStyle = '#F7EBCF'; x.beginPath(); x.arc(fx + dx, fy + dy, .7, 0, 7); x.fill();
+      });
+      x.fillStyle = '#6E8A55'; for (const [lx, ly] of [[9, 3], [16, 16], [1.5, 10]]) { x.beginPath(); x.ellipse(lx, ly, 1.3, .6, .6, 0, 7); x.fill(); } } },
+];
+const MUSLIN = { key: 'muslin', w: 8, h: 8, draw(x, w, h, r) { x.fillStyle = '#EDE2C9'; x.fillRect(0, 0, w, h); grain(x, w, h, .09, r); } };
+const FI = Object.fromEntries(FABRICS.map((f, i) => [f.key, i]));
+
+function paint(f, i) {
+  const c = document.createElement('canvas'); c.width = f.w * R; c.height = f.h * R;
+  const x = c.getContext('2d'); x.scale(R, R);
+  f.draw(x, f.w, f.h, rng(1000 + i * 77));
+  return c;
+}
+const canvases = new Map([...FABRICS, MUSLIN].map((f, i) => [f.key, paint(f, i)]));
+
+/* ---------- data: compact arcs -> GeoJSON ---------- */
+function varints(s) {
+  const out = [];
+  for (let i = 0; i < s.length;) {
+    let shift = 0, res = 0, b;
+    do { b = s.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+    out.push(res & 1 ? ~(res >> 1) : res >> 1);
+  }
+  return out;
+}
+function decodeQuilt(q) {
+  const [kx, ky] = q.transform.scale, [tx, ty] = q.transform.translate;
+  const arcs = q.arcs.map(s => {
+    const v = varints(s), pts = [];
+    let x = 0, y = 0;
+    for (let i = 0; i < v.length; i += 2) { x += v[i]; y += v[i + 1]; pts.push([+(x * kx + tx).toFixed(6), +(y * ky + ty).toFixed(6)]); }
+    return pts;
+  });
+  const ring = refs => {
+    const out = [];
+    let r = 0;
+    refs.forEach((d, k) => {
+      r = k ? r + d : d;
+      const a = r >= 0 ? arcs[r] : arcs[~r].slice().reverse();
+      for (let i = out.length ? 1 : 0; i < a.length; i++) out.push(a[i]);
+    });
+    return out;
+  };
+  const counts = new Array(FABRICS.length).fill(0);
+  const features = q.f.map(([c, u, g, p, a, ...rings], id) => {
+    counts[c]++;
+    return { type: 'Feature', id, properties: { c, u, g, p, a, t: id % 7 }, geometry: { type: 'Polygon', coordinates: rings.map(s => ring(varints(s))) } };
+  });
+  const island = q.island.map(rings => rings.map(s => {
+    const v = varints(s), pts = [];
+    let x = 0, y = 0;
+    for (let i = 0; i < v.length; i += 2) { x += v[i]; y += v[i + 1]; pts.push([x / 1e5, y / 1e5]); }
+    return pts;
+  }));
+  return { patches: { type: 'FeatureCollection', features }, island: { type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: island } }, counts };
+}
+
+/* ---------- swatch book ---------- */
+let Q = null, selected = -1;
+const pinked = (w, h, t = 3) => {   // zigzag "pinking shears" edge as a clip-path
+  const pts = [];
+  const side = (x0, y0, x1, y1, nx, ny) => {
+    const len = Math.hypot(x1 - x0, y1 - y0), n = Math.max(2, Math.round(len / (t * 1.6)));
+    for (let i = 0; i < n; i++) {
+      const a = i / n, b = (i + .5) / n;
+      pts.push([x0 + (x1 - x0) * a, y0 + (y1 - y0) * a], [x0 + (x1 - x0) * b + nx * t, y0 + (y1 - y0) * b + ny * t]);
+    }
+  };
+  side(0, 0, w, 0, 0, 1); side(w, 0, w, h, -1, 0); side(w, h, 0, h, 0, -1); side(0, h, 0, 0, 1, 0);
+  return `polygon(${pts.map(([x, y]) => `${x.toFixed(1)}px ${y.toFixed(1)}px`).join(',')})`;
+};
+function buildBook() {
+  const ul = $('swatches'), total = Q.stats.total;
+  const order = FABRICS.map((f, i) => i).sort((a, b) => Q.stats.km2[b] - Q.stats.km2[a]);
+  const row = (f, km2, i) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'q-sw';
+    const cloth = document.createElement('span'); cloth.className = 'cloth'; cloth.setAttribute('aria-hidden', 'true');
+    cloth.style.backgroundImage = `url(${canvases.get(f.key).toDataURL()})`;
+    cloth.style.backgroundSize = `${f.w}px ${f.h}px`;
+    const wobble = ((i * 37) % 9 - 4) * .35;
+    cloth.style.transform = `rotate(${wobble}deg)`;
+    const pct = km2 / total * 100;
+    b.innerHTML = `<span class="nm"><b>${f.name}</b><i>${f.cloth}</i></span><span class="pc"><b>${pct < 1 ? pct.toFixed(1) : Math.round(pct)}%</b><span>${km2 < 10 ? nf1.format(km2) : nf.format(Math.round(km2))} km²</span></span>`;
+    b.prepend(cloth);
+    li.append(b);
+    return [li, b, cloth];
+  };
+  const clips = new Set();
+  for (const i of order) {
+    const [li, b, cloth] = row(FABRICS[i], Q.stats.km2[i], i);
+    b.dataset.i = i;
+    b.setAttribute('aria-pressed', 'false');
+    b.setAttribute('aria-label', `${FABRICS[i].name}, ${FABRICS[i].cloth}: ${(Q.stats.km2[i] / Q.stats.total * 100).toFixed(1)}% of the island, ${nf1.format(Q.stats.km2[i])} square kilometres`);
+    b.addEventListener('click', () => select(selected === i ? -1 : i));
+    clips.add(cloth);
+    ul.append(li);
+  }
+  const [li, b, cloth] = row({ key: 'muslin', name: 'Roads: the seams', cloth: 'Muslin backing', w: 8, h: 8 }, Q.stats.road, 99);
+  b.classList.add('seam'); b.disabled = true; b.style.opacity = 1; b.style.color = 'inherit';
+  b.setAttribute('aria-label', `Roads, left as the seams: ${(Q.stats.road / Q.stats.total * 100).toFixed(1)}% of the island, ${nf1.format(Q.stats.road)} square kilometres`);
+  clips.add(cloth);
+  ul.append(li);
+  // Pinked edges, sized to whatever the layout made the swatches.
+  const clip = () => clips.forEach(c => { const r = c.getBoundingClientRect(); if (r.width) c.style.clipPath = pinked(c.offsetWidth, c.offsetHeight); });
+  clip();
+  addEventListener('resize', clip);
+}
+
+/* ---------- care label ---------- */
+const CARE_ICONS = [
+  '<path d="M2 3.5h13l-1.6 8.5H3.6zM2 3.5c2-1.6 3.4 1.2 4.4 0s2.4-1.2 4.4 0 2.6 1 4.2 0"/>',   // wash tub
+  '<path d="M8.5 2 15.5 13h-14z"/><path d="M5 12.5 11.5 4.5M8 13l5.5-6"/>',                  // do not bleach (crossed triangle)
+  '<rect x="2" y="1.8" width="13" height="11.4" rx="1"/><circle cx="8.5" cy="7.5" r="4"/>',     // tumble dry
+  '<path d="M2 12.5h13l-1.2-5.5c-.4-2-2-3.2-4-3.2H5.5M4 12.5c.2-3 1.5-5 4.5-5h5.5"/><circle cx="8.5" cy="10" r=".6" fill="#2A2A2E"/>',   // iron, one dot
+  '<circle cx="8.5" cy="7.5" r="5.6"/><path d="M6.5 9.8V5.2h1.6c1.6 0 2.4.8 2.4 2.3s-.8 2.3-2.4 2.3z"/>',   // dry clean
+];
+const sentence = s => s.charAt(0).toUpperCase() + s.slice(1);
+const fmtArea = a => a >= 1e6 ? `${(a / 1e6).toFixed(2)} km²` : a >= 1e4 ? `${(a / 1e4).toFixed(1)} ha` : `${nf.format(Math.round(a / 10) * 10)} m²`;
+function gprText(g) {
+  if (!g) return null;
+  if (g === 'LND') return 'Landed housing';
+  if (g === 'EVA') return 'Evaluated';
+  if (g === 'SDP') return 'Detailed plan';
+  return g;
+}
+function careHTML(p) {
+  const f = FABRICS[p.c], lu = Q.lu[p.u], g = gprText(Q.gpr[p.g]);
+  const rows = [['Size', fmtArea(p.a)]];
+  if (g) rows.push(['Plot ratio', g]);
+  return `<p class="brand">Singapore Quilt Co.</p>
+    <p class="fab">100% ${f.cloth}</p>
+    <p class="lu">${sentence(lu)}</p>
+    <dl>${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+    <p class="made">Made in ${Q.pa[p.p]}</p>
+    <div class="icons" aria-hidden="true">${CARE_ICONS.map(s => `<svg viewBox="0 0 17 15">${s}</svg>`).join('')}</div>
+    <p class="wash">${f.wash}</p>`;
+}
+const care = $('care');
+let hoverId = null;
+function setHover(id) {
+  if (id === hoverId) return;
+  if (hoverId != null) map.setFeatureState({ source: 'patches', id: hoverId }, { hover: false });
+  hoverId = id;
+  if (id != null) map.setFeatureState({ source: 'patches', id }, { hover: true });
+}
+function showCare(point, props) {
+  care.innerHTML = careHTML(props);
+  care.hidden = false;
+  const W = innerWidth, H = innerHeight, cw = care.offsetWidth, ch = care.offsetHeight;
+  let x = point.x + 18, y = point.y + 18;
+  if (x + cw > W - 8) x = point.x - cw - 18;
+  if (y + ch > H - 8) y = point.y - ch - 18;
+  care.style.left = `${Math.max(8, x)}px`; care.style.top = `${Math.max(8, y)}px`;
+}
+function hideCare() { care.hidden = true; setHover(null); }
+
+/* ---------- selection ---------- */
+function updatePick() {
+  const total = Q.stats.total;
+  $('pick').classList.toggle('idle', selected < 0);
+  if (selected < 0) {
+    $('pick').innerHTML = `Every Master Plan zone is a patch: <b>${nf1.format(total)} km²</b> of land, sewn from 16 fabrics. The roads were left unsewn, so the muslin backing shows through as seams.`;
+  } else {
+    const f = FABRICS[selected], km2 = Q.stats.km2[selected];
+    $('pick').innerHTML = `<b>${f.name}</b> is cut from ${f.cloth.toLowerCase()}: <b>${nf.format(Q.counts[selected])}</b> patches, <b>${nf1.format(km2)} km²</b>, or ${(km2 / total * 100).toFixed(1)}% of the quilt.`;
+  }
+  $('clear').hidden = selected < 0;
+}
+function select(i) {
+  selected = i;
+  document.querySelectorAll('.q-sw[data-i]').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.i === i)));
+  $('book').classList.toggle('q-sel', i >= 0);
+  const btn = i >= 0 && document.querySelector(`.q-sw[data-i="${i}"]`);
+  if (btn) {   // keep the picked swatch in view (the strip scrolls sideways on phones)
+    const ul = $('swatches'), br = btn.getBoundingClientRect(), ur = ul.getBoundingClientRect();
+    ul.scrollBy({ left: br.left - ur.left - (ur.width - br.width) / 2, top: br.top < ur.top || br.bottom > ur.bottom ? br.top - ur.top - (ur.height - br.height) / 2 : 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  }
+  updatePick();
+  if (!map.getLayer('q-patch')) return;
+  const on = ['==', ['get', 'c'], i];
+  map.setPaintProperty('q-patch', 'fill-opacity', i < 0 ? 1 : ['case', on, 1, .2]);
+  map.setPaintProperty('q-tone', 'fill-opacity', i < 0 ? 1 : ['case', on, 1, 0]);
+  map.setPaintProperty('q-stitch', 'line-opacity', stitchOpacity(i < 0 ? .9 : ['case', on, .9, 0]));
+  map.setPaintProperty('q-pillow', 'line-opacity', i < 0 ? .9 : ['case', on, .9, 0]);
+  map.setFilter('q-select', ['==', ['get', 'c'], i]);
+  map.setPaintProperty('q-puff', 'fill-extrusion-height', puffHeight(i));
+}
+$('clear').addEventListener('click', () => select(-1));
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && selected >= 0 && !document.documentElement.classList.contains('dmc-focus')) select(-1); });
+
+/* ---------- map layers ---------- */
+const stitchOpacity = v => ['interpolate', ['linear'], ['zoom'], 12, 0, 13, v];
+// Puffiness: bigger patches are stuffed fuller. Water sits low, like a dip in the quilt.
+const PUFF = ['match', ['get', 'c'], ...FABRICS.flatMap((f, i) => [i, f.puff]), 1];
+// Heights shrink (in metres) as you zoom in, so a patch looks equally plump at every scale.
+function puffHeight(sel) {
+  const base = ['*', PUFF, ['min', 400, ['max', 40, ['*', 1.6, ['sqrt', ['get', 'a']]]]]];
+  const h = sel < 0 ? base : ['case', ['==', ['get', 'c'], sel], ['*', 2, base], ['*', .15, base]];
+  return ['interpolate', ['exponential', 1.5], ['zoom'], 10, h, 12, ['*', .42, h], 14, ['*', .14, h], 17, ['*', .025, h]];
+}
+const patternExpr = ['match', ['get', 'c'], ...FABRICS.flatMap((f, i) => [i, `f-${f.key}`]), 'f-muslin'];
+const threadExpr = ['match', ['get', 'c'], ...FABRICS.flatMap((f, i) => [i, f.thread]), '#F4ECDB'];
+
+function addLayers() {
+  for (const [key, c] of canvases) map.addImage(`f-${key}`, c.getContext('2d').getImageData(0, 0, c.width, c.height), { pixelRatio: R });
+  map.addSource('island', { type: 'geojson', data: Q.island, tolerance: .5 });
+  map.addSource('patches', { type: 'geojson', data: Q.patches, tolerance: .45, buffer: 32 });
+  map.setLight({ anchor: 'viewport', position: [1.3, 210, 35], color: '#FFF3E0', intensity: .42 });
+
+  // The quilt lies on the table: a soft shadow, the muslin backing, then the patches.
+  map.addLayer({ id: 'q-shadow-soft', type: 'line', source: 'island', paint: { 'line-color': 'rgba(18, 8, 2, .55)', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 4, 11, 9, 14, 26], 'line-blur': ['interpolate', ['linear'], ['zoom'], 9, 4, 11, 9, 14, 24], 'line-translate': [5, 9], 'line-translate-anchor': 'viewport' } });
+  map.addLayer({ id: 'q-shadow', type: 'fill', source: 'island', paint: { 'fill-color': 'rgba(18, 8, 2, .45)', 'fill-translate': [3, 6], 'fill-translate-anchor': 'viewport', 'fill-antialias': false } });
+  map.addLayer({ id: 'q-back', type: 'fill', source: 'island', paint: { 'fill-pattern': 'f-muslin' } });
+  map.addLayer({ id: 'q-back-edge', type: 'line', source: 'island', paint: { 'line-pattern': 'f-muslin', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 3, 14, 10] } });
+  map.addLayer({ id: 'q-patch', type: 'fill', source: 'patches', paint: { 'fill-pattern': patternExpr, 'fill-antialias': false } });
+  // Dye-lot variation: neighbouring patches of one fabric are a shade apart, as in a real quilt.
+  map.addLayer({ id: 'q-tone', type: 'fill', source: 'patches', paint: { 'fill-antialias': false,
+    'fill-color': ['match', ['get', 't'], 0, 'rgba(255,248,235,.12)', 1, 'rgba(40,20,5,.10)', 2, 'rgba(255,248,235,.06)', 3, 'rgba(40,20,5,.05)', 4, 'rgba(255,230,190,.08)', 5, 'rgba(40,20,5,.14)', 'rgba(0,0,0,0)'] } });
+  // Seams: a hairline of backing around every patch, then (zoomed in) a puffy inner shadow and running stitches.
+  map.addLayer({ id: 'q-seam', type: 'line', source: 'patches', paint: { 'line-color': '#EDE2C9', 'line-opacity': .85, 'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 9.5, .25, 12, .7, 15, 2.2, 17, 3.5] } });
+  map.addLayer({ id: 'q-pillow', type: 'line', source: 'patches', minzoom: 12, paint: { 'line-color': 'rgba(35, 18, 6, .5)', 'line-opacity': .9,
+    'line-width': ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 9], 'line-blur': ['interpolate', ['linear'], ['zoom'], 12, 2, 16, 9], 'line-offset': ['interpolate', ['linear'], ['zoom'], 12, 1.4, 16, 5.5] } });
+  map.addLayer({ id: 'q-stitch', type: 'line', source: 'patches', minzoom: 12, layout: { 'line-cap': 'round' }, paint: { 'line-color': threadExpr, 'line-opacity': stitchOpacity(.9),
+    'line-width': ['interpolate', ['linear'], ['zoom'], 12, .7, 16, 1.6], 'line-dasharray': [2.2, 2], 'line-offset': ['interpolate', ['linear'], ['zoom'], 12, 2.4, 16, 7] } });
+  map.addLayer({ id: 'q-select', type: 'line', source: 'patches', filter: ['==', ['get', 'c'], -1], paint: { 'line-color': '#FFF4D6', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1, 14, 2.4] } });
+  map.addLayer({ id: 'q-hover', type: 'line', source: 'patches', paint: { 'line-color': '#FFE7A8', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.6, 15, 3.4],
+    'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], 1, 0] } });
+  // Draped: each patch is a little pillow of its own fabric.
+  map.addLayer({ id: 'q-puff', type: 'fill-extrusion', source: 'patches', layout: { visibility: 'none' }, paint: {
+    'fill-extrusion-pattern': patternExpr, 'fill-extrusion-height': puffHeight(-1), 'fill-extrusion-base': 0, 'fill-extrusion-vertical-gradient': true, 'fill-extrusion-opacity': 1 } });
+  // Binding: a strip of indigo bias tape round every edge, with its own stitches.
+  map.addLayer({ id: 'q-binding', type: 'line', source: 'island', paint: { 'line-color': '#2F3A57', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 2.2, 14, 7] } });
+  map.addLayer({ id: 'q-binding-stitch', type: 'line', source: 'island', minzoom: 10.5, paint: { 'line-color': '#E8D9B5', 'line-width': ['interpolate', ['linear'], ['zoom'], 10.5, .6, 14, 1.2], 'line-dasharray': [2, 2] } });
+  select(selected);
+}
+
+/* ---------- drape (tilt) ---------- */
+let draped = false;
+const FLAT = ['q-patch', 'q-tone', 'q-seam', 'q-pillow', 'q-stitch'];
+function syncDrape() {
+  const d = map.getPitch() > 14;
+  $('drape').setAttribute('aria-pressed', String(d));
+  if (d === draped || !map.getLayer('q-puff')) return;
+  draped = d;
+  map.setLayoutProperty('q-puff', 'visibility', d ? 'visible' : 'none');
+  for (const id of FLAT) map.setLayoutProperty(id, 'visibility', d ? 'none' : 'visible');
+  hideCare();
+}
+$('drape').addEventListener('click', () => {
+  viewerMoved = true;
+  const dur = reduceMotion ? 0 : 1400, up = map.getPitch() <= 14;
+  // From the island view, drape around the whole island; zoomed in, drape where you are.
+  const bearing = up ? -14 : -8;
+  const cam = map.cameraForBounds(DAY.bounds, { padding: DMC.overlayPadding(), bearing });
+  const whole = cam && map.getZoom() < cam.zoom + .8;
+  const to = whole ? { center: cam.center, zoom: cam.zoom - (up ? .12 : 0) } : {};
+  map.easeTo({ ...to, pitch: up ? 55 : 0, bearing, duration: dur });
+});
+map.on('pitch', syncDrape);
+
+/* ---------- hover / tap ---------- */
+function probe(e) {
+  const layer = draped ? 'q-puff' : 'q-patch';
+  if (!map.getLayer(layer)) return;
+  const f = map.queryRenderedFeatures(e.point, { layers: [layer] })[0];
+  if (!f) { hideCare(); map.getCanvas().style.cursor = ''; return; }
+  setHover(f.id);
+  showCare(e.point, f.properties);
+  map.getCanvas().style.cursor = 'crosshair';
+}
+const canHover = matchMedia('(hover: hover)').matches;
+if (canHover) {
+  map.on('mousemove', probe);
+  map.on('mouseout', hideCare);
+  map.on('movestart', e => { if (e.originalEvent) hideCare(); });
+}
+map.on('click', probe);
+if (!canHover) map.on('movestart', hideCare);
+
+/* ---------- phone layout: the tag sits above the swatch strip ---------- */
+const book = $('book');
+let lastBookH = 0;
+new ResizeObserver(() => {
+  if (book.offsetHeight === lastBookH) return;
+  lastBookH = book.offsetHeight;
+  document.documentElement.style.setProperty('--q-book-h', `${lastBookH}px`);
+  clearTimeout(reframeT); reframeT = setTimeout(reframe, 120);
+}).observe(book);
+$('q-more').addEventListener('click', e => {
+  const open = !$('tag').classList.contains('open');
+  $('tag').classList.toggle('open', open);
+  e.currentTarget.setAttribute('aria-expanded', String(open));
+});
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day03/quilt.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([q]) => {
+  const d = decodeQuilt(q);
+  Q = { ...q, ...d };
+  $('n-patch').textContent = nf.format(q.f.length);
+  $('n-seam').textContent = Math.round(q.stats.road);
+  buildBook();
+  reframe();
+  addLayers();
+  syncDrape();
+  map.once('idle', () => { $('load').hidden = true; });
+}).catch(err => {
+  $('load').textContent = 'The quilt could not be unpacked. Please reload.';
+  console.error(err);
+});
+</script>
+</body></html>

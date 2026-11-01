@@ -147,10 +147,10 @@ const DMC = (() => {
   // Fit the framed area into the space the sheets leave free, keeping the day's tilt and turn.
   function frame(map, focus) {
     const bearing = map.getBearing(), pitch = map.getPitch();
+    map.__dmcFraming = true;   // setPadding fires its own move events
     map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
     const padding = overlayPadding();
     const cam = map.cameraForBounds(frameBounds, { padding, bearing });
-    map.__dmcFraming = true;
     if (cam && cam.zoom >= map.getMinZoom()) map.jumpTo({ center: cam.center, zoom: cam.zoom, bearing, pitch });
     else map.jumpTo({ center: focus || (frameBounds === SG_BOUNDS ? [103.875, 1.345] : map.getCenter()), zoom: map.getMinZoom(), padding, bearing, pitch });
     map.__dmcFraming = false;
