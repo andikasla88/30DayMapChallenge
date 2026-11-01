@@ -1,0 +1,1137 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F3EADA">
+<title>Day 16 · Best kopi near you</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 16, Collaborative map: drop a pin on the best kopi near you, build your order in kopitiam lingo and share it. The map starts with real kopitiams, kopi chains and hawker centres from OpenStreetMap and NEA.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F3EADA'/%3E%3Ccircle cx='15' cy='16' r='12' fill='%23FFFDF8' stroke='%237A4424' stroke-width='2'/%3E%3Crect x='20' y='14' width='8' height='4' rx='2' fill='%23FFFDF8' stroke='%23C9B496'/%3E%3Ccircle cx='15' cy='16' r='7.5' fill='%23FFFDF8' stroke='%23C9B496'/%3E%3Ccircle cx='15' cy='16' r='5.5' fill='%237A4424'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 16: a cream kopi-cup map, a menu board, and an order builder ===== */
+:root {
+  --cream: #F3EADA; --saucer: #FBF6EC; --cup: #FFFDF8;
+  --ink: #3A2417; --ink-2: rgba(58, 36, 23, .72); --ink-3: rgba(58, 36, 23, .52);
+  --kopi: #7A4424; --kaya: #5F7F26; --jade: #2B7A72; --chilli: #C83A2C; --milk: #F1E3C6;
+  /* the kit's dark glass, re-poured as a cream saucer */
+  --glass: rgba(255, 252, 245, .97); --line: rgba(92, 58, 34, .17);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --display: "Fraunces", Georgia, "Times New Roman", serif;
+  --board-w: 338px; --board-top: 104px;
+  color-scheme: light;
+}
+body { color: var(--ink); }
+.dmc-map { background: var(--cream); }
+
+/* kit pieces on light */
+.dmc-glass { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 rgba(92, 58, 34, .06), 0 10px 26px rgba(92, 58, 34, .12); }
+.dmc-stamp { width: 300px; }
+.dmc-num { color: var(--kopi); text-shadow: none; font-weight: 700; font-size: 28px; letter-spacing: -.03em; }
+.dmc-theme { font-weight: 700; font-size: 15px; letter-spacing: 0; text-transform: none; }
+.dmc-title { font-family: var(--display); font-weight: 600; font-size: 14.5px; letter-spacing: 0; }
+.dmc-more, .dmc-btn { background: rgba(92, 58, 34, .06); color: var(--ink); border-color: var(--line); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(92, 58, 34, .12); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(92, 58, 34, .18); }
+.dmc-index li.done { background: rgba(92, 58, 34, .1); color: var(--ink); }
+.dmc-index li.today { color: var(--cup); box-shadow: none; }
+.dmc-keys kbd { color: var(--ink); }
+.dmc-credits a { text-decoration-color: rgba(92, 58, 34, .35); }
+.maplibregl-ctrl-group { background: var(--glass) !important; box-shadow: 0 6px 16px rgba(92, 58, 34, .1) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; opacity: .8; }
+.dmc-ctrl button { color: var(--ink-2); }
+.dmc-ctrl button:hover { color: var(--ink); }
+.dmc-focus-credit { background: rgba(255, 252, 245, .9); color: var(--ink-2); }
+.dmc-focus-exit { color: var(--ink); }
+:where(button, a, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid var(--kopi); outline-offset: 2px; }
+
+/* ---- the menu board ---- */
+.board { left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); top: var(--board-top); width: var(--board-w);
+  max-height: calc(100% - var(--board-top) - var(--gutter) - env(safe-area-inset-bottom, 0px)); display: flex; flex-direction: column; overflow: hidden; }
+.bar { display: flex; align-items: center; gap: 8px; padding: 9px 12px 0 14px; }
+.bar-t { flex: 1; margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--kopi); }
+.grip { display: none; position: relative; font: inherit; font-size: 11px; font-weight: 600; color: var(--ink-2); background: rgba(92, 58, 34, .06); border: 1px solid var(--line); border-radius: 999px; padding: 2px 10px; min-height: 26px; cursor: pointer; }
+.grip::after { content: ""; position: absolute; inset: -9px -4px; }
+.body { overflow-y: auto; overscroll-behavior: contain; padding: 8px 14px 11px; display: grid; gap: 11px; scrollbar-width: thin; }
+.body h2 { margin: 0; font-family: var(--display); font-weight: 600; font-size: 16px; line-height: 1.2; }
+.body p { margin: 0; }
+.view { display: grid; gap: 11px; }
+.view[hidden], [hidden] { display: none !important; }
+.fine { font-size: 11px; line-height: 1.45; color: var(--ink-2); }
+.fine a, .body p a { color: inherit; text-underline-offset: 2px; text-decoration-color: rgba(92, 58, 34, .35); }
+.hero { display: flex; align-items: baseline; gap: 8px; }
+.hero b { font-family: var(--display); font-size: 34px; font-weight: 700; line-height: .9; color: var(--kopi); font-variant-numeric: lining-nums tabular-nums; }
+.hero span { font-size: 12.5px; color: var(--ink-2); line-height: 1.25; }
+
+.kinds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.kind { position: relative; display: grid; justify-items: start; gap: 2px; padding: 7px 8px 7px; text-align: left; font: inherit; color: var(--ink); cursor: pointer;
+  background: var(--saucer); border: 1px solid var(--line); border-radius: 11px; }
+.kind b { font-family: var(--display); font-size: 19px; font-weight: 700; line-height: 1; font-variant-numeric: lining-nums tabular-nums; color: var(--c); }
+.kind span { font-size: 10.5px; line-height: 1.25; color: var(--ink-2); }
+.kind svg { width: 20px; height: 20px; }
+.kind[aria-pressed="false"] { opacity: .45; background: transparent; }
+.kind[aria-pressed="false"] b { text-decoration: line-through; text-decoration-thickness: 1.5px; }
+.kind:hover { border-color: rgba(92, 58, 34, .35); }
+
+.chains summary { cursor: pointer; font-size: 11.5px; font-weight: 600; color: var(--ink-2); list-style: none; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; }
+.chains summary::-webkit-details-marker { display: none; }
+.chains summary::before { content: ""; width: 6px; height: 6px; border-right: 1.6px solid currentColor; border-bottom: 1.6px solid currentColor; transform: rotate(-45deg); transition: transform .2s; }
+.chains[open] summary::before { transform: rotate(45deg); }
+.chains ul { list-style: none; margin: 4px 0 0; padding: 0; display: grid; gap: 3px; }
+.chains li { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; font-size: 11px; color: var(--ink-2); }
+.chains li b { font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.chains li i { grid-column: 1 / -1; height: 4px; border-radius: 2px; background: var(--kaya); opacity: .75; }
+
+.community { display: grid; gap: 7px; padding: 10px 11px; border-radius: 12px; background: var(--saucer); border: 1px dashed rgba(92, 58, 34, .3); }
+.community h3 { margin: 0; display: flex; align-items: baseline; gap: 6px; font-size: 12px; font-weight: 700; }
+.community h3 b { font-family: var(--display); font-size: 17px; color: var(--chilli); font-variant-numeric: lining-nums; }
+.empty { display: grid; grid-template-columns: 54px 1fr; gap: 10px; align-items: center; }
+.empty svg { width: 54px; height: 44px; }
+.empty strong { display: block; font-family: var(--display); font-size: 15px; font-weight: 600; line-height: 1.2; }
+.empty span { display: block; font-size: 11px; line-height: 1.4; color: var(--ink-2); margin-top: 2px; }
+.plist { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; max-height: 176px; overflow-y: auto; }
+.plist button { width: 100%; display: grid; grid-template-columns: 12px 1fr auto; gap: 1px 7px; align-items: baseline; padding: 4px 4px; text-align: left; font: inherit; color: var(--ink); background: none; border: 0; border-radius: 7px; cursor: pointer; }
+.plist button:hover { background: rgba(92, 58, 34, .07); }
+.plist i { width: 9px; height: 9px; border-radius: 50%; background: var(--c, var(--chilli)); align-self: center; }
+.plist b { font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plist em { font-style: normal; font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.plist small { grid-column: 2 / -1; font-size: 10.5px; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.primary { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 6px; font: inherit; font-size: 12.5px; font-weight: 700; color: var(--cup);
+  background: var(--kopi); border: 0; border-radius: 999px; padding: 6px 15px; min-height: 34px; cursor: pointer; box-shadow: 0 3px 0 #4E2A15; }
+.primary:hover { background: #8A4F2B; }
+.primary:active { transform: translateY(2px); box-shadow: 0 1px 0 #4E2A15; }
+.primary:disabled { opacity: .4; cursor: default; transform: none; box-shadow: none; }
+.primary::after { content: ""; position: absolute; inset: -5px -3px; }
+.primary svg, .dmc-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.dmc-btn { display: inline-flex; align-items: center; gap: 5px; }
+.dmc-btn:disabled { opacity: .45; cursor: default; }
+
+/* the shared pin, at the top of the board */
+.shared { position: relative; display: grid; gap: 4px; padding: 10px 12px 11px; border-radius: 12px; background: #FFF4E4; border: 1.5px solid var(--chilli); }
+.shared .kick { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--chilli); }
+.shared h3 { margin: 0; padding-right: 26px; font-family: var(--display); font-size: 16px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.shared .ph { font-family: var(--display); font-size: 13px; font-weight: 600; color: var(--kopi); }
+.shared .x { position: absolute; top: 6px; right: 6px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: rgba(200, 58, 44, .1); color: var(--chilli); font: inherit; font-size: 15px; line-height: 1; cursor: pointer; }
+.shared .x::after { content: ""; position: absolute; inset: -9px; }
+.shared .row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 4px; }
+
+/* near me */
+.near { display: grid; gap: 6px; }
+.near h3 { margin: 0; font-size: 12px; font-weight: 700; }
+
+/* ---- the drop-a-pin flow ---- */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; counter-reset: s; }
+.steps li { counter-increment: s; display: grid; gap: 3px; font-size: 10.5px; font-weight: 600; color: var(--ink-3); }
+.steps li::before { content: ""; height: 4px; border-radius: 2px; background: rgba(92, 58, 34, .14); }
+.steps li.done::before, .steps li.now::before { background: var(--kopi); }
+.steps li.now { color: var(--kopi); }
+.step { display: grid; gap: 9px; }
+.step h2 { font-size: 17px; }
+.msg { font-size: 12px; line-height: 1.45; padding: 7px 9px; border-radius: 9px; background: rgba(92, 58, 34, .06); color: var(--ink-2); }
+.msg.ok { background: rgba(95, 127, 38, .12); color: #3F5718; }
+.msg.bad { background: rgba(200, 58, 44, .1); color: #9A2A1F; }
+.nav { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding-top: 2px; }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.lbl { font-size: 11px; font-weight: 600; color: var(--ink-2); }
+.field { width: 100%; font: inherit; font-size: 14px; color: var(--ink); background: var(--cup); border: 1.5px solid rgba(92, 58, 34, .3); border-radius: 10px; padding: 8px 10px; }
+.field:focus { border-color: var(--kopi); outline: none; box-shadow: 0 0 0 3px rgba(122, 68, 36, .15); }
+textarea.field { font-size: 12px; line-height: 1.45; resize: none; }
+.count { font-size: 10.5px; color: var(--ink-3); text-align: right; margin-top: -5px !important; }
+.sugg { display: flex; flex-wrap: wrap; gap: 5px; }
+.sugg button { font: inherit; font-size: 11.5px; color: var(--ink); background: var(--saucer); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; min-height: 28px; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sugg button:hover { border-color: var(--kopi); }
+
+/* the order chit and the builder */
+.chit-o { position: sticky; top: -8px; z-index: 1; display: grid; grid-template-columns: 1fr 100px; gap: 0 8px; align-items: center; padding: 10px 10px 10px 12px; border-radius: 12px; background: var(--cup);
+  border: 1px solid var(--line); box-shadow: 0 6px 14px rgba(92, 58, 34, .1); }
+.chit-o .kick { grid-column: 1; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.phrase { grid-column: 1; font-family: var(--display); font-size: 19px; font-weight: 700; line-height: 1.1; color: var(--kopi); overflow-wrap: anywhere; }
+.eng { grid-column: 1; margin-top: 4px !important; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.cup { grid-column: 2; grid-row: 1 / span 3; width: 100px; height: 88px; }
+.shared .scup { position: absolute; right: 10px; top: 38px; width: 64px; height: 56px; }
+.shared .scup svg { width: 100%; height: 100%; overflow: visible; }
+.shared h3, .shared .ph, .shared #sh-en { padding-right: 70px; }
+.cup svg { width: 100%; height: 100%; overflow: visible; }
+.grp { margin: 0; padding: 0; border: 0; display: grid; gap: 4px; min-width: 0; }
+.grp legend { padding: 0; margin-bottom: 4px; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chips button { position: relative; display: inline-flex; align-items: baseline; gap: 4px; font: inherit; font-size: 12px; font-weight: 600; color: var(--ink); background: var(--saucer);
+  border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; min-height: 30px; cursor: pointer; }
+.chips button small { font-size: 10.5px; font-weight: 500; color: var(--ink-2); }
+.chips button:hover { border-color: rgba(92, 58, 34, .45); }
+.chips button[aria-pressed="true"] { background: var(--kopi); border-color: var(--kopi); color: var(--cup); }
+.chips button[aria-pressed="true"] small { color: rgba(255, 253, 248, .8); }
+.chips button:disabled { opacity: .35; cursor: not-allowed; }
+.gloss { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 3px 9px; font-size: 11px; line-height: 1.4; }
+.gloss dt { font-weight: 700; color: var(--kopi); white-space: nowrap; }
+.gloss dd { margin: 0; color: var(--ink-2); }
+.sugar { font-size: 11px; color: var(--ink-2); }
+.sugar b { color: var(--ink); }
+.steam path { animation: steam 3.2s ease-in-out infinite; transform-box: fill-box; transform-origin: 50% 100%; }
+.steam path:nth-child(2) { animation-delay: -1.1s; } .steam path:nth-child(3) { animation-delay: -2.2s; }
+@keyframes steam { 0% { opacity: 0; transform: translateY(6px) scaleY(.7); } 40% { opacity: .9; } 100% { opacity: 0; transform: translateY(-8px) scaleY(1.1); } }
+.share-c { display: grid; gap: 3px; padding: 10px 12px; border-radius: 12px; background: var(--cup); border: 1px solid var(--line); }
+.share-c .st { font-family: var(--display); font-size: 16px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.copyrow { display: grid; grid-template-columns: 1fr auto; gap: 6px; }
+.copyrow .field { font-size: 11.5px; padding: 6px 8px; }
+.status { min-height: 1.3em; font-size: 11px; font-weight: 600; color: var(--kaya); }
+
+/* ---- map pins (DOM): the draft pin and the shared pin ---- */
+.dpin { width: 30px; height: 40px; cursor: grab; filter: drop-shadow(0 3px 3px rgba(60, 30, 10, .3)); }
+.dpin svg { width: 100%; height: 100%; display: block; }
+.dpin.bad { filter: grayscale(1) opacity(.6); }
+.spin { display: grid; justify-items: center; pointer-events: none; }
+.spin .tag { max-width: 190px; padding: 4px 9px 5px; border-radius: 9px; background: var(--chilli); color: #FFF7EE; font-size: 11.5px; font-weight: 700; line-height: 1.2;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; box-shadow: 0 4px 10px rgba(120, 30, 20, .3); }
+.spin .tag small { display: block; font-size: 10px; font-weight: 500; opacity: .85; }
+.spin .stem { width: 2px; height: 14px; background: var(--chilli); }
+.spin .dot { position: relative; width: 14px; height: 14px; border-radius: 50%; background: var(--chilli); border: 2.5px solid var(--cup); margin-top: -2px; }
+.spin .dot::before, .spin .dot::after { content: ""; position: absolute; inset: -10px; border-radius: 50%; border: 2px solid var(--chilli); opacity: 0; animation: ping 2.4s ease-out infinite; }
+.spin .dot::after { animation-delay: 1.2s; }
+@keyframes ping { 0% { transform: scale(.4); opacity: .9; } 100% { transform: scale(1.9); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .spin .dot::before { opacity: .6; transform: scale(1.1); } }
+
+/* popups and the hover tip */
+.maplibregl-popup-content { background: var(--cup); color: var(--ink); border-radius: 12px; padding: 10px 12px 10px; box-shadow: 0 10px 26px rgba(92, 58, 34, .22); border: 1px solid var(--line); font: 12px/1.4 var(--font); }
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip { border-top-color: var(--cup); }
+.maplibregl-popup-anchor-top .maplibregl-popup-tip { border-bottom-color: var(--cup); }
+.maplibregl-popup-anchor-left .maplibregl-popup-tip { border-right-color: var(--cup); }
+.maplibregl-popup-anchor-right .maplibregl-popup-tip { border-left-color: var(--cup); }
+.maplibregl-popup-close-button { width: 26px; height: 26px; font-size: 17px; color: var(--ink-2); border-radius: 0 12px 0 8px; }
+.pop { display: grid; gap: 3px; max-width: 230px; }
+.pop .k { font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--c); padding-right: 18px; }
+.pop h3 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; line-height: 1.2; overflow-wrap: anywhere; }
+.pop p { margin: 0; font-size: 11.5px; color: var(--ink-2); overflow-wrap: anywhere; }
+.pop .ph { font-family: var(--display); font-size: 13px; font-weight: 600; color: var(--kopi); }
+.pop .row { margin-top: 5px; align-items: center; }
+.pop .primary { font-size: 11.5px; min-height: 28px; padding: 4px 11px; box-shadow: 0 2px 0 #4E2A15; }
+.pop a { font-size: 11px; color: var(--ink-2); }
+.tip { position: fixed; z-index: 5; pointer-events: none; padding: 3px 8px; border-radius: 7px; background: var(--ink); color: var(--cup); font-size: 11.5px; font-weight: 600; white-space: nowrap; transform: translate(12px, -50%); }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .dmc-stamp { width: min(262px, calc(100vw - 2 * var(--gutter) - 48px)); }
+  .dmc-num { font-size: 25px; }
+  .dmc-theme { font-size: 13.5px; }
+  .dmc-title { font-size: 13px; }
+  .body { gap: 9px; padding: 6px 12px 10px; }
+  .view, .step { gap: 9px; }
+  .hero b { font-size: 29px; }
+  .kind b { font-size: 17px; }
+  .grip { display: inline-block; }
+  .board.min .body { display: none; }
+  .board.min .bar { padding-bottom: 9px; }
+  .phrase { font-size: 17px; }
+}
+/* phones held upright: the board becomes a bottom sheet */
+@media (max-width: 640px) and (orientation: portrait) {
+  .board { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-height: 50vh; border-bottom: 0; border-radius: 16px 16px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .board.tall { max-height: 64vh; }
+  .bar { padding-top: 8px; }
+  .bar::before { content: ""; position: absolute; top: 4px; left: 50%; width: 36px; height: 4px; margin-left: -18px; border-radius: 2px; background: rgba(92, 58, 34, .18); }
+}
+/* phones held sideways: a right-hand column */
+@media (max-height: 520px) and (orientation: landscape) {
+  .board { left: auto; right: calc(var(--gutter) + 48px + env(safe-area-inset-right, 0px)); top: var(--gutter); width: min(330px, 46vw); max-height: calc(100% - 2 * var(--gutter)); }
+  .chit-o { position: static; grid-template-columns: 1fr 76px; box-shadow: none; }
+  .cup { width: 76px; height: 66px; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore with kopitiams, kopi and toast chain outlets and hawker centres, and pins dropped by followers"></div>
+<p id="loading" class="loading dmc-chrome">Brewing the map&hellip;</p>
+<div id="tip" class="tip dmc-chrome" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="board" class="dmc-glass board" data-dmc-overlay aria-label="Best kopi near you">
+  <div class="bar">
+    <p id="bar-t" class="bar-t">Best kopi near you</p>
+    <button id="grip" class="grip" type="button" aria-expanded="true" aria-controls="body">Hide</button>
+  </div>
+  <div id="body" class="body">
+    <!-- home: the seeds, the community, near me -->
+    <div id="v-home" class="view">
+      <section id="shared" class="shared" hidden aria-live="polite">
+        <p class="kick">This pin was shared with you</p>
+        <h3 id="sh-name"></h3>
+        <p id="sh-ph" class="ph"></p>
+        <p id="sh-en" class="fine"></p>
+        <p id="sh-more" class="fine"></p>
+        <div id="sh-cup" class="scup" aria-hidden="true"></div>
+        <div class="row"><button id="sh-go" class="dmc-btn" type="button">Show it</button><button class="primary" type="button" data-act="drop">Drop your own pin</button></div>
+        <button id="sh-x" class="x" type="button" aria-label="Close the shared pin">&times;</button>
+      </section>
+
+      <div class="hero"><b id="n-all">&hellip;</b><span>places to get kopi,<br>mapped so far</span></div>
+      <div class="kinds" role="group" aria-label="Show or hide each kind of place">
+        <button class="kind" type="button" data-k="0" aria-pressed="true" style="--c:var(--kopi)"><span class="ico" data-icon="0"></span><b id="n-0">&ndash;</b><span>kopitiams &amp; coffee shops</span></button>
+        <button class="kind" type="button" data-k="1" aria-pressed="true" style="--c:var(--kaya)"><span class="ico" data-icon="1"></span><b id="n-1">&ndash;</b><span>kopi &amp; toast chain outlets</span></button>
+        <button class="kind" type="button" data-k="2" aria-pressed="true" style="--c:var(--jade)"><span class="ico" data-icon="2"></span><b id="n-2">&ndash;</b><span>hawker centres</span></button>
+      </div>
+      <details class="chains"><summary>Which chains?</summary><ul id="chain-list"></ul></details>
+
+      <section class="community" aria-labelledby="c-h">
+        <h3 id="c-h">Pins from followers <b id="n-pins">0</b></h3>
+        <div id="empty" class="empty">
+          <svg viewBox="0 0 54 44" aria-hidden="true"><ellipse cx="25" cy="39" rx="23" ry="4" fill="#FFFDF8" stroke="#C9B496"/><path d="M8 12c1 15 5 23 10 25h14c5-2 9-10 10-25z" fill="#FFFDF8" stroke="#C9B496" stroke-width="1.3"/><path d="M42 17c9-1 9 11-2 13" fill="none" stroke="#C9B496" stroke-width="3" stroke-linecap="round"/><ellipse cx="25" cy="12" rx="17" ry="3.6" fill="#FBF6EC" stroke="#C9B496" stroke-width="1.3"/><path d="M10 19c9 3 21 3 30 0" stroke="#2B7A72" stroke-width="1.6" fill="none"/></svg>
+          <div><strong>No pins yet: be the first.</strong><span>Drop a pin on your favourite kopi, share the link with #BestKopi, and it may join the map.</span></div>
+        </div>
+        <ol id="pin-list" class="plist" hidden></ol>
+        <p id="pins-err" class="fine" hidden>The followers' pins could not be loaded just now.</p>
+      </section>
+
+      <div class="actions">
+        <button class="primary" type="button" data-act="drop"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 18s5.5-5.2 5.5-9.3A5.5 5.5 0 0 0 4.5 8.7C4.5 12.8 10 18 10 18z"/><circle cx="10" cy="8.6" r="2"/></svg>Drop your pin</button>
+        <button id="near" class="dmc-btn" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><circle cx="10" cy="10" r="3"/><path d="M10 1.5v3M10 15.5v3M1.5 10h3M15.5 10h3"/></svg>Near me</button>
+      </div>
+      <section id="near-out" class="near" hidden aria-live="polite">
+        <h3>The 5 nearest places</h3>
+        <ol id="near-list" class="plist"></ol>
+        <p id="near-note" class="fine"></p>
+      </section>
+      <p class="fine">The map starts with real places from OpenStreetMap and NEA. Many coffee shops are not on OpenStreetMap yet, so this is a start, not a full list. <a href="#" id="how">How we picked them</a></p>
+      <p id="how-text" class="fine" hidden></p>
+    </div>
+
+    <!-- the drop-a-pin flow -->
+    <div id="v-drop" class="view" hidden>
+      <ol class="steps" aria-label="Steps"><li>Spot</li><li>Stall</li><li>Order</li><li>Share</li></ol>
+
+      <section class="step" data-s="1" aria-labelledby="s1-h">
+        <h2 id="s1-h">Where is your kopi?</h2>
+        <p class="fine">Tap the map on the spot, or tap a cup we already know. You can drag the pin to fine-tune it.</p>
+        <div class="row">
+          <button id="use-loc" class="dmc-btn" type="button">Use my location</button>
+          <button id="use-mid" class="dmc-btn" type="button">Use the middle of the map</button>
+        </div>
+        <p id="spot-msg" class="msg" aria-live="polite">No spot yet.</p>
+        <div class="nav"><button class="dmc-btn" type="button" data-act="cancel">Cancel</button><button id="s1-next" class="primary" type="button" disabled>Next: the stall</button></div>
+      </section>
+
+      <section class="step" data-s="2" aria-labelledby="s2-h" hidden>
+        <h2 id="s2-h">Name the stall</h2>
+        <label class="lbl" for="stall">Stall or shop name</label>
+        <input id="stall" class="field" type="text" maxlength="60" autocomplete="off" spellcheck="false" placeholder="e.g. Ah Seng Kopi, Blk 85 Bedok">
+        <p class="count" aria-hidden="true"><span id="stall-n">0</span> / 60</p>
+        <p id="sugg-h" class="lbl" hidden>Already on the map nearby:</p>
+        <div id="sugg" class="sugg"></div>
+        <div class="nav"><button class="dmc-btn" type="button" data-act="back">Back</button><button id="s2-next" class="primary" type="button" disabled>Next: your order</button></div>
+      </section>
+
+      <section class="step" data-s="3" aria-labelledby="s3-h" hidden>
+        <h2 id="s3-h" class="sr">Build your order</h2>
+        <div class="chit-o">
+          <p class="kick">Your order</p>
+          <p id="phrase" class="phrase" aria-live="polite"></p>
+          <p id="eng" class="eng"></p>
+          <div id="cup" class="cup" aria-hidden="true"></div>
+        </div>
+        <fieldset class="grp"><legend>Drink</legend><div class="chips" data-g="d">
+          <button type="button" data-v="kopi">Kopi <small>coffee</small></button><button type="button" data-v="teh">Teh <small>tea</small></button></div></fieldset>
+        <fieldset class="grp"><legend>Milk</legend><div class="chips" data-g="m">
+          <button type="button" data-v="">Usual <small>condensed milk</small></button><button type="button" data-v="o">-O <small>no milk</small></button><button type="button" data-v="c">-C <small>evaporated milk</small></button></div></fieldset>
+        <fieldset class="grp"><legend>Sweetness</legend><div class="chips" data-g="s">
+          <button type="button" data-v="">Usual</button><button type="button" data-v="siewdai">Siew dai <small>less</small></button><button type="button" data-v="gahdai">Gah dai <small>more</small></button><button type="button" data-v="kosong">Kosong <small>none</small></button></div></fieldset>
+        <fieldset class="grp"><legend>Strength</legend><div class="chips" data-g="g">
+          <button type="button" data-v="">Usual</button><button type="button" data-v="gau">Gau <small>strong</small></button><button type="button" data-v="po">Po <small>weak</small></button><button type="button" data-v="dilo">Di lo <small>undiluted</small></button></div></fieldset>
+        <fieldset class="grp"><legend>Extras</legend><div class="chips" data-g="x">
+          <button type="button" data-v="peng">Peng <small>iced</small></button><button type="button" data-v="tarik">Tarik <small>pulled</small></button><button type="button" data-v="guyou">Gu you <small>butter</small></button><button type="button" data-v="tapao">Ta pao <small>takeaway</small></button></div></fieldset>
+        <p id="kosong-note" class="fine" hidden>Condensed milk is the sugar in a plain kopi or teh, so kosong goes with -O or -C.</p>
+        <dl id="gloss" class="gloss" aria-label="What each word means"></dl>
+        <p id="sugar" class="sugar" hidden></p>
+        <p class="fine">Meanings: <a href="https://www.visitsingapore.com/editorials/order-kopi-like-a-local/" target="_blank" rel="noopener noreferrer">Singapore Tourism Board</a>, <a href="https://www.healthhub.sg/well-being-and-lifestyle/food-diet-and-nutrition/yum-seng-how-to-order-healthier-drinks" target="_blank" rel="noopener noreferrer">HealthHub</a>, <a href="https://www.roots.gov.sg/ich-landing/ich/traditional-breakfast-of-kaya-and-kopi" target="_blank" rel="noopener noreferrer">NHB Roots</a> and Wikipedia (<a href="https://en.wikipedia.org/wiki/Kopi_(drink)" target="_blank" rel="noopener noreferrer">kopi</a>, <a href="https://en.wikipedia.org/wiki/Singlish_vocabulary" target="_blank" rel="noopener noreferrer">Singlish</a>).</p>
+        <div class="nav"><button class="dmc-btn" type="button" data-act="back">Back</button><button id="rand" class="dmc-btn" type="button">Surprise me</button><button id="s3-next" class="primary" type="button">Next: share</button></div>
+      </section>
+
+      <section class="step" data-s="4" aria-labelledby="s4-h" hidden>
+        <h2 id="s4-h">Share your pin</h2>
+        <div class="share-c"><p id="sc-st" class="st"></p><p id="sc-ph" class="ph" style="font-family:var(--display);font-weight:600;color:var(--kopi)"></p><p id="sc-en" class="fine"></p></div>
+        <label class="lbl" for="link">Your pin's link</label>
+        <div class="copyrow"><input id="link" class="field" type="text" readonly><button id="copy-link" class="dmc-btn" type="button">Copy</button></div>
+        <label class="lbl" for="caption">A caption, ready to post</label>
+        <textarea id="caption" class="field" rows="4" readonly></textarea>
+        <div class="row"><button id="share" class="primary" type="button" hidden>Share&hellip;</button><button id="copy-cap" class="dmc-btn" type="button">Copy caption</button><a id="open-link" class="dmc-btn" href="#" target="_blank" rel="noopener">Open the link</a></div>
+        <p id="share-status" class="status" aria-live="polite"></p>
+        <p class="fine">Nothing is saved anywhere: your pin lives inside this link. Post it with #BestKopi, and pins we spot are added to the map by hand.</p>
+        <div class="nav"><button class="dmc-btn" type="button" data-act="back">Back</button><button class="primary" type="button" data-act="done">Done</button></div>
+      </section>
+    </div>
+
+    <p id="credits" class="dmc-credits"></p>
+  </div>
+</aside>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+/* ==========================================================================
+   COMMUNITY PINS: data/day16/pins.json
+   The owner adds followers' pins by hand. The file is a JSON array; [] means no pins yet.
+   Each entry:
+     {
+       "lat":   1.28047,              number, 5 decimals; must fall inside Singapore
+       "lng":   103.84554,            number, 5 decimals
+       "stall": "Ah Seng Kopi",       text, at most 60 characters (shown as plain text)
+       "order": "kopi-o.gau.siewdai.peng",   order code from the share link (see ORDER CODE)
+       "by":    "@someone",           optional: how the follower wants to be credited, at most 40 characters
+       "added": "2026-11-16"          optional: YYYY-MM-DD
+     }
+   Entries that fail any check are skipped. build/pin_links.py turns pasted share links into entries.
+
+   SHARE LINK:  day16-collaborative.html?pin=<lat>,<lng>,<order code>,<stall, URL-encoded>
+   ORDER CODE:  a drink, then any modifiers, joined by dots:
+     drink      kopi | kopi-o | kopi-c | teh | teh-o | teh-c
+     strength   gau | po | dilo           sweetness  siewdai | gahdai | kosong (only with -o or -c)
+     extras     tarik | guyou (kopi only) | peng | tapao
+   Everything read from the link or pins.json is untrusted: it is cleaned, capped and only ever
+   written into the page with textContent.
+   ========================================================================== */
+const COL = ['#7A4424', '#5F7F26', '#2B7A72'], PIN = '#C83A2C';
+const B = { land: '#F3EADA', green: '#DFE6C6', park: '#D4E0B8', water: '#C3DBD3', waterLine: '#A8C8BE', aero: '#EBE0CC', bld: '#E8DAC3', bldLine: '#D9C6A8',
+  road: '#FFFCF5', major: '#F9E9CE', motor: '#F0D2A2', casing: '#E0CCAE', rail: '#C7B293', label: '#6A4C35', label2: '#977A60', wlabel: '#55877C', border: '#B39577' };
+const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const NAME = ['coalesce', ['get', 'name:en'], ['get', 'name_en'], ['get', 'name']];
+const width = (stops) => ['interpolate', ['exponential', 1.5], ['zoom'], ...stops];
+// The basemap: cream saucer land, celadon water, pandan parks, milk-tea roads. OpenFreeMap vector tiles.
+const STYLE = {
+  version: 8,
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: { ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+  layers: [
+    { id: 'land', type: 'background', paint: { 'background-color': B.land } },
+    { id: 'cover', type: 'fill', source: 'ofm', 'source-layer': 'landcover', filter: ['match', ['get', 'class'], ['wood', 'grass', 'wetland', 'farmland', 'scrub'], true, false], paint: { 'fill-color': B.green, 'fill-opacity': .9 } },
+    { id: 'park', type: 'fill', source: 'ofm', 'source-layer': 'park', paint: { 'fill-color': B.park, 'fill-opacity': .85 } },
+    { id: 'aero', type: 'fill', source: 'ofm', 'source-layer': 'aeroway', filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false], paint: { 'fill-color': B.aero } },
+    { id: 'water', type: 'fill', source: 'ofm', 'source-layer': 'water', paint: { 'fill-color': B.water } },
+    { id: 'waterway', type: 'line', source: 'ofm', 'source-layer': 'waterway', minzoom: 12, paint: { 'line-color': B.water, 'line-width': width([12, .6, 16, 3]) } },
+    { id: 'shore', type: 'line', source: 'ofm', 'source-layer': 'water', paint: { 'line-color': B.waterLine, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, .3, 15, 1] } },
+    { id: 'bld', type: 'fill', source: 'ofm', 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': B.bld, 'fill-outline-color': B.bldLine, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 0, 14.6, 1] } },
+    { id: 'rail', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 11, filter: ['all', ['match', ['get', 'class'], ['rail', 'transit'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      paint: { 'line-color': B.rail, 'line-width': width([11, .6, 16, 2]) } },
+    { id: 'road-case', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 11, filter: ['all', ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': B.casing, 'line-width': width([11, 1.6, 14, 4.5, 18, 20]) } },
+    { id: 'road-minor', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 13, filter: ['all', ['match', ['get', 'class'], ['tertiary', 'minor', 'service'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': B.road, 'line-width': width([13, .6, 16, 4, 18, 11]) } },
+    { id: 'road-major', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 11, filter: ['all', ['match', ['get', 'class'], ['primary', 'secondary'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': B.major, 'line-width': width([11, .7, 14, 2.6, 18, 16]) } },
+    { id: 'road-motor', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 9, filter: ['all', ['match', ['get', 'class'], ['motorway', 'trunk'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': B.motor, 'line-width': width([9, .5, 12, 1.5, 14, 3, 18, 16]) } },
+    { id: 'border', type: 'line', source: 'ofm', 'source-layer': 'boundary', filter: ['==', ['get', 'admin_level'], 2], paint: { 'line-color': B.border, 'line-width': 1, 'line-dasharray': [3, 2.5] } },
+    { id: 'water-name', type: 'symbol', source: 'ofm', 'source-layer': 'water_name', minzoom: 10, filter: ['==', ['geometry-type'], 'Point'],
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Italic'], 'text-size': 11, 'text-max-width': 8 },
+      paint: { 'text-color': B.wlabel, 'text-halo-color': B.water, 'text-halo-width': 1.2 } },
+    { id: 'water-name-line', type: 'symbol', source: 'ofm', 'source-layer': 'water_name', minzoom: 10, filter: ['==', ['geometry-type'], 'LineString'],
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Italic'], 'text-size': 11, 'symbol-placement': 'line' },
+      paint: { 'text-color': B.wlabel, 'text-halo-color': B.water, 'text-halo-width': 1.2 } },
+    { id: 'road-name', type: 'symbol', source: 'ofm', 'source-layer': 'transportation_name', minzoom: 15,
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Regular'], 'text-size': 10, 'symbol-placement': 'line', 'text-max-angle': 30 },
+      paint: { 'text-color': B.label2, 'text-halo-color': B.road, 'text-halo-width': 1.4 } },
+    { id: 'station', type: 'symbol', source: 'ofm', 'source-layer': 'poi', minzoom: 13.5, filter: ['all', ['==', ['get', 'class'], 'railway'], ['==', ['get', 'subclass'], 'station']],
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Bold'], 'text-size': 10, 'text-max-width': 8, 'text-variable-anchor': ['top', 'bottom', 'left', 'right'], 'text-radial-offset': .4 },
+      paint: { 'text-color': '#8D6F55', 'text-halo-color': B.land, 'text-halo-width': 1.5 } },
+    { id: 'place-small', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 14, filter: ['match', ['get', 'class'], ['neighbourhood', 'quarter', 'hamlet'], true, false],
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Regular'], 'text-size': 10.5, 'text-max-width': 8 },
+      paint: { 'text-color': B.label2, 'text-halo-color': B.land, 'text-halo-width': 1.5 } },
+    { id: 'place-island', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 10.5, maxzoom: 16, filter: ['==', ['get', 'class'], 'island'],
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 9.5, 14, 11.5], 'text-transform': 'uppercase', 'text-letter-spacing': .1, 'text-max-width': 7 },
+      paint: { 'text-color': B.label, 'text-opacity': .72, 'text-halo-color': B.land, 'text-halo-width': 1.5 } },
+    { id: 'place', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 11.8, maxzoom: 16, filter: ['match', ['get', 'class'], ['suburb', 'town', 'village'], true, false],
+      layout: { 'text-field': NAME, 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11, 9.5, 14, 11.5], 'text-transform': 'uppercase', 'text-letter-spacing': .1, 'text-max-width': 7 },
+      paint: { 'text-color': B.label, 'text-opacity': .72, 'text-halo-color': B.land, 'text-halo-width': 1.5 } },
+  ],
+};
+const DAY = {
+  n: 16,
+  title: 'Best kopi near you: drop your pin',
+  deck: 'Where do you get your best kopi? The map starts with real kopitiams, kopi and toast chains and hawker centres from OpenStreetMap and NEA. Tap your spot, name the stall, build your order in kopitiam words, and share the link: nothing is stored, the pin lives in the link, and pins the owner spots are added by hand.',
+  accent: COL[0],
+  style: STYLE, basemapBg: B.land,
+  styleCredit: 'Basemap: ' + ext('https://openfreemap.org/', 'OpenFreeMap') + ', ' + ext('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', ' + DMC.OSM_CREDIT,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 45 },
+  buildings: false,
+  minZoom: 9, maxZoom: 19,
+  creditsEl: 'credits',
+  attribution: [
+    'Kopitiams, coffee shops and chains: ' + DMC.OSM_CREDIT + ' (ODbL), ' + ext('https://download.openstreetmap.fr/extracts/asia/', 'Singapore extract') + ' of <span class="osm-date">1 Nov 2026</span>',
+    'Hawker centres: ' + ext('https://data.gov.sg/datasets/d_4a086da0a5553be1d89383cd90d07ecd/view', 'NEA via data.gov.sg') + ' (updated <span class="nea-date">1 Nov 2026</span>), ' + ext('https://data.gov.sg/open-data-licence', 'Singapore Open Data Licence'),
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canHover = matchMedia('(hover: hover)').matches;
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+const isCompact = () => matchMedia(DMC.COMPACT_Q).matches;
+const params = new URLSearchParams(location.search);
+const board = $('board');
+const KIND = ['Kopitiam or coffee shop', 'Kopi & toast chain', 'Hawker centre'];
+
+/* ---------- untrusted text: clean, cap, and only ever use textContent ---------- */
+// control, zero-width and bidi-override characters, built from code points
+const CTRL = new RegExp('[' + [[0x00, 0x1F], [0x7F, 0x9F], [0xAD, 0xAD], [0x200B, 0x200F], [0x2028, 0x202E], [0x2060, 0x206F], [0xFEFF, 0xFEFF], [0xFFF9, 0xFFFB]]
+  .map(([a, b]) => String.fromCharCode(a) + '-' + String.fromCharCode(b)).join('') + ']', 'g');
+function clean(s, max) {
+  if (typeof s !== 'string') return '';
+  const t = s.normalize('NFC').replace(CTRL, '').replace(/\s+/g, ' ').trim();
+  return Array.from(t).slice(0, max).join('').trim();
+}
+const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+/* ---------- inside Singapore? (outline built from OpenStreetMap, see build/process.py) ---------- */
+let LAND = [];
+function decodeRings(rings) {
+  return rings.map(f => {
+    const pts = []; let x = f[0], y = f[1]; pts.push([x / 1e5, y / 1e5]);
+    for (let i = 2; i < f.length; i += 2) { x += f[i]; y += f[i + 1]; pts.push([x / 1e5, y / 1e5]); }
+    let w = 180, s = 90, e = -180, n = -90;
+    for (const [px, py] of pts) { if (px < w) w = px; if (px > e) e = px; if (py < s) s = py; if (py > n) n = py; }
+    return { pts, bb: [w, s, e, n] };
+  });
+}
+function inSingapore(lng, lat) {
+  if (!(lng > 103.55 && lng < 104.15 && lat > 1.13 && lat < 1.5)) return false;
+  for (const r of LAND) {
+    if (lng < r.bb[0] || lng > r.bb[2] || lat < r.bb[1] || lat > r.bb[3]) continue;
+    let inside = false;
+    for (let i = 0, j = r.pts.length - 1; i < r.pts.length; j = i++) {
+      const [xi, yi] = r.pts[i], [xj, yj] = r.pts[j];
+      if ((yi > lat) !== (yj > lat) && lng < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    if (inside) return true;
+  }
+  return false;
+}
+const metres = (a, b) => {   // straight-line (great-circle) distance between [lng, lat] points
+  const R = 6371008.8, r = Math.PI / 180, dLat = (b[1] - a[1]) * r, dLng = (b[0] - a[0]) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a[1] * r) * Math.cos(b[1] * r) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+};
+const fmtDist = m => m < 1000 ? `${nf.format(Math.max(10, Math.round(m / 10) * 10))} m` : `${(m / 1000).toFixed(m < 10000 ? 1 : 0)} km`;
+
+/* ---------- the kopi order: state, code, words ---------- */
+const DEF = () => ({ d: 'kopi', m: '', s: '', g: '', x: new Set() });
+const XS = ['tarik', 'guyou', 'peng', 'tapao'];
+const WORD = { gau: 'gau', po: 'po', dilo: 'di lo', siewdai: 'siew dai', gahdai: 'gah dai', kosong: 'kosong', tarik: 'tarik', guyou: 'gu you', peng: 'peng', tapao: 'ta pao' };
+function fixOrder(o) {   // keep only combinations that mean something
+  if (o.s === 'kosong' && !o.m) o.s = '';
+  if (o.d !== 'kopi') o.x.delete('guyou');
+  return o;
+}
+function codeOf(o) { return [o.d + (o.m ? '-' + o.m : ''), o.g, o.s, ...XS.filter(k => o.x.has(k))].filter(Boolean).join('.'); }
+function parseOrder(code) {
+  const o = DEF();
+  if (typeof code !== 'string' || code.length > 80) return o;
+  const t = code.toLowerCase().split('.');
+  const m = /^(kopi|teh)(?:-(o|c))?$/.exec(t[0] || '');
+  if (m) { o.d = m[1]; o.m = m[2] || ''; }
+  for (const w of t.slice(1)) {
+    if (['gau', 'po', 'dilo'].includes(w)) o.g = w;
+    else if (['siewdai', 'gahdai', 'kosong'].includes(w)) o.s = w;
+    else if (XS.includes(w)) o.x.add(w);
+  }
+  return fixOrder(o);
+}
+function phraseOf(o) {
+  const head = (o.d === 'kopi' ? 'Kopi' : 'Teh') + (o.m ? '-' + o.m.toUpperCase() : '');
+  return [head, WORD[o.g], WORD[o.s], ...XS.filter(k => o.x.has(k)).map(k => WORD[k])].filter(Boolean).join(' ');
+}
+function englishOf(o) {
+  const noun = o.d === 'kopi' ? 'coffee' : 'tea';
+  const str = { gau: 'strong', po: 'weak', dilo: 'undiluted, extra-strong' }[o.g] || '';
+  let head, rest;
+  if (o.m === 'o') { head = [str, 'black', noun]; rest = { '': 'with sugar', siewdai: 'with less sugar', gahdai: 'with extra sugar', kosong: 'with no sugar' }[o.s]; }
+  else if (o.m === 'c') { head = [str, noun]; rest = 'with evaporated milk and ' + { '': 'sugar', siewdai: 'less sugar', gahdai: 'extra sugar', kosong: 'no sugar' }[o.s]; }
+  else { head = [str, noun]; rest = { '': 'with condensed milk', siewdai: 'with less condensed milk, so less sweet', gahdai: 'with extra condensed milk, so extra sweet' }[o.s]; }
+  const extras = [o.x.has('tarik') && 'pulled until frothy', o.x.has('guyou') && 'with a knob of butter', o.x.has('peng') && 'on ice', o.x.has('tapao') && 'to take away'].filter(Boolean);
+  const s = head.filter(Boolean).join(' ') + ' ' + rest + (extras.length ? ', ' + extras.join(', ') : '') + '.';
+  return s[0].toUpperCase() + s.slice(1);
+}
+// What each word means and where it comes from (sources in the builder's footnote).
+const GLOSS = {
+  kopi: ['Kopi', 'coffee; Malay for coffee'],
+  teh: ['Teh', 'tea; Malay for tea'],
+  '': ['(no letter)', 'comes with sweetened condensed milk'],
+  o: ['-O', 'no milk; from Hokkien 烏, “black”'],
+  c: ['-C', 'evaporated milk; maybe from Carnation, an old brand, or Hainanese for “fresh”'],
+  siewdai: ['siew dai', 'less sweet; possibly Cantonese 少底, “less base”'],
+  gahdai: ['gah dai', 'sweeter; possibly Cantonese 加底, “more base”'],
+  kosong: ['kosong', 'no sugar; Malay for “empty”'],
+  gau: ['gau', 'strong, thick; Hokkien 厚'],
+  po: ['po', 'thin: less coffee powder, more water; Hokkien 薄 (also said “pok” or “poh”)'],
+  dilo: ['di lo', 'undiluted; Hokkien 直落, “straight down” from the jug'],
+  tarik: ['tarik', 'pulled: poured between two cups until frothy; Malay for “pull”'],
+  guyou: ['gu you', 'with butter'],
+  peng: ['peng', 'iced; Hokkien 冰, “ice”'],
+  tapao: ['ta pao', 'to take away; from Cantonese 打包 (also “da bao”)'],
+};
+// HealthHub's sugar figures, shown only for the exact orders it lists.
+const SUGAR = { kopi: 'about <b>4 teaspoons</b> of sugar', 'kopi.siewdai': '<b>3 to 3½ teaspoons</b> of sugar', 'kopi-o.kosong': '<b>no sugar</b> at all',
+  teh: 'about <b>5 teaspoons</b> of sugar', 'teh.siewdai': 'about <b>4 teaspoons</b> of sugar', 'teh-o.kosong': '<b>no sugar</b> at all' };
+
+/* ---------- the cup, drawn from the order ---------- */
+function shade(hex, k) {   // k < 0 darker, k > 0 lighter
+  const n = parseInt(hex.slice(1), 16), c = [n >> 16, (n >> 8) & 255, n & 255].map(v => Math.round(k < 0 ? v * (1 + k) : v + (255 - v) * k));
+  return '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+}
+function liquid(o) {
+  const base = o.d === 'kopi' ? { o: '#3C2316', c: '#946642', '': '#9A6238' } : { o: '#92400F', c: '#C08F66', '': '#C4844E' };
+  return shade(base[o.m], { gau: -.2, dilo: -.34, po: .2 }[o.g] || 0);
+}
+let cupN = 0;
+function cupSVG(o) {
+  const id = 'c' + (++cupN), L = liquid(o), ice = o.x.has('peng'), bag = o.x.has('tapao');
+  const milkH = !o.m ? { '': 9, siewdai: 5, gahdai: 14 }[o.s] : 0;
+  const cubes = ice ? `<g fill="rgba(255,255,255,.55)" stroke="rgba(255,255,255,.95)" stroke-width="1.2"><rect x="46" y="44" width="15" height="13" rx="3" transform="rotate(-12 53 50)"/><rect x="63" y="52" width="14" height="13" rx="3" transform="rotate(9 70 58)"/><rect x="50" y="64" width="13" height="12" rx="3" transform="rotate(4 56 70)"/></g>` : '';
+  const froth = (y, rx) => o.x.has('tarik') ? `<ellipse cx="62" cy="${y}" rx="${rx}" ry="3.6" fill="#EAD2AD"/><g fill="#F6E7CC"><circle cx="${62 - rx * .5}" cy="${y - .5}" r="1.6"/><circle cx="${62 + rx * .2}" cy="${y - 1}" r="1.3"/><circle cx="${62 + rx * .6}" cy="${y}" r="1.1"/></g>` : '';
+  const butter = y => o.x.has('guyou') ? `<path d="M55 ${y} l9 -2.6 l7 2.4 l-9 2.8 z" fill="#F5D45E" stroke="#DDB23C" stroke-width=".8"/>` : '';
+  const steam = !ice ? `<g class="steam" fill="none" stroke="#C9B496" stroke-width="1.8" stroke-linecap="round"><path d="M52 ${bag ? 6 : 22} c-4 -5 4 -8 0 -14"/><path d="M62 ${bag ? 4 : 20} c-4 -5 4 -8 0 -14"/><path d="M72 ${bag ? 6 : 22} c-4 -5 4 -8 0 -14"/></g>` : '';
+  if (bag) {   // ta pao: the kopitiam plastic bag, its neck tied with raffia, a straw poking out
+    const P = 'M57 36 C42 44 34 66 37 86 C40 101 51 107 62 107 C73 107 84 101 87 86 C90 66 82 44 67 36 Z';
+    return `<svg viewBox="0 0 124 112"><defs><clipPath id="${id}"><path d="${P}"/></clipPath></defs>
+      <g transform="rotate(14 66 30)"><rect x="63" y="0" width="6" height="44" rx="2" fill="#F6F1E8" stroke="#BFAE94"/><path d="M63.5 6 h5 M63.5 13 h5 M63.5 20 h5" stroke="#D9534F" stroke-width="1.8"/></g>
+      <g clip-path="url(#${id})"><rect x="20" y="54" width="90" height="70" fill="${L}"/>${o.x.has('tarik') ? `<rect x="20" y="51" width="90" height="5" fill="#EAD2AD"/>` : ''}
+        ${milkH ? `<rect x="20" y="${106 - milkH}" width="90" height="${milkH + 6}" fill="#F3E4C4"/>` : ''}${ice ? cubes.replace(/y="(\d+)"/g, (m, y) => `y="${+y + 16}"`) : ''}</g>
+      <path d="${P}" fill="rgba(255,255,255,.22)" stroke="rgba(140,120,95,.8)" stroke-width="1.3"/>
+      <path d="M46 58 C41 72 41 88 46 98" stroke="rgba(255,255,255,.8)" stroke-width="3" fill="none" stroke-linecap="round"/>
+      <path d="M56 37 L59 26 L65 26 L68 37 Z" fill="rgba(238,232,220,.95)" stroke="rgba(140,120,95,.8)" stroke-width="1"/>
+      <path d="M57 26 l2 -6 l2 5 l2 -6 l2 5 l2 -6 l1 8" fill="rgba(238,232,220,.95)" stroke="rgba(140,120,95,.8)" stroke-width="1" stroke-linejoin="round"/>
+      <path d="M57.5 29 h9 M57.5 32 h9.5" stroke="#E2566B" stroke-width="1.8" stroke-linecap="round"/>
+      <path d="M58 30 C30 24 28 -2 50 4 C58 6 60 16 60 29" fill="none" stroke="#E2566B" stroke-width="1.8" stroke-linecap="round"/></svg>`;
+  }
+  if (ice) {   // a tall glass
+    const P = 'M40 14 L46 104 Q62 109 78 104 L84 14 Z';
+    return `<svg viewBox="0 0 124 112"><defs><clipPath id="${id}"><path d="${P}"/></clipPath></defs>
+      <g clip-path="url(#${id})"><rect x="20" y="26" width="90" height="90" fill="${L}"/>${o.m === 'c' ? `<path d="M20 26 h90 v8 c-20 6 -30 -4 -50 3 c-15 5 -25 -2 -40 1 z" fill="#E9D6B8" opacity=".85"/>` : ''}
+      ${milkH ? `<rect x="20" y="${105 - milkH}" width="90" height="${milkH + 6}" fill="#F3E4C4"/>` : ''}${cubes}${froth(27, 20)}${butter(27)}</g>
+      <path d="${P}" fill="rgba(255,255,255,.14)" stroke="#B9A88E" stroke-width="1.4"/><path d="M47 22 L51 96" stroke="rgba(255,255,255,.75)" stroke-width="3" stroke-linecap="round"/></svg>`;
+  }
+  // hot: the thick white kopitiam cup on its saucer
+  return `<svg viewBox="0 0 124 112">${steam}
+    <ellipse cx="62" cy="102" rx="54" ry="9" fill="#FFFDF8" stroke="#CDB89A" stroke-width="1.4"/><ellipse cx="62" cy="100.5" rx="31" ry="4.4" fill="none" stroke="#E6D8C2"/>
+    <path d="M96 48 C118 46 118 76 90 80" fill="none" stroke="#CDB89A" stroke-width="8.5" stroke-linecap="round"/><path d="M96 48 C118 46 118 76 90 80" fill="none" stroke="#FFFDF8" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M25 38 C26 70 33 91 44 98 Q62 103 80 98 C91 91 98 70 99 38 Z" fill="#FFFDF8" stroke="#CDB89A" stroke-width="1.4"/>
+    <path d="M27.5 52 C48 58 76 58 96.5 52" fill="none" stroke="#2B7A72" stroke-width="2.4"/><path d="M29.5 57 C49 63 75 63 94.5 57" fill="none" stroke="#2B7A72" stroke-width=".9"/>
+    <ellipse cx="62" cy="38" rx="37" ry="7.5" fill="#FFFDF8" stroke="#CDB89A" stroke-width="1.4"/><ellipse cx="62" cy="39.2" rx="32" ry="5.3" fill="${L}"/>
+    ${froth(39, 26)}${butter(39.5)}<ellipse cx="50" cy="38" rx="7" ry="1.4" fill="rgba(255,255,255,.28)"/></svg>`;
+}
+
+/* ---------- shared links ---------- */
+const BASE = location.origin + location.pathname;
+const pinLink = p => `${BASE}?pin=${p.lat.toFixed(5)},${p.lng.toFixed(5)},${codeOf(p.order)},${encodeURIComponent(p.stall)}`;
+function parsePin(s) {
+  if (typeof s !== 'string' || !s || s.length > 600) return { err: 'This link looks damaged, so its pin cannot be shown.' };
+  const parts = s.split(',');
+  if (parts.length < 4) return { err: 'This link looks damaged, so its pin cannot be shown.' };
+  const [la, lo, code] = parts;
+  if (!/^-?\d{1,2}(\.\d{1,7})?$/.test(la.trim()) || !/^-?\d{1,3}(\.\d{1,7})?$/.test(lo.trim())) return { err: 'This link looks damaged, so its pin cannot be shown.' };
+  const lat = +la, lng = +lo;
+  if (!inSingapore(lng, lat)) return { err: 'This pin is outside Singapore, so it is not shown.' };
+  const stall = clean(parts.slice(3).join(','), 60);
+  if (!stall) return { err: 'This pin has no stall name, so it is not shown.' };
+  return { lat, lng, stall, order: parseOrder(code) };
+}
+function parseEntry(e) {
+  if (!e || typeof e !== 'object' || Array.isArray(e)) return null;
+  const lat = e.lat, lng = e.lng;
+  if (typeof lat !== 'number' || typeof lng !== 'number' || !isFinite(lat) || !isFinite(lng) || !inSingapore(lng, lat)) return null;
+  const stall = clean(e.stall, 60);
+  if (!stall) return null;
+  const by = clean(e.by, 40), added = typeof e.added === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(e.added) ? e.added : '';
+  return { lat, lng, stall, order: parseOrder(e.order), by, added };
+}
+
+/* ---------- icons: overhead, like looking down at the table ---------- */
+function rr(g, x, y, w, h, r) { g.beginPath(); g.moveTo(x + r, y); g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r); g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r); g.closePath(); }
+function plate(g, c, r, ring) { g.fillStyle = '#FFFDF8'; g.beginPath(); g.arc(c, c, r, 0, 7); g.fill(); g.lineWidth = 3.2; g.strokeStyle = ring; g.stroke(); }
+const DRAW = {
+  cup(g, S) { const c = S / 2; plate(g, c, 25, COL[0]);
+    g.fillStyle = '#FFFDF8'; g.strokeStyle = '#CDB89A'; g.lineWidth = 1.6;
+    rr(g, c + 10, c - 4, 13, 8, 4); g.fill(); g.stroke();
+    g.beginPath(); g.arc(c - 1, c, 15.5, 0, 7); g.fill(); g.stroke();
+    g.fillStyle = COL[0]; g.beginPath(); g.arc(c - 1, c, 11.5, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.4)'; g.beginPath(); g.ellipse(c - 5.5, c - 4.5, 3.6, 2.2, -.6, 0, 7); g.fill(); },
+  toast(g, S) { const c = S / 2; plate(g, c, 25, COL[1]);
+    g.save(); g.translate(c, c); g.rotate(-.12);
+    g.fillStyle = '#C98A45'; rr(g, -14, -14, 28, 28, 6); g.fill();
+    g.fillStyle = '#F2D59E'; rr(g, -11, -11, 22, 22, 4); g.fill();
+    g.strokeStyle = '#6E9A2F'; g.lineWidth = 3; g.beginPath(); g.moveTo(-11, 11); g.lineTo(11, -11); g.stroke();
+    g.strokeStyle = '#C98A45'; g.lineWidth = 1.4; g.beginPath(); g.moveTo(-13, 13); g.lineTo(13, -13); g.stroke();
+    g.fillStyle = '#FFF2C4'; rr(g, -6, -1, 8, 5, 1.5); g.fill(); g.restore(); },
+  table(g, S) { const c = S / 2; plate(g, c, 25, COL[2]);
+    g.fillStyle = '#86C2B9'; for (let k = 0; k < 5; k++) { const a = -Math.PI / 2 + k * 2 * Math.PI / 5; g.beginPath(); g.arc(c + Math.cos(a) * 16.5, c + Math.sin(a) * 16.5, 4.6, 0, 7); g.fill(); }
+    g.fillStyle = COL[2]; g.beginPath(); g.arc(c, c, 10.5, 0, 7); g.fill();
+    g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.arc(c - 3, c - 3, 3, 0, 7); g.fill(); },
+  pin(g, S) { const c = S / 2;
+    g.fillStyle = PIN; g.strokeStyle = '#FFFDF8'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(c, S - 3); g.bezierCurveTo(c - 6, S - 16, c - 19, S - 26, c - 19, c - 8); g.arc(c, c - 8, 19, Math.PI, 0); g.bezierCurveTo(c + 19, S - 26, c + 6, S - 16, c, S - 3); g.closePath(); g.fill(); g.stroke();
+    g.fillStyle = '#FFFDF8'; g.beginPath(); const hx = c, hy = c - 6;
+    g.moveTo(hx, hy + 8); g.bezierCurveTo(hx - 13, hy - 1, hx - 6, hy - 11, hx, hy - 4); g.bezierCurveTo(hx + 6, hy - 11, hx + 13, hy - 1, hx, hy + 8); g.fill(); },
+};
+function iconData(name) {
+  const S = name === 'pin' ? 64 : 58, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d'); DRAW[name](g, S); return g.getImageData(0, 0, S, S);
+}
+// the same little pictures in the board's tiles
+document.querySelectorAll('[data-icon]').forEach(el => {
+  const c = document.createElement('canvas'); c.width = c.height = 58; c.style.cssText = 'width:22px;height:22px;display:block';
+  DRAW[['cup', 'toast', 'table'][+el.dataset.icon]](c.getContext('2d'), 58); el.append(c);
+});
+
+/* ---------- data ---------- */
+let D = null, P = [], PINS = [], shared = null;
+const visible = new Set([0, 1, 2]);
+const dataP = fetch('data/day16/kopi.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const pinsP = fetch('data/day16/pins.json', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(() => null);
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+
+function fc(features) { return { type: 'FeatureCollection', features }; }
+const placeFeatures = () => fc(P.map(p => ({ type: 'Feature', id: p.i, properties: { i: p.i, k: p.k, n: p.name }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } })));
+const pinFeatures = () => fc(PINS.map((p, i) => ({ type: 'Feature', id: i, properties: { j: i }, geometry: { type: 'Point', coordinates: [p.lng, p.lat] } })));
+
+function addLayers() {
+  for (const n of ['cup', 'toast', 'table', 'pin']) if (!map.hasImage(n)) map.addImage(n, iconData(n), { pixelRatio: 2 });
+  map.addSource('places', { type: 'geojson', data: placeFeatures() });
+  map.addSource('pins', { type: 'geojson', data: pinFeatures() });
+  map.addSource('near', { type: 'geojson', data: fc([]) });
+  // a milky veil over everything beyond Singapore's national boundary
+  const area = pts => pts.reduce((s, p, i) => { const q = pts[(i + 1) % pts.length]; return s + p[0] * q[1] - q[0] * p[1]; }, 0);
+  const box = [[102.3, .2], [105.3, .2], [105.3, 2.5], [102.3, 2.5], [102.3, .2]], sb = Math.sign(area(box));
+  const holes = decodeRings(D.border || []).map(r => (Math.sign(area(r.pts)) === sb ? r.pts.slice().reverse() : r.pts));
+  map.addSource('veil', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [box, ...holes] } } });
+  map.addLayer({ id: 'veil', type: 'fill', source: 'veil', paint: { 'fill-color': '#F1E9DB', 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 10, .62, 13, .5, 15, .35] } }, 'water-name');
+  const kcol = ['match', ['get', 'k'], 0, COL[0], 1, COL[1], COL[2]];
+  map.addLayer({ id: 'near-line', type: 'line', source: 'near', filter: ['==', ['geometry-type'], 'LineString'], layout: { 'line-cap': 'round' },
+    paint: { 'line-color': COL[0], 'line-width': 1.6, 'line-dasharray': [1.5, 2], 'line-opacity': .8 } });
+  map.addLayer({ id: 'places-dot', type: 'circle', source: 'places', maxzoom: 13.8, paint: {
+    'circle-color': kcol, 'circle-radius': ['interpolate', ['linear'], ['zoom'], 9.5, ['match', ['get', 'k'], 2, 2.6, 1.8], 12, ['match', ['get', 'k'], 2, 4.4, 3.2], 13.8, ['match', ['get', 'k'], 2, 6, 4.6]],
+    'circle-stroke-color': '#FFFDF8', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 9.5, .5, 13, 1.2] } });
+  map.addLayer({ id: 'places-sel', type: 'circle', source: 'places', filter: ['==', ['get', 'i'], -1], paint: {
+    'circle-color': 'rgba(0,0,0,0)', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, 9, 14, 13, 18, 21], 'circle-stroke-color': COL[0], 'circle-stroke-width': 2.5 } });
+  map.addLayer({ id: 'places-icon', type: 'symbol', source: 'places', minzoom: 13.6, layout: {
+    'icon-image': ['match', ['get', 'k'], 0, 'cup', 1, 'toast', 'table'], 'icon-size': ['interpolate', ['linear'], ['zoom'], 13.6, .66, 16, .95, 18, 1.2],
+    'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['get', 'k'],
+    'text-field': ['step', ['zoom'], '', 15.6, ['get', 'n']], 'text-font': ['Noto Sans Bold'], 'text-size': 10.5, 'text-anchor': 'top', 'text-offset': [0, 1.35],
+    'text-max-width': 9, 'text-optional': true },
+    paint: { 'text-color': ['match', ['get', 'k'], 0, '#5E3219', 1, '#45601A', '#1F5D57'], 'text-halo-color': '#FFFDF8', 'text-halo-width': 1.6 } });
+  map.addLayer({ id: 'pins-icon', type: 'symbol', source: 'pins', layout: {
+    'icon-image': 'pin', 'icon-anchor': 'bottom', 'icon-size': ['interpolate', ['linear'], ['zoom'], 10, .7, 15, 1], 'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  map.addLayer({ id: 'near-origin', type: 'circle', source: 'near', filter: ['==', ['geometry-type'], 'Point'], paint: {
+    'circle-color': '#3F7FD9', 'circle-radius': 6.5, 'circle-stroke-color': '#FFFFFF', 'circle-stroke-width': 2.5 } });
+}
+function applyKinds() {
+  const f = ['in', ['get', 'k'], ['literal', [...visible]]];
+  for (const id of ['places-dot', 'places-icon']) if (map.getLayer(id)) map.setFilter(id, f);
+}
+
+/* ---------- the board: numbers, chains, community ---------- */
+function fillBoard() {
+  const c = D.counts;
+  $('n-all').textContent = nf.format(c.all);
+  $('n-0').textContent = nf.format(c.coffee); $('n-1').textContent = nf.format(c.chain); $('n-2').textContent = nf.format(c.hawker);
+  const ul = $('chain-list'), max = Math.max(...Object.values(c.chains));
+  for (const [id, label] of D.chains.map(x => x).sort((a, b) => (c.chains[b[0]] || 0) - (c.chains[a[0]] || 0))) {
+    const n = c.chains[id] || 0, li = mk('li');
+    li.append(mk('span', null, label), mk('b', null, nf.format(n)));
+    const bar = mk('i'); bar.style.width = `${Math.max(2, 100 * n / max)}%`; li.append(bar);
+    ul.append(li);
+  }
+  const day = iso => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Singapore' }).format(new Date(iso));
+  if (D.osmExtract) document.querySelectorAll('.osm-date').forEach(e => { e.textContent = day(D.osmExtract); });
+  if (D.neaUpdated) document.querySelectorAll('.nea-date').forEach(e => { e.textContent = day(D.neaUpdated); });
+  $('how-text').textContent = `Kopitiams and coffee shops: OpenStreetMap cafes, food courts, restaurants and fast-food places named with "kopi", "coffee shop" or "kafei" (or 咖啡店, 咖啡室, 茶室), food courts and cafes called an "eating house" or "coffee house", places tagged with a kopitiam or kaya-toast cuisine, and the coffee-shop operators Koufu, Kimly, Kim San Leng and Broadway. Chains: Ya Kun, Toast Box, Killiney, Wang Cafe and Heavenly Wang, Fun Toast, Kaffe & Toast, Good Morning Nanyang, Kopi & Tarts, OldTown White Coffee and Nanyang Old Coffee, found by brand or name. Hawker centres: NEA's list, ${nf.format(c.hawker)} open centres (${nf.format(c.neaUnderConstruction)} still being built are left out), with ${nf.format(c.hawkerStalls)} cooked-food stalls between them. Places in Johor and duplicates are dropped.`;
+}
+function fillCommunity(failed) {
+  $('n-pins').textContent = nf.format(PINS.length);
+  $('pins-err').hidden = !failed;
+  $('empty').hidden = PINS.length > 0;
+  const ol = $('pin-list');
+  ol.hidden = !PINS.length;
+  ol.replaceChildren(...PINS.map((p, j) => {
+    const li = mk('li'), b = mk('button');
+    b.type = 'button';
+    b.append(mk('i'), mk('b', null, p.stall), mk('em', null, p.added || ''), mk('small', null, phraseOf(p.order) + (p.by ? ` · ${p.by}` : '')));
+    b.addEventListener('click', () => { flyTo([p.lng, p.lat], 16.5); openPin(j); });
+    li.append(b); return li;
+  }));
+}
+$('how').addEventListener('click', e => { e.preventDefault(); const t = $('how-text'); t.hidden = !t.hidden; $('how').textContent = t.hidden ? 'How we picked them' : 'Hide the details'; });
+document.querySelectorAll('.kind').forEach(b => b.addEventListener('click', () => {
+  const k = +b.dataset.k, on = !visible.has(k);
+  on ? visible.add(k) : visible.delete(k);
+  b.setAttribute('aria-pressed', String(on));
+  applyKinds();
+}));
+
+/* ---------- camera helpers: keep things clear of the board ---------- */
+function freePadding() {
+  const r = board.getBoundingClientRect(), W = innerWidth, H = innerHeight, p = { top: 70, right: 64, bottom: 40, left: 40 };
+  if (root.classList.contains('dmc-focus') || !r.width) return p;
+  if (isSheet()) return { top: 96, right: 44, bottom: Math.max(40, H - r.top + 28), left: 40 };
+  if (r.left > W / 2) return { top: 44, right: W - r.left + 30, bottom: 40, left: 40 };
+  return { top: 50, right: 64, bottom: 40, left: Math.min(W * .6, r.right + 40) };
+}
+function freeCenter() { const p = freePadding(); return map.unproject([(p.left + innerWidth - p.right) / 2, (p.top + innerHeight - p.bottom) / 2]); }
+// fitBounds adds its padding to the map's own (set by the kit's framing), so ask only for the difference
+function fitTo(bb, maxZoom) {
+  const want = freePadding(), cur = map.getPadding(), padding = {};
+  for (const k of ['top', 'right', 'bottom', 'left']) padding[k] = Math.max(0, want[k] - (cur[k] || 0));
+  map.fitBounds(bb, { padding, maxZoom, duration: reduceMotion ? 0 : 1600 });
+}
+function flyTo(ll, zoom) {
+  const cam = { center: ll, zoom: Math.max(zoom, map.getZoom()), padding: freePadding(), essential: true };
+  reduceMotion ? map.jumpTo(cam) : map.flyTo({ ...cam, speed: 1.4, maxDuration: 2600 });
+}
+
+/* ---------- popups ---------- */
+let popup = null;
+function closePopup() { if (popup) { popup.remove(); popup = null; } if (map.getLayer('places-sel')) map.setFilter('places-sel', ['==', ['get', 'i'], -1]); }
+function showPopup(ll, node) {
+  closePopup();
+  popup = new maplibregl.Popup({ offset: 16, maxWidth: '250px', focusAfterOpen: false }).setLngLat(ll).setDOMContent(node).addTo(map);
+  popup.on('close', () => { popup = null; if (map.getLayer('places-sel')) map.setFilter('places-sel', ['==', ['get', 'i'], -1]); });
+}
+function openPlace(i) {
+  const p = P[i], box = mk('div', 'pop');
+  box.style.setProperty('--c', COL[p.k]);
+  const chain = p.c >= 0 ? D.chains[p.c][1] : '';
+  box.append(mk('p', 'k', KIND[p.k] + (chain && chain !== p.name ? ` · ${chain}` : '')), mk('h3', null, p.name));
+  if (p.addr) box.append(mk('p', null, p.addr));
+  if (p.stalls) box.append(mk('p', null, `${nf.format(p.stalls)} cooked-food stalls (NEA)`));
+  if (p.hours) box.append(mk('p', null, `Hours on OpenStreetMap: ${p.hours}`));
+  const row = mk('div', 'row'), b = mk('button', 'primary', 'Pin this as my kopi');
+  b.type = 'button';
+  b.addEventListener('click', () => { closePopup(); startFlow({ lng: p.lng, lat: p.lat, name: p.name }); });
+  row.append(b);
+  if (p.ref) {
+    const a = mk('a', null, 'Fix it on OpenStreetMap');
+    a.href = `https://www.openstreetmap.org/${{ n: 'node', w: 'way', r: 'relation' }[p.ref[0]]}/${p.ref.slice(1)}`; a.target = '_blank'; a.rel = 'noopener noreferrer';
+    row.append(a);
+  }
+  box.append(row);
+  map.setFilter('places-sel', ['==', ['get', 'i'], i]);
+  showPopup([p.lng, p.lat], box);
+}
+function orderBlock(box, o) { box.append(mk('p', 'ph', phraseOf(o)), mk('p', null, englishOf(o))); }
+function openPin(j) {
+  const p = PINS[j], box = mk('div', 'pop');
+  box.style.setProperty('--c', PIN);
+  box.append(mk('p', 'k', 'Pin from a follower'), mk('h3', null, p.stall));
+  orderBlock(box, p.order);
+  if (p.by || p.added) box.append(mk('p', null, [p.by && `Pinned by ${p.by}`, p.added && `added ${p.added}`].filter(Boolean).join(', ')));
+  showPopup([p.lng, p.lat], box);
+}
+
+/* ---------- map interaction ---------- */
+const coarse = matchMedia('(pointer: coarse)').matches;
+function hit(pt) {
+  const r = coarse ? 14 : 7, layers = ['pins-icon', 'places-icon', 'places-dot'].filter(id => map.getLayer(id));
+  if (!layers.length) return null;
+  const fs = map.queryRenderedFeatures([[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]], { layers });
+  if (!fs.length) return null;
+  const pin = fs.find(f => f.layer.id === 'pins-icon');
+  if (pin) return { pin: pin.properties.j };
+  let best = null, bd = 1e9;
+  for (const f of fs) { const q = map.project(f.geometry.coordinates), d = (q.x - pt.x) ** 2 + (q.y - pt.y) ** 2; if (d < bd) { bd = d; best = f; } }
+  return { place: best.properties.i };
+}
+map.on('click', e => {
+  if (!D) return;
+  const h = hit(e.point);
+  if (flow.step === 1) {
+    if (h && h.place != null) { const p = P[h.place]; setSpot({ lng: p.lng, lat: p.lat }, p.name); }
+    else if (h && h.pin != null) { const p = PINS[h.pin]; setSpot({ lng: p.lng, lat: p.lat }, p.stall); }
+    else setSpot(e.lngLat);
+    return;
+  }
+  if (flow.step) return;
+  if (!h) closePopup();
+  else if (h.pin != null) openPin(h.pin);
+  else openPlace(h.place);
+});
+const tip = $('tip');
+if (canHover) {
+  map.on('mousemove', e => {
+    if (!D) return;
+    const h = hit(e.point);
+    map.getCanvas().style.cursor = flow.step === 1 ? 'crosshair' : h ? 'pointer' : '';
+    if (!h || flow.step > 1) { tip.hidden = true; return; }
+    tip.textContent = h.pin != null ? PINS[h.pin].stall : P[h.place].name;
+    tip.style.left = `${e.originalEvent.clientX}px`; tip.style.top = `${e.originalEvent.clientY}px`;
+    tip.hidden = false;
+  });
+  map.getCanvas().addEventListener('mouseleave', () => { tip.hidden = true; });
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && popup) closePopup(); });
+
+/* ---------- the drop-a-pin flow ---------- */
+const flow = { step: 0, spot: null, order: DEF(), stall: '' };
+let draft = null;
+function pinEl() {
+  const el = mk('div', 'dpin');
+  el.innerHTML = `<svg viewBox="0 0 30 40" aria-hidden="true"><path d="M15 38.5C13 33 2 26 2 14.5a13 13 0 0 1 26 0C28 26 17 33 15 38.5z" fill="${PIN}" stroke="#FFFDF8" stroke-width="2"/><circle cx="15" cy="14.5" r="7.2" fill="#FFFDF8"/><circle cx="15" cy="14.5" r="4.6" fill="${COL[0]}"/></svg>`;
+  el.setAttribute('aria-label', 'Your pin. Drag to move it.');
+  return el;
+}
+function nearestPlaces(ll, within, n) {
+  return P.map(p => ({ p, d: metres([ll.lng, ll.lat], [p.lng, p.lat]) })).filter(x => x.d <= within).sort((a, b) => a.d - b.d).slice(0, n);
+}
+function setSpot(ll, name) {
+  const lng = +(+ll.lng).toFixed(5), lat = +(+ll.lat).toFixed(5), ok = inSingapore(lng, lat);
+  if (!draft) {
+    draft = new maplibregl.Marker({ element: pinEl(), anchor: 'bottom', draggable: true }).setLngLat([lng, lat]).addTo(map);
+    draft.on('dragend', () => { const p = draft.getLngLat(); setSpot(p); });
+  } else draft.setLngLat([lng, lat]);
+  draft.getElement().classList.toggle('bad', !ok);
+  const msg = $('spot-msg');
+  if (!ok) {
+    flow.spot = null;
+    msg.className = 'msg bad'; msg.textContent = 'That spot is not on Singapore’s land. Please pick a spot on the main island or one of its islands.';
+  } else {
+    flow.spot = { lng, lat };
+    if (name) flow.stall = clean(name, 60);
+    const near = nearestPlaces({ lng, lat }, 400, 1)[0];
+    msg.className = 'msg ok';
+    msg.textContent = name ? `Spot set on ${clean(name, 60)}.` : near ? `Spot set, ${fmtDist(near.d)} from ${near.p.name}.` : 'Spot set.';
+  }
+  $('s1-next').disabled = !ok;
+}
+function startFlow(pre) {
+  closePopup(); clearNear();
+  flow.step = 1; flow.spot = null; flow.stall = ''; flow.order = DEF();
+  $('v-home').hidden = true; $('v-drop').hidden = false; $('bar-t').textContent = 'Drop your pin';
+  $('spot-msg').className = 'msg'; $('spot-msg').textContent = 'No spot yet.'; $('s1-next').disabled = true;
+  expandBoard(true);
+  if (pre) { setSpot(pre, pre.name); goStep(2); flyTo([pre.lng, pre.lat], 16); }
+  else goStep(1);
+}
+function endFlow() {
+  flow.step = 0;
+  if (draft) { draft.remove(); draft = null; }
+  $('v-drop').hidden = true; $('v-home').hidden = false; $('bar-t').textContent = 'Best kopi near you';
+  board.classList.remove('tall');
+  map.getCanvas().style.cursor = '';
+}
+function goStep(n) {
+  flow.step = n;
+  document.querySelectorAll('#v-drop .step').forEach(s => { s.hidden = +s.dataset.s !== n; });
+  document.querySelectorAll('.steps li').forEach((li, i) => { li.className = i + 1 < n ? 'done' : i + 1 === n ? 'now' : ''; if (i + 1 === n) li.setAttribute('aria-current', 'step'); else li.removeAttribute('aria-current'); });
+  board.classList.toggle('tall', n === 3 || n === 4);
+  $('body').scrollTop = 0;
+  map.getCanvas().style.cursor = n === 1 ? 'crosshair' : '';
+  if (n === 2) {
+    const inp = $('stall');
+    inp.value = flow.stall; onStall();
+    const sugg = $('sugg'), near = flow.spot ? nearestPlaces(flow.spot, 200, 4) : [];
+    sugg.replaceChildren(...near.map(({ p, d }) => { const b = mk('button', null, `${p.name} · ${fmtDist(d)}`); b.type = 'button'; b.addEventListener('click', () => { inp.value = clean(p.name, 60); onStall(); inp.focus(); }); return b; }));
+    $('sugg-h').hidden = !near.length;
+    if (!coarse) inp.focus();
+  }
+  if (n === 3) renderOrder();
+  if (n === 4) renderShare();
+  if (n > 1 && flow.spot && isSheet()) flyTo([flow.spot.lng, flow.spot.lat], 15.5);
+}
+function onStall() {
+  const v = clean($('stall').value, 60);
+  $('stall-n').textContent = Array.from($('stall').value).length;
+  flow.stall = v;
+  $('s2-next').disabled = !v;
+}
+$('stall').addEventListener('input', onStall);
+$('stall').addEventListener('keydown', e => { if (e.key === 'Enter' && flow.stall) goStep(3); });
+$('s1-next').addEventListener('click', () => goStep(2));
+$('s2-next').addEventListener('click', () => goStep(3));
+$('s3-next').addEventListener('click', () => goStep(4));
+document.addEventListener('click', e => {
+  const a = e.target.closest('[data-act]');
+  if (!a) return;
+  const act = a.dataset.act;
+  if (act === 'drop') startFlow();
+  else if (act === 'cancel') endFlow();
+  else if (act === 'back') goStep(Math.max(1, flow.step - 1));
+  else if (act === 'done') endFlow();
+});
+$('use-mid').addEventListener('click', () => setSpot(freeCenter()));
+$('use-loc').addEventListener('click', () => {
+  const msg = $('spot-msg');
+  msg.className = 'msg'; msg.textContent = 'Finding you…';
+  locate().then(ll => {
+    if (!inSingapore(ll.lng, ll.lat)) { msg.className = 'msg bad'; msg.textContent = 'You seem to be outside Singapore. Tap the map on your kopi spot instead.'; return; }
+    setSpot(ll); flyTo([ll.lng, ll.lat], 16);
+  }).catch(err => { msg.className = 'msg bad'; msg.textContent = err.message; });
+});
+function locate() {
+  return new Promise((res, rej) => {
+    if (!navigator.geolocation) return rej(new Error('Your browser cannot share its location. Tap the map instead.'));
+    navigator.geolocation.getCurrentPosition(p => res({ lng: p.coords.longitude, lat: p.coords.latitude }),
+      e => rej(new Error(e.code === 1 ? 'Location was not shared. Tap the map instead.' : 'Your location could not be found. Tap the map instead.')),
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 60000 });
+  });
+}
+
+/* the order builder */
+const chips = [...document.querySelectorAll('.chips')];
+chips.forEach(box => box.addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || b.disabled) return;
+  const g = box.dataset.g, v = b.dataset.v, o = flow.order;
+  if (g === 'x') o.x.has(v) ? o.x.delete(v) : o.x.add(v);
+  else o[g] = v;
+  fixOrder(o); renderOrder();
+}));
+function renderOrder() {
+  const o = flow.order;
+  for (const box of chips) {
+    const g = box.dataset.g;
+    for (const b of box.querySelectorAll('button')) {
+      const v = b.dataset.v;
+      b.setAttribute('aria-pressed', String(g === 'x' ? o.x.has(v) : o[g] === v));
+      b.disabled = (g === 's' && v === 'kosong' && !o.m) || (g === 'x' && v === 'guyou' && o.d !== 'kopi');
+      b.title = b.disabled ? (v === 'kosong' ? 'Kosong goes with -O or -C' : 'Gu you is for kopi') : '';
+    }
+  }
+  $('kosong-note').hidden = !!o.m;
+  $('phrase').textContent = phraseOf(o);
+  $('eng').textContent = englishOf(o);
+  $('cup').innerHTML = cupSVG(o);   // built from fixed strings and the order's whitelisted values only
+  const keys = [o.d, o.m, o.g, o.s, ...XS.filter(k => o.x.has(k))].filter((k, i) => k || i === 1);
+  $('gloss').replaceChildren(...keys.flatMap(k => [mk('dt', null, GLOSS[k][0]), mk('dd', null, GLOSS[k][1])]));
+  const sg = SUGAR[codeOf(o)];
+  $('sugar').hidden = !sg;
+  if (sg) $('sugar').innerHTML = `HealthHub puts a cup of ${phraseOf(o)} at ${sg}.`;   // whitelisted words and fixed strings only
+}
+$('rand').addEventListener('click', () => {
+  const pick = a => a[Math.floor(Math.random() * a.length)], o = DEF();
+  o.d = pick(['kopi', 'kopi', 'teh']); o.m = pick(['', 'o', 'c']); o.s = pick(['', '', 'siewdai', 'gahdai', 'kosong']); o.g = pick(['', '', 'gau', 'po', 'dilo']);
+  for (const k of XS) if (Math.random() < (k === 'peng' ? .45 : .18)) o.x.add(k);
+  flow.order = fixOrder(o); renderOrder();
+});
+
+/* share */
+function current() { return { lat: flow.spot.lat, lng: flow.spot.lng, stall: flow.stall, order: flow.order }; }
+function captionOf(p, link) { return `My best kopi: ${p.stall}. I order ${phraseOf(p.order)}: ${englishOf(p.order)} Drop yours: ${link} #30DayMapChallenge #BestKopi`; }
+function renderShare() {
+  const p = current(), link = pinLink(p);
+  $('sc-st').textContent = p.stall; $('sc-ph').textContent = phraseOf(p.order); $('sc-en').textContent = englishOf(p.order);
+  $('link').value = link; $('caption').value = captionOf(p, link); $('open-link').href = link;
+  $('share').hidden = !navigator.share; $('share-status').textContent = '';
+}
+async function copy(text, field) {
+  try { await navigator.clipboard.writeText(text); return true; }
+  catch { field.focus(); field.select(); try { return document.execCommand('copy'); } catch { return false; } }
+}
+const say = t => { $('share-status').textContent = t; };
+$('copy-link').addEventListener('click', async () => say(await copy($('link').value, $('link')) ? 'Link copied.' : 'Select the link and copy it.'));
+$('copy-cap').addEventListener('click', async () => say(await copy($('caption').value, $('caption')) ? 'Caption copied. Paste it into your post.' : 'Select the caption and copy it.'));
+$('share').addEventListener('click', async () => {
+  const p = current(), link = pinLink(p);
+  try { await navigator.share({ title: 'Best kopi near you', text: captionOf(p, link).replace(` Drop yours: ${link}`, ' Drop yours:'), url: link }); say('Shared. Thank you!'); }
+  catch (e) { if (e && e.name !== 'AbortError') say(await copy(captionOf(p, link), $('caption')) ? 'Sharing is not available here, so the caption was copied instead.' : 'Select the caption and copy it.'); }
+});
+
+/* ---------- near me: the 5 nearest by straight line ---------- */
+function clearNear() { $('near-out').hidden = true; if (map.getSource('near')) map.getSource('near').setData(fc([])); }
+$('near').addEventListener('click', async () => {
+  if (!D) return;
+  const btn = $('near'); btn.disabled = true;
+  $('near-out').hidden = false; $('near-list').replaceChildren(); $('near-note').textContent = 'Finding you…';
+  let origin = null, why = '';
+  try {
+    const ll = await locate();
+    if (inSingapore(ll.lng, ll.lat)) origin = [ll.lng, ll.lat]; else why = 'You seem to be outside Singapore, so this measures from the middle of the map.';
+  } catch (err) { why = err.message.replace('Tap the map instead.', 'So this measures from the middle of the map.'); }
+  if (!origin) { const c = freeCenter(); origin = [c.lng, c.lat]; }
+  const pool = [...P.filter(p => visible.has(p.k)).map(p => ({ ll: [p.lng, p.lat], name: p.name, sub: KIND[p.k], c: COL[p.k], open: () => openPlace(p.i) })),
+    ...PINS.map((p, j) => ({ ll: [p.lng, p.lat], name: p.stall, sub: 'Pin from a follower · ' + phraseOf(p.order), c: PIN, open: () => openPin(j) }))];
+  const top = pool.map(x => ({ ...x, d: metres(origin, x.ll) })).sort((a, b) => a.d - b.d).slice(0, 5);
+  $('near-list').replaceChildren(...top.map(x => {
+    const li = mk('li'), b = mk('button'), i = mk('i');
+    b.type = 'button'; i.style.setProperty('--c', x.c);
+    b.append(i, mk('b', null, x.name), mk('em', null, fmtDist(x.d)), mk('small', null, x.sub));
+    b.addEventListener('click', () => { flyTo(x.ll, 16.5); x.open(); });
+    li.append(b); return li;
+  }));
+  $('near-note').textContent = (why ? why + ' ' : 'Measured from your location. ') + 'Distances are straight-line, not walking distance.';
+  map.getSource('near').setData(fc([{ type: 'Feature', properties: {}, geometry: { type: 'Point', coordinates: origin } },
+    ...top.map(x => ({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [origin, x.ll] } }))]));
+  if (top.length) {
+    const xs = [origin[0], ...top.map(x => x.ll[0])], ys = [origin[1], ...top.map(x => x.ll[1])];
+    const bb = [[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]];
+    fitTo(bb, 17);
+  }
+  btn.disabled = false;
+  if (isCompact()) $('near-out').scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' });
+});
+
+/* ---------- a pin shared with you ---------- */
+let sharedMarker = null;
+function showShared(s) {
+  const card = $('shared');
+  card.hidden = false;
+  if (s.err) { $('sh-name').textContent = 'Sorry, this pin could not be shown'; $('sh-ph').textContent = ''; $('sh-en').textContent = s.err; $('sh-go').hidden = true; return; }
+  $('sh-name').textContent = s.stall; $('sh-ph').textContent = phraseOf(s.order); $('sh-en').textContent = englishOf(s.order);
+  $('sh-cup').innerHTML = cupSVG(s.order);   // fixed strings and whitelisted order values only
+  const same = PINS.some(p => metres([p.lng, p.lat], [s.lng, s.lat]) < 15 && p.stall.toLowerCase() === s.stall.toLowerCase());
+  const near = nearestPlaces(s, 400, 1)[0];
+  $('sh-more').textContent = [same && 'It is on the followers’ map too.', near && `${fmtDist(near.d)} from ${near.p.name}.`].filter(Boolean).join(' ');
+  const el = mk('div', 'spin'), tag = mk('div', 'tag', s.stall);
+  tag.append(mk('small', null, phraseOf(s.order)));
+  el.append(tag, mk('div', 'stem'), mk('div', 'dot'));
+  sharedMarker = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, 7] }).setLngLat([s.lng, s.lat]).addTo(map);
+  const go = () => { const cam = { center: [s.lng, s.lat], zoom: 16, padding: freePadding() }; map.jumpTo(cam); };
+  $('sh-go').addEventListener('click', () => flyTo([s.lng, s.lat], 16));
+  requestAnimationFrame(go);
+}
+$('sh-x').addEventListener('click', () => { $('shared').hidden = true; if (sharedMarker) { sharedMarker.remove(); sharedMarker = null; } });
+
+/* ---------- phones: fold the board away ---------- */
+function expandBoard(on) {
+  board.classList.toggle('min', !on);
+  $('grip').setAttribute('aria-expanded', String(on));
+  $('grip').textContent = on ? 'Hide' : 'Show';
+}
+$('grip').addEventListener('click', () => expandBoard(board.classList.contains('min')));
+
+/* ---------- layout: the board starts under the stamp ---------- */
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open') && !isCompact()) root.style.setProperty('--board-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+}
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+addEventListener('resize', layout);
+
+/* ---------- load ---------- */
+Promise.all([dataP, pinsP, styleP]).then(([d, pins]) => {
+  D = d;
+  LAND = decodeRings(d.land);
+  P = d.p.map((r, i) => ({ i, lng: r[0] / 1e5, lat: r[1] / 1e5, k: r[2], c: r[3], name: r[4], addr: r[5], hours: r[6], ref: r[7], stalls: r[8] }));
+  PINS = Array.isArray(pins) ? pins.slice(0, 2000).map(parseEntry).filter(Boolean) : [];
+  fillBoard();
+  fillCommunity(pins === null);
+  addLayers();
+  if (params.has('pin')) { shared = parsePin(params.get('pin')); showShared(shared); }
+  map.once('idle', () => { $('loading').hidden = true; });
+}).catch(err => {
+  $('loading').textContent = 'The kopi map could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
