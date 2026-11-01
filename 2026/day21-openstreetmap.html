@@ -1,0 +1,837 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#FBF6EE">
+<title>Day 21 · Bubble tea chains in OpenStreetMap</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 21, OpenStreetMap: every bubble tea chain shop in Singapore that OpenStreetMap knows, one small map per chain, a tag-quality report card, and a to-do list of tags to fix, each with a link to the map.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23FBF6EE'/%3E%3Cpath d='M9 9h14l-2 18H11z' fill='%23EBD6BD' stroke='%239B5E3A' stroke-width='1.6' stroke-linejoin='round'/%3E%3Cpath d='M17 9l3-6' stroke='%239B5E3A' stroke-width='1.8' stroke-linecap='round'/%3E%3Cg fill='%233B2618'%3E%3Ccircle cx='13.5' cy='23' r='1.7'/%3E%3Ccircle cx='17.5' cy='24' r='1.7'/%3E%3Ccircle cx='15.5' cy='20.5' r='1.7'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Nunito:wght@400;600;700;800&family=DM+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 21: a bubble tea menu of small maps, a report card and a mapper's to-do list ===== */
+:root {
+  --cream: #FBF6EE; --foam: #FFFDF8; --milk: #F3E8D8; --pearl: #3B2618;
+  --ink: #3A2A1F; --ink-2: rgba(58, 42, 31, .72); --ink-3: rgba(58, 42, 31, .52);
+  /* the kit's glass, re-poured as milk tea */
+  --glass: rgba(255, 252, 246, .95); --line: rgba(92, 64, 44, .15);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --display: "Baloo 2", "Nunito", system-ui, sans-serif;
+  --font: "Nunito", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --mono: "DM Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --radius: 16px;
+  --menu-w: clamp(352px, 31.5vw, 452px);
+  --side-w: clamp(300px, 25vw, 360px);
+  --menu-top: 104px;
+  color-scheme: light;
+}
+body { background: var(--cream); color: var(--ink); font-family: var(--font); font-size: 12.5px; }
+.dmc-map { background: var(--cream); }
+code, .mono { font-family: var(--mono); font-size: .92em; letter-spacing: -.01em; }
+
+/* kit pieces, re-poured */
+.dmc-glass { -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .8) inset, 0 10px 30px rgba(92, 60, 30, .13), 0 1px 3px rgba(92, 60, 30, .08); }
+.dmc-num { text-shadow: none; font-weight: 800; font-size: 31px; line-height: .75; }
+.dmc-theme { font-weight: 700; letter-spacing: .04em; font-size: 14.5px; }
+.dmc-title { font-family: var(--display); font-weight: 600; font-size: 14.5px; line-height: 1.2; }
+.dmc-more, .dmc-btn { background: rgba(92, 64, 44, .06); color: var(--ink); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(92, 64, 44, .12); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(92, 64, 44, .2); }
+.dmc-index li.done { background: rgba(92, 64, 44, .1); color: var(--ink); }
+.dmc-index li.today { color: #FFF8EE; box-shadow: none; }
+.maplibregl-ctrl-group { border-color: var(--line); box-shadow: 0 6px 18px rgba(92, 60, 30, .12) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: sepia(.6) brightness(.6); }
+.dmc-ctrl button { color: var(--ink-2); }
+.dmc-ctrl button:hover { color: var(--ink); }
+.dmc-focus-credit { background: rgba(255, 252, 246, .9); color: var(--ink-2); }
+.dmc-focus-exit { color: var(--ink); }
+.dmc-credits a { text-decoration-color: rgba(92, 64, 44, .35); }
+
+/* ---- the menu: one small map per chain ---- */
+.bt-menu { top: var(--menu-top); left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); max-height: calc(100% - var(--menu-top) - var(--gutter) - env(safe-area-inset-bottom, 0px));
+  width: var(--menu-w); padding: 11px 12px 12px; display: flex; flex-direction: column; gap: 9px; }
+.bt-menu-body { display: flex; flex-direction: column; gap: 9px; min-height: 0; flex: 1; }
+.bt-hero { display: grid; gap: 3px; }
+.bt-kick { margin: 0; font-size: 10.5px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--day-accent); }
+.bt-hero p.big { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 600; line-height: 1.25; color: var(--ink); text-wrap: balance; }
+.bt-hero p.big b { font-weight: 800; color: var(--day-accent); }
+.bt-grid { list-style: none; margin: 0; padding: 2px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; overflow-y: auto; overscroll-behavior: contain; min-height: 0; scrollbar-width: thin; }
+.bt-grid li { min-width: 0; }
+.tile { position: relative; width: 100%; display: grid; gap: 2px; padding: 5px 6px 5px; border: 0; border-radius: 11px; cursor: pointer; text-align: left; font: inherit; color: var(--ink);
+  background: color-mix(in srgb, var(--f, #E9DCCB) 34%, var(--foam)); box-shadow: inset 0 0 0 1px rgba(92, 64, 44, .08); transition: transform .15s, box-shadow .15s; }
+.tile:hover { transform: translateY(-1px); box-shadow: inset 0 0 0 1px rgba(92, 64, 44, .2), 0 4px 10px rgba(92, 60, 30, .12); }
+.tile[aria-pressed="true"] { background: color-mix(in srgb, var(--f, #E9DCCB) 62%, var(--foam)); box-shadow: inset 0 0 0 2px var(--k, var(--day-accent)), 0 4px 12px rgba(92, 60, 30, .16); }
+.tile .nm.full { padding-right: 0; }
+.tile .nm { font-family: var(--display); font-size: 12.5px; font-weight: 700; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 18px; }
+.tile svg { display: block; width: 100%; height: auto; overflow: visible; }
+.tile svg { --lf: var(--foam); --ls: color-mix(in srgb, var(--k, #9B5E3A) 50%, transparent); }
+.tile .p { fill: var(--pearl); stroke: var(--foam); stroke-width: .7; vector-effect: non-scaling-stroke; }
+.tile .p.h { fill: var(--foam); stroke: var(--pearl); stroke-width: 1; }
+.tile .p.o { fill: #A8988A; stroke: none; }
+/* the pearls drop into each cup once, a tile at a time */
+.tile .p { transform-box: fill-box; transform-origin: center; animation: drop .5s cubic-bezier(.3, 1.6, .6, 1) backwards; animation-delay: calc(var(--d, 0) * 1ms); }
+@keyframes drop { from { transform: translateY(-60%) scale(.2); opacity: 0; } }
+.tile .ft { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: 10.5px; color: var(--ink-2); white-space: nowrap; }
+.tile .ft b { font-family: var(--display); font-size: 13px; font-weight: 800; color: var(--ink); }
+.grade { position: absolute; top: 4px; right: 5px; min-width: 17px; height: 17px; padding: 0 3px; border-radius: 6px; display: grid; place-items: center;
+  font-family: var(--display); font-size: 11.5px; font-weight: 800; line-height: 1; }
+.tile.key { cursor: default; background: var(--foam); box-shadow: inset 0 0 0 1px rgba(92, 64, 44, .1); align-content: start; gap: 5px; font-size: 10.5px; line-height: 1.3; color: var(--ink-2); }
+.tile.key:hover { transform: none; box-shadow: inset 0 0 0 1px rgba(92, 64, 44, .08); }
+.pk { display: inline-block; width: 8px; height: 8px; border-radius: 50%; vertical-align: -.5px; margin-right: 3px; }
+.pk.b { background: var(--pearl); }
+.pk.h { background: var(--foam); box-shadow: inset 0 0 0 1.6px var(--pearl); }
+.pk.o { width: 6px; height: 6px; background: #A8988A; }
+
+/* ---- the side sheet: report card and to-do list ---- */
+.bt-side { top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  right: calc(var(--gutter) + 48px + env(safe-area-inset-right, 0px)); width: var(--side-w); display: flex; flex-direction: column; overflow: hidden; }
+.tabs { display: flex; gap: 3px; margin: 9px 10px 0; padding: 3px; border-radius: 999px; background: rgba(92, 64, 44, .07); flex: none; }
+.tabs button { position: relative; flex: 1; min-height: 30px; padding: 4px 8px; border: 0; border-radius: 999px; font: inherit; font-size: 12px; font-weight: 800; color: var(--ink-2); background: transparent; cursor: pointer; white-space: nowrap; }
+.tabs button::after { content: ""; position: absolute; inset: -6px 0; }
+.tabs button:hover { color: var(--ink); }
+.tabs button[aria-selected="true"] { color: #FFF8EE; background: var(--day-accent); box-shadow: 0 2px 8px rgba(155, 94, 58, .35); }
+.tabs .n { font-family: var(--display); font-weight: 700; opacity: .85; margin-left: 2px; }
+.tabs [data-tab="menu"] { display: none; }
+.key-line { flex: none; display: flex; flex-wrap: wrap; gap: 2px 11px; padding: 7px 14px 6px; font-size: 11px; color: var(--ink-2); border-bottom: 1px solid var(--line); }
+.pane { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 10px 14px 12px; display: grid; align-content: start; gap: 10px; scrollbar-width: thin; }
+.pane[hidden] { display: none; }
+.pane h2 { margin: 0; font-family: var(--display); font-size: 17px; font-weight: 700; line-height: 1.15; }
+.pane p { margin: 0; line-height: 1.5; }
+.small { font-size: 11px; color: var(--ink-2); line-height: 1.45; }
+.scope { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.scope .who { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.scope .who i { flex: none; width: 13px; height: 13px; border-radius: 50%; background: var(--f); box-shadow: inset 0 0 0 1.5px var(--k); }
+.scope h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.link-btn { position: relative; flex: none; font: inherit; font-size: 11.5px; font-weight: 700; color: var(--day-accent); background: none; border: 0; padding: 2px 0; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; text-decoration-color: rgba(155, 94, 58, .4); }
+.link-btn::after { content: ""; position: absolute; inset: -10px -4px; }
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.stats div { padding: 7px 8px 6px; border-radius: 11px; background: var(--milk); display: grid; gap: 1px; }
+.stats b { font-family: var(--display); font-size: 21px; font-weight: 800; line-height: 1; }
+.stats span { font-size: 10.5px; color: var(--ink-2); line-height: 1.25; }
+.std { display: grid; gap: 3px; padding: 8px 10px; border-radius: 11px; background: var(--foam); box-shadow: inset 0 0 0 1px var(--line); }
+.std code { color: var(--ink); }
+.std a, .pane p a, .chips a { color: var(--day-accent); text-underline-offset: 2px; text-decoration-color: rgba(155, 94, 58, .4); }
+.std .small { font-size: 10.5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip { display: inline-flex; align-items: baseline; gap: 4px; padding: 2px 8px; border-radius: 999px; background: var(--milk); font-size: 11px; line-height: 1.5; }
+.chip.std1 { background: color-mix(in srgb, var(--f) 55%, var(--foam)); box-shadow: inset 0 0 0 1.5px var(--k); }
+.chip small { font-family: var(--display); font-weight: 700; color: var(--ink-2); font-size: 10.5px; }
+.sub { margin: 0; font-size: 10.5px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+
+/* report card table */
+.card-wrap { margin: 0 -4px; }
+table.rc { width: 100%; border-collapse: separate; border-spacing: 2px; table-layout: fixed; font-size: 11px; }
+.rc th { font-weight: 700; color: var(--ink-2); font-size: 10px; line-height: 1.15; padding: 0 1px 3px; vertical-align: bottom; text-align: center; }
+.rc th:first-child { text-align: left; width: 31%; }
+.rc th.n { width: 9%; }
+.rc th.g { width: 9%; }
+.rc td { height: 21px; padding: 0; text-align: center; border-radius: 4px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.rc td.c { text-align: left; }
+.rc td.c button { position: relative; width: 100%; display: flex; align-items: center; gap: 5px; padding: 1px 4px 1px 2px; border: 0; border-radius: 6px; background: none; font: inherit; font-weight: 700; color: var(--ink); cursor: pointer; text-align: left; }
+.rc td.c button span { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rc td.c button i { flex: none; width: 9px; height: 9px; border-radius: 50%; background: var(--f); box-shadow: inset 0 0 0 1.2px var(--k); }
+.rc td.c button:hover { background: rgba(92, 64, 44, .07); }
+.rc tr.on td.c button { background: color-mix(in srgb, var(--f) 55%, var(--foam)); box-shadow: inset 0 0 0 1.5px var(--k); }
+.rc td.n { color: var(--ink-2); font-weight: 600; }
+.rc td.na { color: var(--ink-3); background: repeating-linear-gradient(135deg, transparent 0 3px, rgba(92, 64, 44, .08) 3px 4px); font-weight: 400; }
+.rc td.g span { display: inline-grid; place-items: center; min-width: 19px; height: 19px; border-radius: 6px; font-family: var(--display); font-size: 12px; font-weight: 800; }
+.ramp { display: flex; align-items: center; gap: 6px; font-size: 10.5px; color: var(--ink-2); }
+.ramp i { flex: 1; max-width: 120px; height: 7px; border-radius: 4px; }
+
+/* to-do list */
+.todo-head { display: grid; gap: 7px; }
+.filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.filters button { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 2px 9px 2px 7px; border-radius: 999px; border: 1px solid var(--line); background: var(--foam); font: inherit; font-size: 11px; font-weight: 700; color: var(--ink-2); cursor: pointer; }
+.filters button::after { content: ""; position: absolute; inset: -5px -2px; }
+.filters button i { width: 8px; height: 8px; border-radius: 50%; background: var(--kc); }
+.filters button b { font-family: var(--display); font-weight: 700; color: var(--ink); }
+.filters button[aria-pressed="true"] { background: color-mix(in srgb, var(--kc) 16%, var(--foam)); border-color: var(--kc); color: var(--ink); }
+.filters button:disabled { opacity: .4; cursor: default; }
+.export { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.export .dmc-btn { min-height: 28px; padding: 3px 11px; font-size: 11.5px; }
+.export output { font-size: 11px; color: var(--ink-2); }
+ol.todo { list-style: none; margin: 0; padding: 0; display: grid; gap: 5px; }
+.todo li { position: relative; display: grid; gap: 2px; padding: 7px 9px 7px 11px; border-radius: 10px; background: var(--foam); box-shadow: inset 0 0 0 1px var(--line); }
+.todo li::before { content: ""; position: absolute; left: 0; top: 7px; bottom: 7px; width: 3px; border-radius: 0 3px 3px 0; background: var(--kc); }
+.todo .go { position: absolute; inset: 0; border: 0; border-radius: 10px; background: none; cursor: pointer; }
+.todo .go:hover { background: rgba(92, 64, 44, .04); }
+.todo .l1 { display: flex; align-items: baseline; gap: 6px; min-width: 0; font-size: 11px; color: var(--ink-2); pointer-events: none; }
+.todo .kind { flex: none; font-weight: 800; color: var(--ink); }
+.todo .kind i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--kc); margin-right: 4px; vertical-align: .5px; }
+.todo .l1 span:last-child { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.todo .l2 { font-size: 12px; font-weight: 700; line-height: 1.3; pointer-events: none; overflow-wrap: anywhere; }
+.todo .l2 small { font-weight: 400; color: var(--ink-2); font-size: 11px; }
+.todo .l3 { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 11px; }
+.todo .fix { pointer-events: none; color: var(--ink); overflow-wrap: anywhere; }
+.todo .fix code { background: var(--milk); padding: 0 4px; border-radius: 4px; }
+.todo .links { position: relative; z-index: 1; flex: none; display: flex; gap: 8px; }
+.todo .links a, .oc-links a { position: relative; font-weight: 800; color: var(--day-accent); text-decoration: none; white-space: nowrap; }
+.todo .links a::after, .oc-links a::after { content: ""; position: absolute; inset: -9px -4px; }
+.todo .links a:hover, .oc-links a:hover { text-decoration: underline; }
+.empty { padding: 14px; text-align: center; color: var(--ink-2); font-size: 12px; background: var(--foam); border-radius: 10px; }
+.more { justify-self: center; }
+
+/* outlet card (map popup) and hover tag */
+.bt-pop .maplibregl-popup-content { padding: 10px 12px 10px; border-radius: 13px; background: var(--foam); box-shadow: 0 10px 28px rgba(92, 60, 30, .22); font-family: var(--font); color: var(--ink); }
+.bt-pop .maplibregl-popup-tip { border-top-color: var(--foam); border-bottom-color: var(--foam); }
+.bt-pop .maplibregl-popup-close-button { width: 26px; height: 26px; font-size: 18px; color: var(--ink-2); border-radius: 0 13px 0 8px; }
+.oc { display: grid; gap: 6px; font-size: 11.5px; }
+.oc-chain { margin: 0; display: flex; align-items: center; gap: 5px; font-size: 11px; color: var(--ink-2); padding-right: 16px; }
+.oc-chain i { flex: none; width: 10px; height: 10px; border-radius: 50%; background: var(--f); box-shadow: inset 0 0 0 1.4px var(--k); }
+.oc h3 { margin: 0; font-family: var(--display); font-size: 15px; font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.oc ul { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: auto 1fr; gap: 2px 7px; }
+.oc ul li { display: contents; }
+.oc ul .t { color: var(--ink-2); white-space: nowrap; }
+.oc ul .t::before { content: "\2713"; display: inline-block; width: 13px; font-weight: 800; color: #4C9A6A; }
+.oc ul li.no .t::before { content: "\2715"; color: #C0507A; }
+.oc ul .v { min-width: 0; overflow-wrap: anywhere; font-family: var(--mono); font-size: 10.5px; color: var(--ink); }
+.oc ul li.no .v { font-family: var(--font); font-size: 11px; font-style: italic; color: var(--ink-3); }
+.oc ol { list-style: none; margin: 0; padding: 6px 0 0; border-top: 1px dashed var(--line); display: grid; gap: 3px; }
+.oc ol li { line-height: 1.35; }
+.oc ol b { font-weight: 800; }
+.oc ol b i { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--kc); margin-right: 4px; }
+.oc ol code { background: var(--milk); padding: 0 3px; border-radius: 3px; }
+.oc-links { margin: 0; display: flex; gap: 12px; padding-top: 2px; }
+.hov { position: fixed; z-index: 5; left: 0; top: 0; pointer-events: none; padding: 4px 9px 5px; border-radius: 9px; background: rgba(255, 253, 248, .96); box-shadow: 0 6px 16px rgba(92, 60, 30, .18); font-size: 11px; line-height: 1.3; color: var(--ink-2); white-space: nowrap; transform: translate(-50%, calc(-100% - 12px)); }
+.hov b { color: var(--ink); font-size: 12px; }
+.hov[hidden] { display: none; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.loading[hidden] { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- compact screens: one tabbed sheet, the menu becomes its first tab ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .bt-menu { display: none; }
+  .tabs [data-tab="menu"] { display: block; }
+  .bt-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); overflow: visible; }
+  .tabs { margin: 7px 8px 0; }
+  .tabs button { font-size: 11.5px; padding: 3px 6px; min-height: 28px; }
+  .key-line { padding: 5px 12px 5px; font-size: 10.5px; }
+  .pane { padding: 8px 12px 10px; gap: 8px; }
+  .stats b { font-size: 18px; }
+  .bt-hero p.big { font-size: 13.5px; }
+  .filters { gap: 3px; }
+  .filters button { min-height: 24px; padding: 1px 8px 1px 6px; font-size: 10.5px; }
+  .export .dmc-btn { min-height: 26px; padding: 2px 10px; font-size: 11px; }
+  .bt-kick { font-size: 10px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .bt-side { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: 50vh; height: 50dvh; border-bottom: 0; border-radius: 18px 18px 0 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .bt-side { width: min(372px, 47vw); top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); }
+  .bt-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (prefers-reduced-motion: reduce) { .tile:hover { transform: none; } }
+@media (forced-colors: active) { .tile .p { fill: CanvasText; } .tile .p.h { fill: Canvas; stroke: CanvasText; } }
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore's bubble tea chain shops as OpenStreetMap maps them. Solid pearls carry a brand tag; hollow pearls are found by name only."></div>
+<div id="hov" class="hov dmc-chrome" hidden></div>
+<p id="loading" class="loading dmc-chrome">Shaking the pearls&hellip;</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs><symbol id="sg" viewBox="0 0 1000 557"><path id="sg-path" d="" style="fill:var(--lf,#FFFDF8);stroke:var(--ls,rgba(155,94,58,.45));stroke-width:1;vector-effect:non-scaling-stroke"/></symbol></defs></svg>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="menu" class="dmc-glass bt-menu" data-dmc-overlay aria-label="Chains: one small map each">
+  <div id="menu-body" class="bt-menu-body">
+    <div class="bt-hero">
+      <p class="bt-kick">Bubble tea in OpenStreetMap</p>
+      <p class="big" id="hero">&nbsp;</p>
+    </div>
+    <ul id="grid" class="bt-grid" aria-label="Chains, most mapped first. Pick one to map it."></ul>
+  </div>
+</section>
+
+<section id="side" class="dmc-glass bt-side" data-dmc-overlay aria-label="Report card and to-do list">
+  <div class="tabs" role="tablist" aria-label="Views">
+    <button type="button" role="tab" id="tab-menu" data-tab="menu" aria-controls="pane-menu" aria-selected="false" tabindex="-1">Chains</button>
+    <button type="button" role="tab" id="tab-card" data-tab="card" aria-controls="pane-card" aria-selected="true">Report card</button>
+    <button type="button" role="tab" id="tab-todo" data-tab="todo" aria-controls="pane-todo" aria-selected="false" tabindex="-1">To-do <span class="n" id="todo-n"></span></button>
+  </div>
+  <p class="key-line" aria-label="Map key"><span><i class="pk b"></i>has a brand tag</span><span><i class="pk h"></i>found by name only</span><span><i class="pk o"></i>other bubble tea</span></p>
+  <div class="pane" id="pane-menu" role="tabpanel" aria-labelledby="tab-menu" hidden></div>
+  <div class="pane" id="pane-card" role="tabpanel" aria-labelledby="tab-card">
+    <div id="card-top"></div>
+    <div>
+      <p class="sub" style="margin-bottom:4px">Report card <span style="text-transform:none;letter-spacing:0;font-weight:600">· % of outlets with each tag</span></p>
+      <div class="card-wrap"><table class="rc" id="rc"></table></div>
+      <div class="ramp" aria-hidden="true">0%<i id="ramp"></i>100% <span style="margin-left:auto">hatched: no Wikidata item yet</span></div>
+    </div>
+    <p class="small" id="rules"></p>
+    <p id="credits" class="dmc-credits"></p>
+  </div>
+  <div class="pane" id="pane-shop" aria-label="Shop details" hidden></div>
+  <div class="pane" id="pane-todo" role="tabpanel" aria-labelledby="tab-todo" hidden>
+    <div class="todo-head">
+      <div class="scope"><div class="who" id="todo-who"></div><button type="button" class="link-btn" id="todo-all" hidden>All chains</button></div>
+      <div class="filters" id="filters" role="group" aria-label="Show only one kind of fix"></div>
+      <div class="export">
+        <button type="button" class="dmc-btn" id="copy">Copy list</button>
+        <button type="button" class="dmc-btn" id="csv">Download CSV</button>
+        <output id="copied" aria-live="polite"></output>
+      </div>
+    </div>
+    <ol class="todo" id="todo"></ol>
+    <button type="button" class="dmc-btn more" id="more" hidden>Show more</button>
+  </div>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const ACCENT = '#9B5E3A';
+const PEARL = '#3B2618', FOAM = '#FFFDF8';
+const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+
+/* ---------- a milk-tea basemap, drawn from OpenStreetMap itself (OpenFreeMap vector tiles) ---------- */
+const C = { land: '#FBF6EE', water: '#CFE2EA', waterLine: '#B9D3DE', park: '#E5EED7', wood: '#DCE8CC', aero: '#F1EBE1', bld: '#F1E8DB', bldLine: '#E6D9C6',
+  road: '#FFFFFF', roadCase: '#EBDFCF', major: '#FAEBD5', majorCase: '#E3CDAF', rail: '#D9CBBB', label: '#8E7863', border: '#C4AE96' };
+const roadW = (a, b, c) => ['interpolate', ['exponential', 1.6], ['zoom'], 10, a, 14, b, 18, c];
+const STYLE = {
+  version: 8,
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: { ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+  layers: [
+    { id: 'land', type: 'background', paint: { 'background-color': C.land } },
+    { id: 'park', type: 'fill', source: 'ofm', 'source-layer': 'park', paint: { 'fill-color': C.park } },
+    { id: 'cover', type: 'fill', source: 'ofm', 'source-layer': 'landcover', filter: ['match', ['get', 'class'], ['wood', 'grass', 'wetland', 'farmland'], true, false], paint: { 'fill-color': C.wood, 'fill-opacity': .8 } },
+    { id: 'aero', type: 'fill', source: 'ofm', 'source-layer': 'aeroway', filter: ['match', ['geometry-type'], ['Polygon', 'MultiPolygon'], true, false], paint: { 'fill-color': C.aero } },
+    { id: 'water', type: 'fill', source: 'ofm', 'source-layer': 'water', paint: { 'fill-color': C.water } },
+    { id: 'waterway', type: 'line', source: 'ofm', 'source-layer': 'waterway', minzoom: 12, paint: { 'line-color': C.water, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, .8, 16, 3] } },
+    { id: 'shore', type: 'line', source: 'ofm', 'source-layer': 'water', paint: { 'line-color': C.waterLine, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, .4, 15, 1] } },
+    { id: 'bld', type: 'fill', source: 'ofm', 'source-layer': 'building', minzoom: 14, paint: { 'fill-color': C.bld, 'fill-outline-color': C.bldLine } },
+    { id: 'minor-case', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 13.5, filter: ['match', ['get', 'class'], ['minor', 'service', 'tertiary', 'secondary', 'primary'], true, false],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': C.roadCase, 'line-width': roadW(.6, 3.2, 16) } },
+    { id: 'minor', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 12, filter: ['match', ['get', 'class'], ['minor', 'service', 'tertiary', 'secondary', 'primary'], true, false],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': C.road, 'line-width': roadW(.4, 2.2, 13) } },
+    { id: 'rail', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 11, filter: ['all', ['match', ['get', 'class'], ['rail', 'transit'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      paint: { 'line-color': C.rail, 'line-width': ['interpolate', ['linear'], ['zoom'], 11, .6, 16, 1.6], 'line-dasharray': [3, 2] } },
+    { id: 'major-case', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 9, filter: ['match', ['get', 'class'], ['motorway', 'trunk'], true, false],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': C.majorCase, 'line-width': roadW(1.4, 4.6, 20) } },
+    { id: 'major', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 9, filter: ['match', ['get', 'class'], ['motorway', 'trunk'], true, false],
+      layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': C.major, 'line-width': roadW(.8, 3.2, 16) } },
+    { id: 'border', type: 'line', source: 'ofm', 'source-layer': 'boundary', filter: ['all', ['==', ['get', 'admin_level'], 2], ['!=', ['get', 'maritime'], 1]],
+      paint: { 'line-color': C.border, 'line-width': 1.1, 'line-dasharray': [4, 3] } },
+    { id: 'road-names', type: 'symbol', source: 'ofm', 'source-layer': 'transportation_name', minzoom: 15.5,
+      layout: { 'symbol-placement': 'line', 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 10.5, 'text-letter-spacing': .03 },
+      paint: { 'text-color': '#A6927D', 'text-halo-color': C.land, 'text-halo-width': 1.4 } },
+    { id: 'water-names', type: 'symbol', source: 'ofm', 'source-layer': 'water_name', minzoom: 11,
+      layout: { 'text-field': ['get', 'name:latin'], 'text-font': ['Noto Sans Italic'], 'text-size': 11, 'text-letter-spacing': .08 },
+      paint: { 'text-color': '#7FA3B4', 'text-halo-color': C.water, 'text-halo-width': 1 } },
+    { id: 'places', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 11.5, filter: ['match', ['get', 'class'], ['suburb', 'neighbourhood', 'quarter'], true, false],
+      layout: { 'text-field': ['get', 'name:latin'], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11.5, 10, 15, 12.5], 'text-letter-spacing': .06, 'text-transform': 'uppercase', 'text-max-width': 8 },
+      paint: { 'text-color': C.label, 'text-halo-color': C.land, 'text-halo-width': 1.6, 'text-opacity': .85 } },
+  ],
+};
+
+const DAY = {
+  n: 21,
+  title: 'Bubble tea chains in OpenStreetMap, and their to-do list',
+  deck: 'Every bubble tea chain shop OpenStreetMap knows in Singapore, one small map per chain, each with a report card on how well its tags are filled in. The to-do list is for mappers: shops found by name only, missing Wikidata links, stray spellings and likely duplicates, each linked straight to the map editor.',
+  accent: ACCENT,
+  style: STYLE, basemapBg: C.land,
+  styleCredit: 'Basemap: ' + ext('https://openfreemap.org/', 'OpenFreeMap') + ', ' + ext('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', ' + DMC.OSM_CREDIT,
+  buildings: false,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 50 },
+  minZoom: 8.5, maxZoom: 19,
+  creditsEl: 'credits',
+  attribution: [
+    'Shops: ' + DMC.OSM_CREDIT + ' (' + ext('https://opendatacommons.org/licenses/odbl/', 'ODbL') + '), Singapore extract from ' + ext('https://download.openstreetmap.fr/extracts/asia/', 'download.openstreetmap.fr') + ', <span class="cr-date">1 Nov 2026</span>',
+    'Standard brand tags: ' + ext('https://nsi.guide/', 'Name Suggestion Index') + ' (' + ext('https://github.com/osmlab/name-suggestion-index', 'osmlab') + ', BSD-3)',
+    'Chain items: ' + ext('https://www.wikidata.org/', 'Wikidata') + ' (CC0)',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canHover = matchMedia('(hover: hover)').matches;
+const params = new URLSearchParams(location.search);
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const compactQ = matchMedia(DMC.COMPACT_Q);
+const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
+
+/* ---------- the kinds of fix, in the order the to-do list offers them ---------- */
+// Colours checked with the dataviz palette validator (adjacent pairs, light surface); every badge also carries its name.
+const KINDS = {
+  brand:    { label: 'No brand', long: 'found by name only, no brand tag', color: '#C0507A' },
+  wikidata: { label: 'No Wikidata', long: 'brand tag, but no brand:wikidata', color: '#4F7FB8' },
+  spelling: { label: 'Spelling', long: 'spelt differently from the standard', color: '#B9862A' },
+  twin:     { label: 'Twin', long: `the same chain twice within a few metres`, color: '#8A5CC0' },
+  cuisine:  { label: 'Not bubble tea', long: 'no cuisine=bubble_tea', color: '#4C9A6A' },
+  odd:      { label: 'Odd one', long: 'two shops on one point, notes in the name, no shop tag', color: '#D2663A' },
+};
+const KIND_ORDER = ['twin', 'odd', 'spelling', 'wikidata', 'brand', 'cuisine'];   // quick wins first
+const FIELD_LABEL = { brand: 'brand', wikidata: 'brand:wikidata', cuisine: 'cuisine=bubble_tea', hours: 'opening_hours', address: 'address', level: 'floor' };
+const FIELD_HEAD = { brand: 'brand', wikidata: 'wiki&shy;data', cuisine: 'bubble tea', hours: 'hours', address: 'addr', level: 'floor' };
+
+/* ---------- milk-tea ramp for the report card (one hue, light to dark) ---------- */
+const RAMP = ['#F6EEE3', '#EBD7BF', '#D9B48E', '#B9845A', '#7E4E2F'];
+const hex2 = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+function ramp(t) {
+  t = Math.max(0, Math.min(1, t)) * (RAMP.length - 1);
+  const i = Math.min(RAMP.length - 2, Math.floor(t)), f = t - i, a = hex2(RAMP[i]), b = hex2(RAMP[i + 1]);
+  return `rgb(${a.map((v, k) => Math.round(v + (b[k] - v) * f)).join(',')})`;
+}
+const inkOn = t => t > .58 ? '#FFF8EE' : PEARL;
+$('ramp').style.background = `linear-gradient(90deg, ${RAMP.join(',')})`;
+// grade: the average share of a chain's outlets carrying each tag (Wikidata only where the chain has an item)
+const GRADES = [[.8, 'A'], [.6, 'B'], [.4, 'C'], [.2, 'D'], [0, 'F']];
+const gradeOf = s => GRADES.find(g => s >= g[0])[1];
+
+/* ---------- data ---------- */
+let D = null, CH = [], byId = {}, OUT = [], GAPS = [], OTHERS = [];
+let sel = '', kindFilter = '', shown = 60, tab = 'card';
+const osmUrl = o => `https://www.openstreetmap.org/${{ n: 'node', w: 'way', r: 'relation' }[o.t]}/${o.id}`;
+const editUrl = o => `https://www.openstreetmap.org/edit?${{ n: 'node', w: 'way', r: 'relation' }[o.t]}=${o.id}`;
+const osmRef = o => `${{ n: 'node', w: 'way', r: 'relation' }[o.t]} ${o.id}`;
+const placeOf = o => (o.inside ? 'in ' : 'near ') + o.where;
+
+function decode(d) {
+  D = d;
+  const F = d.fields.map(f => f[0]);
+  CH = d.chains.slice().sort((a, b) => b.n - a.n || a.label.localeCompare(b.label)).map((c, i) => {
+    const share = F.map((k, j) => (k === 'wikidata' && !c.qid) ? null : c.f[j] / c.n);
+    const used = share.filter(v => v != null);
+    const avg = used.reduce((a, b) => a + b, 0) / used.length;
+    return { ...c, i, share, avg, grade: gradeOf(avg) };
+  });
+  CH.forEach(c => { byId[c.id] = c; });
+  OUT = d.outlets.map((r, i) => ({ i, c: byId[r[0]], lng: r[1], lat: r[2], t: r[3], id: r[4], name: r[5], where: r[6], inside: !!r[7],
+    flags: r[8], brand: r[9], wd: r[10], main: r[11], level: r[12], hours: r[13], gaps: [] }));
+  GAPS = d.gaps.map(([oi, kind, text, fix, extra], k) => {
+    const g = { k, o: OUT[oi], kind, text, fix, twin: extra ? OUT[extra[0]] : null, dist: extra ? extra[1] : 0 };
+    OUT[oi].gaps.push(g);
+    return g;
+  });
+  OTHERS = d.others.map(([lng, lat, t, id, name, b], i) => ({ i, lng, lat, t, id, name, branded: !!b }));
+  F.forEach((k, j) => { FIELD_LABEL[k] = FIELD_LABEL[k] || d.fields[j][1]; });
+}
+const has = (o, k) => !!(o.flags >> D.fields.findIndex(f => f[0] === k) & 1);
+
+/* ---------- small multiples: one tiny Singapore per chain ---------- */
+const V = () => D.view;
+const px = (lng, lat) => [(lng - V().w) * V().kx * V().sc, (V().n - lat) * V().sc];
+function tileSvg(points, other) {
+  const dots = points.map(o => { const [x, y] = px(o.lng, o.lat); return `<circle class="p${other ? ' o' : has(o, 'brand') ? '' : ' h'}" cx="${x.toFixed(0)}" cy="${y.toFixed(0)}" r="${other ? 11 : 17}"/>`; }).join('');
+  return `<svg viewBox="0 0 ${V().vw} ${V().vh}" aria-hidden="true"><use href="#sg"/>${dots}</svg>`;
+}
+const gradeChip = (g, avg) => `<span class="grade" style="background:${ramp(avg)};color:${inkOn(avg)}" title="Tag grade ${g}">${g}</span>`;
+function buildTiles() {
+  $('sg-path').setAttribute('d', D.outline);
+  const T = D.totals;
+  const items = [];
+  items.push(`<li><button type="button" class="tile" data-c="" aria-pressed="true" style="--f:#E3CBB0;--k:${ACCENT}" aria-label="All chains: ${T.outlets} outlets mapped in OSM">
+    <span class="nm full">All chains</span>${tileSvg(OUT)}<span class="ft"><span><b>${T.outlets}</b> mapped</span></span></button></li>`);
+  for (const c of CH) {
+    const todo = c.gaps;
+    items.push(`<li><button type="button" class="tile" data-c="${c.id}" aria-pressed="false" style="--f:${c.fill};--k:${c.ink};--d:${120 + 45 * c.i}"
+      aria-label="${esc(c.label)}: ${c.n} mapped in OSM, grade ${c.grade}, ${todo} to-dos">
+      <span class="nm">${esc(c.label)}</span>${gradeChip(c.grade, c.avg)}${tileSvg(OUT.filter(o => o.c === c))}
+      <span class="ft"><span><b>${c.n}</b> mapped</span></span></button></li>`);
+  }
+  items.push(`<li><button type="button" class="tile" data-c="others" aria-pressed="false" style="--f:#DCD6CF;--k:#8E8276" aria-label="Everyone else: ${OTHERS.length} other bubble tea shops">
+    <span class="nm full">Everyone else</span>${tileSvg(OTHERS, true)}<span class="ft"><span><b>${OTHERS.length}</b> mapped</span></span></button></li>`);
+  items.push(`<li><div class="tile key"><span><i class="pk b"></i>has a brand tag</span><span><i class="pk h"></i>by name only</span><span>Letter: tag grade, A to F</span></div></li>`);
+  $('grid').innerHTML = items.join('');
+  $('grid').querySelectorAll('.tile[data-c]').forEach(b => {
+    b.addEventListener('click', () => select(b.dataset.c === sel && b.dataset.c ? '' : b.dataset.c, true));
+    // hovering a small map previews that chain on the big one
+    const peek = () => paintSelection(b.dataset.c);
+    b.addEventListener('mouseenter', peek); b.addEventListener('focus', peek);
+    b.addEventListener('mouseleave', () => paintSelection()); b.addEventListener('blur', () => paintSelection());
+  });
+}
+
+/* ---------- report card ---------- */
+function buildCard() {
+  const F = D.fields.map(f => f[0]);
+  let h = `<caption class="sr">Share of each chain's outlets carrying each tag, with a grade</caption><thead><tr><th scope="col">Chain</th><th scope="col" class="n" title="Outlets mapped in OSM">n</th>`;
+  for (const k of F) h += `<th scope="col" title="${esc(FIELD_LABEL[k])}">${FIELD_HEAD[k]}</th>`;
+  h += `<th scope="col" class="g" title="Grade">grade</th></tr></thead><tbody>`;
+  for (const c of CH) {
+    h += `<tr data-c="${c.id}"><td class="c"><button type="button" style="--f:${c.fill};--k:${c.ink}" aria-label="Map ${esc(c.label)}"><i></i><span>${esc(c.label)}</span></button></td><td class="n">${c.n}</td>`;
+    c.share.forEach((s, j) => {
+      if (s == null) h += `<td class="na" title="${esc(c.label)} has no Wikidata item to link to yet">&ndash;</td>`;
+      else h += `<td style="background:${ramp(s)};color:${inkOn(s)}" title="${esc(c.label)}: ${c.f[j]} of ${c.n} outlets have ${esc(FIELD_LABEL[F[j]])}">${Math.round(100 * s)}</td>`;
+    });
+    h += `<td class="g"><span style="background:${ramp(c.avg)};color:${inkOn(c.avg)}" title="Average ${Math.round(100 * c.avg)}%">${c.grade}</span></td></tr>`;
+  }
+  $('rc').innerHTML = h + '</tbody>';
+  $('rc').querySelectorAll('tr[data-c] button').forEach(b => b.addEventListener('click', () => { const id = b.closest('tr').dataset.c; select(id === sel ? '' : id, true); }));
+  const T = D.totals;
+  $('rules').innerHTML = `Counts are shops <b>mapped in OSM</b> on ${fmtDate(D.extract)}, not the chains&rsquo; own store counts. A shop joins a chain by its <code>brand:wikidata</code>, or by its name, so a shop with an odd name or none at all can be missed. Standard tags come from the Name Suggestion Index where it lists the chain, else the chain&rsquo;s Wikidata label, else the spelling OSM uses most. Twins are the same chain within ${D.twinM}&nbsp;m. Grade: the average of a row, A from 80%, B 60%, C 40%, D 20%, else F.`;
+}
+const fmtDate = s => new Date(s).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'Asia/Singapore' });
+
+function cardTop() {
+  const T = D.totals;
+  if (!sel || sel === 'others') {
+    const most = CH.reduce((a, c) => c.spell.name.length > a.spell.name.length ? c : a, CH[0]);
+    const indies = sel === 'others';
+    $('card-top').innerHTML = indies ? `<div style="display:grid;gap:8px"><div class="scope"><div class="who"><i style="--f:#DCD6CF;--k:#8E8276"></i><h2>Everyone else</h2></div><button type="button" class="link-btn" data-all>All chains</button></div>
+      <p><b>${OTHERS.length}</b> more shops in OSM are tagged <code>cuisine=bubble_tea</code> but belong to none of the ${T.chains} chains here: independents, one-shop brands and a few with no name. They are on the map as small grey dots, and not in the to-do list.</p></div>`
+      : `<div style="display:grid;gap:8px">
+      <h2>How well is bubble tea mapped?</h2>
+      <div class="stats">
+        <div><b>${pct(T.brand, T.outlets)}%</b><span>of ${T.outlets} chain shops carry a <code>brand</code> tag</span></div>
+        <div><b>${pct(T.wikidataOk, T.wdEligible)}%</b><span>link to the chain on Wikidata, where it has an item</span></div>
+        <div><b>${T.gaps}</b><span>to-dos on ${T.gapOutlets} shops</span></div>
+      </div>
+      <p>Most chain shops are mapped by <b>name only</b>, and names wander: <b>${esc(most.label)}</b> appears under <b>${most.spell.name.length}</b> different names. Pick a chain on the menu, or a row below, to see its spellings and standard tags.</p></div>`;
+    const b = $('card-top').querySelector('[data-all]');
+    if (b) b.addEventListener('click', () => select('', true));
+    return;
+  }
+  const c = byId[sel];
+  const src = c.nsi ? ext(`https://nsi.guide/?id=${encodeURIComponent(c.qid)}`, 'Name Suggestion Index') : c.qid ? 'its Wikidata label' : 'the spelling OSM uses most';
+  const wdLine = c.qid ? `<code>brand:wikidata=${c.qid}</code> <span class="small">${ext('https://www.wikidata.org/wiki/' + c.qid, esc(c.wd))}</span>` : `<span class="small">No Wikidata item found for ${esc(c.label)}, so no <code>brand:wikidata</code> yet.</span>`;
+  const names = c.spell.name.map(([n, k]) => `<span class="chip${n === c.name ? ' std1' : ''}" style="--f:${c.fill};--k:${c.ink}">${esc(n)}<small>&times;${k}</small></span>`).join('');
+  const mains = c.spell.main.map(([n, k]) => `<span class="chip"><code>${esc(n)}</code><small>&times;${k}</small></span>`).join('');
+  $('card-top').innerHTML = `<div style="display:grid;gap:8px">
+    <div class="scope"><div class="who"><i style="--f:${c.fill};--k:${c.ink}"></i><h2>${esc(c.label)}</h2></div><button type="button" class="link-btn" data-all>All chains</button></div>
+    <div class="stats">
+      <div><b>${c.n}</b><span>shops mapped in OSM</span></div>
+      <div><b>${pct(c.f[0], c.n)}%</b><span>carry a <code>brand</code> tag</span></div>
+      <div><b>${c.gaps}</b><span>to-do${c.gaps === 1 ? '' : 's'}${c.gaps ? ` &middot; <button type="button" class="link-btn" data-todo>see them</button>` : ''}</span></div>
+    </div>
+    <div class="std"><p class="sub">Standard tags</p><code>brand=${esc(c.brand)}</code>${c.name !== c.brand ? `<code>name=${esc(c.name)}</code>` : ''}${wdLine}<span class="small">From ${src}.</span></div>
+    <div style="display:grid;gap:4px"><p class="sub">${c.spell.name.length} name${c.spell.name.length > 1 ? 's' : ''} in OSM</p><div class="chips">${names}</div></div>
+    <div style="display:grid;gap:4px"><p class="sub">Tagged as</p><div class="chips">${mains}</div></div></div>`;
+  $('card-top').querySelector('[data-all]').addEventListener('click', () => select('', true));
+  const t = $('card-top').querySelector('[data-todo]');
+  if (t) t.addEventListener('click', () => setTab('todo', true));
+}
+
+/* ---------- to-do list ---------- */
+function scopeGaps() { return sel === 'others' ? [] : GAPS.filter(g => !sel || g.o.c.id === sel); }
+function filtered() {
+  return scopeGaps().filter(g => !kindFilter || g.kind === kindFilter)
+    .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || b.o.c.n - a.o.c.n || a.o.c.label.localeCompare(b.o.c.label) || a.o.name.localeCompare(b.o.name) || a.o.id - b.o.id);
+}
+function buildFilters() {
+  const scope = scopeGaps();
+  const counts = Object.fromEntries(Object.keys(KINDS).map(k => [k, scope.filter(g => g.kind === k).length]));
+  if (kindFilter && !counts[kindFilter]) kindFilter = '';
+  let h = `<button type="button" aria-pressed="${!kindFilter}" data-k="" style="--kc:${ACCENT}">All <b>${scope.length}</b></button>`;
+  for (const k of Object.keys(KINDS)) h += `<button type="button" aria-pressed="${kindFilter === k}" data-k="${k}" style="--kc:${KINDS[k].color}" title="${esc(KINDS[k].long)}"${counts[k] ? '' : ' disabled'}><i></i>${KINDS[k].label} <b>${counts[k]}</b></button>`;
+  $('filters').innerHTML = h;
+  $('filters').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { kindFilter = b.dataset.k; shown = 60; buildTodo(); }));
+}
+function fixHtml(s) { return esc(s).replace(/([a-z:_]+=[^\s(+]+(?: [^\s(+=]+)*?)(?=$| \+| \(|$)/gi, '<code>$1</code>'); }
+function buildTodo() {
+  buildFilters();
+  const c = sel && sel !== 'others' ? byId[sel] : null;
+  $('todo-who').innerHTML = c ? `<i style="--f:${c.fill};--k:${c.ink}"></i><h2>${esc(c.label)}</h2>` : sel === 'others' ? `<i style="--f:#DCD6CF;--k:#8E8276"></i><h2>Everyone else</h2>` : `<h2>All chains</h2>`;
+  $('todo-all').hidden = !sel;
+  const list = filtered();
+  const rows = list.slice(0, shown).map(g => {
+    const o = g.o, K = KINDS[g.kind];
+    const twin = g.twin ? ` <a href="${osmUrl(g.twin)}" target="_blank" rel="noopener noreferrer" title="The other ${esc(o.c.label)}, ${g.dist} m away">Twin</a>` : '';
+    return `<li style="--kc:${K.color}"><button type="button" class="go" data-o="${o.i}" aria-label="Show ${esc(o.name || o.c.label)} on the map: ${esc(K.label)}"></button>
+      <div class="l1"><span class="kind"><i></i>${K.label}</span><span>${esc(o.c.label)} &middot; ${esc(placeOf(o))}</span></div>
+      <div class="l2">${esc(o.name || '(no name)')} <small>${esc(g.text)}</small></div>
+      <div class="l3"><span class="fix">${fixHtml(g.fix)}</span><span class="links"><a href="${osmUrl(o)}" target="_blank" rel="noopener noreferrer" aria-label="View ${esc(osmRef(o))} on openstreetmap.org">View</a><a href="${editUrl(o)}" target="_blank" rel="noopener noreferrer" aria-label="Edit ${esc(osmRef(o))} on openstreetmap.org">Edit</a>${twin}</span></div></li>`;
+  });
+  $('todo').innerHTML = rows.join('') || `<li class="empty">${sel === 'others' ? 'The to-do list covers the chains only. Pick one on the menu.' : 'Nothing to fix here. Tidy!'}</li>`;
+  $('todo').querySelectorAll('.go').forEach(b => b.addEventListener('click', () => openOutlet(OUT[+b.dataset.o], true)));
+  $('more').hidden = list.length <= shown;
+  $('more').textContent = `Show ${Math.min(60, list.length - shown)} more of ${list.length - shown}`;
+  $('copy').textContent = `Copy ${list.length === 1 ? 'it' : `all ${list.length}`}`;
+  $('copied').textContent = '';
+}
+$('more').addEventListener('click', () => { shown += 60; buildTodo(); });
+$('todo-all').addEventListener('click', () => select('', true));
+
+/* export: a plain-text checklist, or CSV */
+function exportRows() {
+  return filtered().map(g => ({ kind: KINDS[g.kind].label, chain: g.o.c.label, name: g.o.name, osm: osmRef(g.o), place: placeOf(g.o), problem: g.text, fix: g.fix,
+    view: osmUrl(g.o), edit: editUrl(g.o), lat: g.o.lat, lon: g.o.lng }));
+}
+async function copyList() {
+  const rows = exportRows(), c = sel && sel !== 'others' ? byId[sel].label : 'all chains';
+  const head = `Bubble tea to-do list, ${c}${kindFilter ? `, ${KINDS[kindFilter].label}` : ''}: ${rows.length} item${rows.length === 1 ? '' : 's'} (OSM extract of ${fmtDate(D.extract)})`;
+  const text = [head, ...rows.map(r => `- [ ] ${r.kind}: ${r.name || '(no name)'} (${r.chain}, ${r.osm}, ${r.place}). ${r.problem}. ${r.fix}. ${r.view} | edit: ${r.edit}`)].join('\n');
+  let ok = false;
+  try { await navigator.clipboard.writeText(text); ok = true; } catch (e) {
+    const ta = document.createElement('textarea'); ta.value = text; ta.style.cssText = 'position:fixed;opacity:0'; document.body.append(ta); ta.select();
+    try { ok = document.execCommand('copy'); } catch (e2) { ok = false; }
+    ta.remove();
+  }
+  $('copied').textContent = ok ? `Copied ${rows.length}` : 'Copy blocked: use the CSV';
+}
+function downloadCsv() {
+  const rows = exportRows(), cols = ['kind', 'chain', 'name', 'osm', 'place', 'problem', 'fix', 'view', 'edit', 'lat', 'lon'];
+  const q = v => /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const csv = '﻿' + [cols.join(','), ...rows.map(r => cols.map(k => q(r[k])).join(','))].join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `bubble-tea-todo-${sel && sel !== 'others' ? sel : 'all'}${kindFilter ? '-' + kindFilter : ''}.csv`;
+  document.body.append(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  $('copied').textContent = `Saved ${rows.length} rows`;
+}
+$('copy').addEventListener('click', copyList);
+$('csv').addEventListener('click', downloadCsv);
+
+/* ---------- tabs ---------- */
+const tabs = [...document.querySelectorAll('.tabs [role="tab"]')];
+function setTab(name, focus) {
+  if (name === 'menu' && !compactQ.matches) name = 'card';
+  tab = name;
+  for (const b of tabs) {
+    const on = b.dataset.tab === name;
+    b.setAttribute('aria-selected', String(on));
+    b.tabIndex = on ? 0 : -1;
+    $(b.getAttribute('aria-controls')).hidden = !on;
+    if (on && focus) b.focus();
+  }
+  $('pane-shop').hidden = true;
+  $('pane-' + name).scrollTop = 0;
+}
+tabs.forEach(b => {
+  b.addEventListener('click', () => { closeOutlet(); setTab(b.dataset.tab); });
+  b.addEventListener('keydown', e => {
+    const vis = tabs.filter(t => t.offsetParent !== null);
+    const i = vis.indexOf(b);
+    const j = e.key === 'ArrowRight' ? i + 1 : e.key === 'ArrowLeft' ? i - 1 : e.key === 'Home' ? 0 : e.key === 'End' ? vis.length - 1 : null;
+    if (j == null) return;
+    e.preventDefault();
+    setTab(vis[(j + vis.length) % vis.length].dataset.tab, true);
+  });
+});
+// Compact screens: the menu moves into the sheet as its first tab.
+function placeMenu() {
+  const body = $('menu-body');
+  if (compactQ.matches) { if (body.parentElement !== $('pane-menu')) $('pane-menu').append(body); }
+  else { if (body.parentElement !== $('menu')) $('menu').append(body); if (tab === 'menu') setTab('card'); }
+}
+compactQ.addEventListener('change', placeMenu);
+
+/* ---------- map layers ---------- */
+function geo() {
+  return {
+    type: 'FeatureCollection',
+    features: OUT.map(o => ({ type: 'Feature', id: o.i, properties: { i: o.i, c: o.c.id, b: has(o, 'brand') ? 1 : 0, g: o.gaps.length, name: o.name || o.c.label },
+      geometry: { type: 'Point', coordinates: [o.lng, o.lat] } })),
+  };
+}
+function geoOthers() {
+  return { type: 'FeatureCollection', features: OTHERS.map(o => ({ type: 'Feature', id: o.i, properties: { i: o.i, name: o.name }, geometry: { type: 'Point', coordinates: [o.lng, o.lat] } })) };
+}
+const R = (a, b, c) => ['interpolate', ['linear'], ['zoom'], 10, a, 13, b, 17, c];
+// Tapioca pearls, drawn once: glossy brown for a shop with a brand tag, a clear jelly ring for a name-only one.
+function addPearls() {
+  const S = 40, mk = draw => { const c = document.createElement('canvas'); c.width = c.height = S; const g = c.getContext('2d'); draw(g); return g.getImageData(0, 0, S, S); };
+  const m = S / 2;
+  map.addImage('pearl-b', mk(g => {
+    g.beginPath(); g.arc(m, m, 17, 0, 7); g.fillStyle = FOAM; g.fill();                 // surface ring
+    const gr = g.createRadialGradient(m - 5, m - 6, 1, m, m, 15);
+    gr.addColorStop(0, '#9A6A45'); gr.addColorStop(.45, '#4A2C19'); gr.addColorStop(1, '#22120A');
+    g.beginPath(); g.arc(m, m, 14.5, 0, 7); g.fillStyle = gr; g.fill();
+    g.beginPath(); g.ellipse(m - 5, m - 6, 4, 2.6, -.6, 0, 7); g.fillStyle = 'rgba(255,248,236,.85)'; g.fill();
+  }), { pixelRatio: 2 });
+  map.addImage('pearl-h', mk(g => {
+    g.beginPath(); g.arc(m, m, 17, 0, 7); g.fillStyle = 'rgba(255,253,248,.9)'; g.fill();
+    g.beginPath(); g.arc(m, m, 12.5, 0, 7); g.lineWidth = 5; g.strokeStyle = PEARL; g.stroke();
+    g.beginPath(); g.ellipse(m - 5, m - 7, 3.2, 1.8, -.6, 0, 7); g.fillStyle = 'rgba(255,255,255,.9)'; g.fill();
+  }), { pixelRatio: 2 });
+}
+function addLayers() {
+  map.addSource('out', { type: 'geojson', data: geo() });
+  map.addSource('oth', { type: 'geojson', data: geoOthers() });
+  map.addLayer({ id: 'oth', type: 'circle', source: 'oth', paint: { 'circle-radius': R(2.2, 3.4, 5.5), 'circle-color': '#A8988A', 'circle-stroke-color': FOAM, 'circle-stroke-width': 1, 'circle-opacity': 1, 'circle-stroke-opacity': 1 } });
+  map.addLayer({ id: 'halo', type: 'circle', source: 'out', filter: ['==', ['get', 'c'], '~'], paint: { 'circle-radius': R(7.5, 11, 17), 'circle-color': '#E3CBB0', 'circle-opacity': .75, 'circle-blur': .15 } });
+  addPearls();
+  map.addLayer({ id: 'pearl', type: 'symbol', source: 'out', layout: {
+    'icon-image': ['case', ['==', ['get', 'b'], 1], 'pearl-b', 'pearl-h'],
+    'icon-size': ['interpolate', ['linear'], ['zoom'], 10, .56, 13, .76, 17, 1.1],
+    'icon-allow-overlap': true, 'icon-ignore-placement': true, 'symbol-sort-key': ['get', 'b'] },
+    paint: { 'icon-opacity': 1 } });
+  map.addLayer({ id: 'focus', type: 'circle', source: 'out', filter: ['==', ['get', 'i'], -1], paint: { 'circle-radius': R(8, 10, 14), 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': ACCENT, 'circle-stroke-width': 2.5 } });
+  map.addLayer({ id: 'pearl-names', type: 'symbol', source: 'out', minzoom: 15,
+    layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Regular'], 'text-size': 11, 'text-offset': [0, 1.3], 'text-anchor': 'top', 'text-max-width': 9, 'text-optional': true },
+    paint: { 'text-color': PEARL, 'text-halo-color': FOAM, 'text-halo-width': 1.6 } });
+}
+function paintSelection(id = sel) {
+  if (!map.getLayer('pearl')) return;
+  const chain = id && id !== 'others', sel = id;
+  const dim = (on, off) => chain ? ['case', ['==', ['get', 'c'], sel], on, off] : sel === 'others' ? off : on;
+  map.setPaintProperty('pearl', 'icon-opacity', dim(1, .2));
+  map.setLayoutProperty('pearl', 'symbol-sort-key', chain ? ['+', ['get', 'b'], ['case', ['==', ['get', 'c'], sel], 2, 0]] : ['get', 'b']);
+  map.setPaintProperty('pearl-names', 'text-opacity', dim(1, 0));
+  map.setPaintProperty('oth', 'circle-opacity', sel === 'others' ? 1 : chain ? .25 : .75);
+  map.setPaintProperty('oth', 'circle-stroke-opacity', sel === 'others' ? 1 : .4);
+  map.setPaintProperty('oth', 'circle-radius', sel === 'others' ? R(3.6, 5, 7.5) : R(2.2, 3.4, 5.5));
+  map.setFilter('halo', ['==', ['get', 'c'], chain ? sel : '~']);
+  if (chain) map.setPaintProperty('halo', 'circle-color', byId[sel].fill);
+}
+
+/* ---------- selecting a chain ---------- */
+// Camera moves use an offset into the part of the map no sheet covers, never a lasting map padding
+// (MapLibre keeps the padding of a flyTo, and the next fitBounds would add to it).
+function freeOffset(down = 0) {
+  const pad = DMC.overlayPadding(), c = map.getContainer(), W = c.clientWidth, H = c.clientHeight;
+  return [(pad.left + W - pad.right) / 2 - W / 2, (pad.top + H - pad.bottom) / 2 + down - H / 2];
+}
+function fitTo(points) {
+  if (!points.length) return;
+  const padding = DMC.overlayPadding();
+  const opts = { padding, maxZoom: 15, duration: reduceMotion ? 0 : 1500, essential: true };
+  if (points.length === 1) { map.easeTo({ center: [points[0].lng, points[0].lat], zoom: 15, offset: freeOffset(), duration: opts.duration }); return; }
+  let w = 180, s = 90, e = -180, n = -90;
+  for (const p of points) { w = Math.min(w, p.lng); e = Math.max(e, p.lng); s = Math.min(s, p.lat); n = Math.max(n, p.lat); }
+  map.fitBounds([[w, s], [e, n]], opts);
+}
+function select(id, fly) {
+  sel = id || '';
+  closeOutlet();
+  document.querySelectorAll('.tile[data-c]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.c === sel)));
+  document.querySelectorAll('#rc tr[data-c]').forEach(r => r.classList.toggle('on', r.dataset.c === sel));
+  shown = 60; kindFilter = '';
+  cardTop(); buildTodo(); paintSelection();
+  if (fly) fitTo(sel === 'others' ? OTHERS : sel ? OUT.filter(o => o.c.id === sel) : OUT);
+  const u = new URL(location.href);
+  if (sel) u.searchParams.set('chain', sel); else u.searchParams.delete('chain');
+  history.replaceState(null, '', u);
+}
+
+/* ---------- an outlet's card ---------- */
+let popup = null;
+function outletHtml(o) {
+  const c = o.c;
+  const val = { brand: o.brand, wikidata: o.wd, cuisine: has(o, 'cuisine') ? 'bubble_tea' : '', hours: o.hours, address: has(o, 'address') ? 'yes' : '', level: o.level };
+  const rows = D.fields.map(([k]) => {
+    const ok = has(o, k);
+    const v = k === 'address' ? (ok ? 'street or postcode' : 'missing') : ok ? (val[k] || 'yes') : 'missing';
+    return `<li class="${ok ? 'ok' : 'no'}"><span class="t">${esc(FIELD_LABEL[k])}</span><span class="v">${esc(v)}</span></li>`;
+  }).join('');
+  const todo = o.gaps.map(g => `<li style="--kc:${KINDS[g.kind].color}"><b><i></i>${KINDS[g.kind].label}.</b> ${fixHtml(g.fix)}</li>`).join('');
+  return `<div class="oc"><p class="oc-chain"><i style="--f:${c.fill};--k:${c.ink}"></i>${esc(c.label)} &middot; ${esc(placeOf(o))}</p>
+    <h3>${esc(o.name || '(no name)')}</h3><ul>${rows}</ul>${todo ? `<ol aria-label="To-do">${todo}</ol>` : ''}
+    <p class="oc-links"><a href="${osmUrl(o)}" target="_blank" rel="noopener noreferrer">View on OSM</a><a href="${editUrl(o)}" target="_blank" rel="noopener noreferrer">Edit in iD</a><span class="small mono" style="margin-left:auto">${o.t}${o.id}</span></p></div>`;
+}
+function otherHtml(o) {
+  return `<div class="oc"><p class="oc-chain"><i style="--f:#DCD6CF;--k:#8E8276"></i>Other bubble tea</p><h3>${esc(o.name || '(no name)')}</h3>
+    <p class="small">Tagged <code>cuisine=bubble_tea</code>, not one of the chains here.</p>
+    <p class="oc-links"><a href="${osmUrl(o)}" target="_blank" rel="noopener noreferrer">View on OSM</a><a href="${editUrl(o)}" target="_blank" rel="noopener noreferrer">Edit in iD</a></p></div>`;
+}
+function openOutlet(o, fly, other) {
+  closeOutlet();
+  if (!other && sel && sel !== 'others' && o.c.id !== sel) select('', false);
+  if (!other) map.setFilter('focus', ['==', ['get', 'i'], o.i]);
+  const compact = compactQ.matches;
+  if (compact) {
+    // Phones: the card goes in the sheet, so the map above stays clear around the shop.
+    for (const b of tabs) $(b.getAttribute('aria-controls')).hidden = true;
+    const ps = $('pane-shop');
+    ps.innerHTML = `<button type="button" class="link-btn" id="shop-back" style="justify-self:start">&larr; Back</button>${other ? otherHtml(o) : outletHtml(o)}`;
+    ps.hidden = false; ps.scrollTop = 0;
+    $('shop-back').addEventListener('click', closeOutlet);
+    shopOpen = true;
+    const opts = { center: [o.lng, o.lat], zoom: fly ? Math.max(map.getZoom(), 16) : map.getZoom(), offset: freeOffset(), essential: true };
+    if (fly || !inView(o)) reduceMotion ? map.jumpTo(opts) : map.flyTo({ ...opts, speed: 1.4, curve: 1.3, maxDuration: 2200 });
+    return;
+  }
+  popup = new maplibregl.Popup({ className: 'bt-pop', maxWidth: compact ? '236px' : '270px', offset: 12, focusAfterOpen: false })
+    .setLngLat([o.lng, o.lat]).setHTML(other ? otherHtml(o) : outletHtml(o)).addTo(map);
+  popup.on('close', () => { if (map.getLayer('focus')) map.setFilter('focus', ['==', ['get', 'i'], -1]); popup = null; });
+  if (fly) {
+    // the shop sits low in the free area, leaving room above it for the card
+    const opts = { center: [o.lng, o.lat], zoom: Math.max(map.getZoom(), 16), offset: freeOffset(130), essential: true };
+    reduceMotion ? map.jumpTo(opts) : map.flyTo({ ...opts, speed: 1.4, curve: 1.3, maxDuration: 2200 });
+  }
+}
+let shopOpen = false;
+function closeOutlet() {
+  if (popup) { popup.remove(); popup = null; }
+  if (shopOpen) { shopOpen = false; $('pane-shop').hidden = true; $('pane-shop').innerHTML = ''; setTab(tab); }
+  if (map.getLayer('focus')) map.setFilter('focus', ['==', ['get', 'i'], -1]);
+}
+// is the shop on the part of the map no sheet covers?
+function inView(o) {
+  const p = map.project([o.lng, o.lat]), pad = DMC.overlayPadding(), c = map.getContainer();
+  return p.x > pad.left && p.x < c.clientWidth - pad.right && p.y > pad.top && p.y < c.clientHeight - pad.bottom;
+}
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && (popup || shopOpen)) closeOutlet(); });
+compactQ.addEventListener('change', () => closeOutlet());
+
+/* hover and click on the map */
+const hov = $('hov');
+function hit(pt, r) {
+  if (!map.getLayer('pearl')) return null;
+  const box = [[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]];
+  const fs = map.queryRenderedFeatures(box, { layers: ['pearl'] });
+  const f = (sel && sel !== 'others' ? fs.find(f => f.properties.c === sel) : null) || fs[0];
+  if (f) return { o: OUT[f.properties.i] };
+  const g = map.queryRenderedFeatures(box, { layers: ['oth'] })[0];
+  return g ? { o: OTHERS[g.properties.i], other: true } : null;
+}
+map.on('mousemove', e => {
+  const h = hit(e.point, 5);
+  map.getCanvas().style.cursor = h ? 'pointer' : '';
+  if (!h || !canHover) { hov.hidden = true; return; }
+  const o = h.o;
+  hov.innerHTML = h.other ? `<b>${esc(o.name || '(no name)')}</b> &middot; other bubble tea` : `<b>${esc(o.name || o.c.label)}</b>${o.name && o.name !== o.c.label ? ' &middot; ' + esc(o.c.label) : ''}<br>${esc(placeOf(o))} &middot; ${o.gaps.length ? o.gaps.length + ' to-do' + (o.gaps.length > 1 ? 's' : '') : 'all tagged'}`;
+  const r = map.getContainer().getBoundingClientRect();
+  hov.style.left = `${r.left + e.point.x}px`; hov.style.top = `${r.top + e.point.y}px`;
+  hov.hidden = false;
+});
+map.getCanvas().addEventListener('mouseleave', () => { hov.hidden = true; });
+map.on('click', e => {
+  const h = hit(e.point, matchMedia('(pointer: coarse)').matches ? 12 : 6);
+  hov.hidden = true;
+  if (h) openOutlet(h.o, false, h.other); else closeOutlet();
+});
+map.on('movestart', e => { if (e.originalEvent) hov.hidden = true; });
+
+/* ---------- layout: the menu starts under the stamp ---------- */
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open')) document.documentElement.style.setProperty('--menu-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+}
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+addEventListener('resize', layout);
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day21/bubbletea.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+dataP.then(d => {
+  decode(d);
+  const T = D.totals;
+  $('hero').innerHTML = `<b>${T.outlets}</b> shops from <b>${T.chains}</b> chains are mapped. Only <b>${pct(T.brand, T.outlets)}%</b> say which chain they belong to.`;
+  $('todo-n').textContent = T.gaps;
+  document.querySelectorAll('.cr-date').forEach(e => { e.textContent = fmtDate(D.extract); });
+  buildTiles(); buildCard(); placeMenu();
+  const want = params.get('chain');
+  select(want && (byId[want] || want === 'others') ? want : '', false);
+  const t0 = params.get('tab');
+  setTab(['menu', 'card', 'todo'].includes(t0) ? t0 : compactQ.matches ? 'menu' : 'card');
+  return styleP;
+}).then(() => {
+  addLayers();
+  paintSelection();
+  if (sel) fitTo(sel === 'others' ? OTHERS : OUT.filter(o => o.c.id === sel));
+  const o = params.get('outlet');
+  if (o) { const x = OUT.find(q => `${q.t}${q.id}` === o); if (x) openOutlet(x, true); }
+  map.once('idle', () => { $('loading').hidden = true; });
+}).catch(err => {
+  $('loading').textContent = 'The bubble tea data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
