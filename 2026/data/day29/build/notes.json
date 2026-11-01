@@ -1,0 +1,122 @@
+{
+ "_": "Plain names for the hot roof clusters, matched by position (within 250 m). Every name comes from the OpenStreetMap features process.py finds under the cluster (building names, landuse names, nearby places). {ha} is filled in from the data.",
+ "clusters": [
+  {
+   "at": [
+    103.71405,
+    1.33994
+   ],
+   "label": "Singapore Aerospace Manufacturing, Jurong",
+   "short": "Aerospace works, Jurong",
+   "what": "Factory roofs in the engineering works OpenStreetMap names ST Kinetics, in Jurong"
+  },
+  {
+   "at": [
+    103.69815,
+    1.32539
+   ],
+   "label": "Factory roofs, Kian Teck",
+   "short": "Kian Teck factories",
+   "what": "A {ha}-hectare block of factory and warehouse roofs in the Kian Teck industrial area"
+  },
+  {
+   "at": [
+    103.82804,
+    1.46522
+   ],
+   "label": "Sembawang Shipyard",
+   "short": "Sembawang Shipyard",
+   "what": "The big workshop sheds of Sembawang Shipyard, on the north coast"
+  },
+  {
+   "at": [
+    103.77711,
+    1.28605
+   ],
+   "label": "Pasir Panjang Wholesale Centre",
+   "short": "Pasir Panjang Wholesale",
+   "what": "The long roofs of the Pasir Panjang Wholesale Centre"
+  },
+  {
+   "at": [
+    103.62754,
+    1.30761
+   ],
+   "label": "Factories at Tuas View",
+   "short": "Tuas View factories",
+   "what": "A {ha}-hectare spread of warehouse and factory roofs at Tuas View"
+  },
+  {
+   "at": [
+    103.66904,
+    1.31111
+   ],
+   "label": "Factory roofs, Pioneer",
+   "short": "Pioneer factories",
+   "what": "Large factory roofs in the Pioneer industrial area"
+  },
+  {
+   "at": [
+    103.64425,
+    1.33859
+   ],
+   "label": "Tuas train depot",
+   "short": "Tuas train depot",
+   "what": "The roofs of the Tuas Depot, where MRT trains are parked and serviced"
+  },
+  {
+   "at": [
+    103.69545,
+    1.33051
+   ],
+   "label": "Shipyards and factories, Kian Teck",
+   "short": "Kian Teck shipyards",
+   "what": "A {ha}-hectare mix of factory and shipbuilding roofs in Kian Teck"
+  },
+  {
+   "at": [
+    103.65934,
+    1.3103
+   ],
+   "label": "2PS1 building, Pioneer",
+   "short": "2PS1, Pioneer",
+   "what": "One big industrial building, labelled 2PS1 in OpenStreetMap"
+  },
+  {
+   "at": [
+    103.70057,
+    1.30788
+   ],
+   "label": "NatSteel works, Jurong",
+   "short": "NatSteel works",
+   "what": "The roofs of the NatSteel steel works in Jurong"
+  },
+  {
+   "at": [
+    103.80864,
+    1.46737
+   ],
+   "label": "Factory roofs, Senoko North",
+   "short": "Senoko factories",
+   "what": "Factory roofs in the Senoko industrial area, near the north coast"
+  },
+  {
+   "at": [
+    103.62538,
+    1.30195
+   ],
+   "label": "Warehouses at Tuas View",
+   "short": "Tuas View warehouses",
+   "what": "Warehouse roofs at Tuas View, among them the A Plus Glass building"
+  },
+  {
+   "at": [
+    103.67847,
+    1.32889
+   ],
+   "label": "Factory roof, Joo Koon",
+   "short": "Joo Koon roof",
+   "what": "A single 1.5-hectare roof in the Joo Koon industrial area"
+  }
+ ]
+}

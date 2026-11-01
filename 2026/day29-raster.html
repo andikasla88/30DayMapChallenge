@@ -1,0 +1,677 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0A0D12">
+<title>Day 29 · Hot roofs, cool reservoirs</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 29, Raster: Singapore's ground temperature at 11 a.m., from a cloud-free composite of Landsat thermal images. Hover for the temperature anywhere, raise the heat as relief, and tour the hottest rooftops against the cool reservoirs and catchment forest.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230A0D12'/%3E%3Crect x='6' y='6' width='6' height='6' fill='%239EB0FF'/%3E%3Crect x='13' y='6' width='6' height='6' fill='%233280A6'/%3E%3Crect x='20' y='6' width='6' height='6' fill='%23190C09'/%3E%3Crect x='6' y='13' width='6' height='6' fill='%2320526A'/%3E%3Crect x='13' y='13' width='6' height='6' fill='%23371000'/%3E%3Crect x='20' y='13' width='6' height='6' fill='%23964A36'/%3E%3Crect x='6' y='20' width='6' height='6' fill='%23190C09'/%3E%3Crect x='13' y='20' width='6' height='6' fill='%23CA7B71'/%3E%3Crect x='20' y='20' width='6' height='6' fill='%23FFADAD'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 29: a full-bleed thermal raster, a heat-relief toggle and a hot-vs-cool tour ===== */
+:root {
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --hot: #FFADAD; --hot-rgb: 255, 173, 173;
+  --cool: #9EB0FF; --cool-rgb: 158, 176, 255;
+  --glass: rgba(10, 12, 17, .82);
+  --panel-w: 344px;
+}
+.dmc-map { background: #0A0D12; }
+
+/* ---- the panel: tour card, distribution strip, filter ---- */
+.hp { bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  width: var(--panel-w); max-height: calc(100% - 2 * var(--gutter) - var(--stamp-h, 96px) - 8px); overflow-y: auto; overscroll-behavior: contain;
+  padding: 11px 13px 10px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 9px; scrollbar-width: thin; overflow-x: hidden; }
+.hp-top { display: flex; align-items: center; gap: 8px; }
+.kick { flex: 1; margin: 0; font-family: var(--mono); font-size: 10.5px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); display: flex; gap: 8px; min-width: 0; }
+.kick b { font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.kick b.hot { color: var(--hot); } .kick b.cool { color: var(--cool); }
+.stepper { display: flex; align-items: center; gap: 4px; }
+.stepper button { position: relative; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); color: var(--text); cursor: pointer; padding: 0; }
+.stepper button:hover { background: rgba(255, 255, 255, .14); }
+.stepper button:disabled { opacity: .35; cursor: default; }
+.stepper button::after { content: ""; position: absolute; inset: -8px -3px; }
+.stepper svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.stepper .count { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); min-width: 30px; text-align: center; font-variant-numeric: tabular-nums; }
+.dots { display: flex; gap: 3px; }
+.dots button { position: relative; width: 14px; height: 18px; border: 0; background: none; padding: 0; cursor: pointer; display: grid; place-items: center; }
+.dots button::before { content: ""; width: 6px; height: 6px; border-radius: 1px; background: rgba(255, 255, 255, .25); transition: background .25s, transform .25s; }
+.dots button.hot::before { background: rgba(var(--hot-rgb), .4); } .dots button.cool::before { background: rgba(var(--cool-rgb), .4); }
+.dots button[aria-current="step"]::before { transform: scale(1.45); background: var(--text); }
+.dots button.hot[aria-current="step"]::before { background: var(--hot); box-shadow: 0 0 8px rgba(var(--hot-rgb), .8); }
+.dots button.cool[aria-current="step"]::before { background: var(--cool); box-shadow: 0 0 8px rgba(var(--cool-rgb), .8); }
+
+.card { display: grid; gap: 6px; }
+.card h2 { margin: 0; font-size: 14.5px; font-weight: 600; line-height: 1.25; letter-spacing: -.005em; text-wrap: balance; }
+.card p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-2); }
+.card p b { color: var(--text); font-weight: 600; }
+.hero { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; }
+.hero b { font-family: var(--mono); font-size: 30px; font-weight: 600; line-height: 1; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.hero b small { font-size: 15px; font-weight: 500; letter-spacing: 0; margin-left: 1px; }
+.hero.hot b { color: var(--hot); text-shadow: 0 0 18px rgba(var(--hot-rgb), .45); }
+.hero.cool b { color: var(--cool); text-shadow: 0 0 18px rgba(var(--cool-rgb), .45); }
+.hero span { font-size: 11.5px; line-height: 1.3; color: var(--text-2); }
+.vs { display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 6px; padding: 6px 8px; border-radius: 9px; background: rgba(255, 255, 255, .045); font-size: 11px; color: var(--text-2); }
+.vs div { display: grid; gap: 1px; }
+.vs div:last-child { text-align: right; }
+.vs b { font-family: var(--mono); font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.vs .h b { color: var(--hot); } .vs .c b { color: var(--cool); }
+.vs i { font-style: normal; font-family: var(--mono); font-size: 11px; color: var(--text); padding: 2px 7px; border-radius: 999px; border: 1px solid var(--line); white-space: nowrap; }
+.top10 { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0; }
+.top10 button { width: 100%; display: grid; grid-template-columns: 17px 1fr auto; align-items: baseline; gap: 5px; padding: 2px 4px; border: 0; border-radius: 6px; background: none; color: var(--text); font: inherit; font-size: 11px; text-align: left; cursor: pointer; }
+.top10 button:hover { background: rgba(255, 255, 255, .07); }
+.top10 .n { font-family: var(--mono); font-size: 10px; color: var(--hot); }
+.top10 .w { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--text-2); }
+.top10 .t { font-family: var(--mono); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.note { font-size: 10.5px !important; color: var(--text-2); opacity: .9; }
+
+/* ---- distribution strip: the legend, the zones and the filter ---- */
+.dist { display: grid; gap: 3px; padding-top: 8px; border-top: 1px solid var(--line); }
+.dist-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 10.5px; color: var(--text-2); }
+.dist-head b { font-family: var(--mono); font-weight: 500; color: var(--text); }
+.dist-head .nd { display: inline-block; width: 8px; height: 8px; margin: 0 1px 0 6px; vertical-align: -1px; border-radius: 2px; background: rgb(44, 48, 56); box-shadow: 0 0 0 1px rgba(255, 255, 255, .25); }
+#d-hover { white-space: nowrap; }
+#dist svg { display: block; width: 100%; height: auto; overflow: visible; }
+#dist .lab { font: 500 9.5px var(--mono); fill: var(--text-2); }
+#dist .lab.on { fill: var(--text); font-weight: 600; }
+#dist .tick { font: 400 9.5px var(--mono); fill: rgba(238, 242, 247, .55); }
+.filter { display: grid; grid-template-columns: auto minmax(0, 1fr); align-items: center; gap: 5px 8px; }
+.filter .dmc-seg { grid-column: 1 / -1; justify-self: start; }
+.filter label { font-family: var(--mono); font-size: 11px; color: var(--text); min-width: 46px; font-variant-numeric: tabular-nums; }
+.filter .dmc-seg button { padding: 3px 8px; min-height: 24px; font-size: 11px; }
+.filter input[type=range] { width: 100%; margin: 0; accent-color: var(--day-accent); }
+.filter input[type=range]:disabled { opacity: .35; }
+.filter output { grid-column: 1 / -1; font-size: 11px; color: var(--text-2); min-height: 1.4em; }
+.filter output b { font-family: var(--mono); font-weight: 500; color: var(--text); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.row .dmc-btn { font-size: 11.5px; padding: 4px 10px; min-height: 28px; }
+.row .dmc-btn[aria-pressed="true"] { color: #1A0E0C; background: var(--day-accent); border-color: transparent; }
+.src summary { cursor: pointer; font-size: 11px; color: var(--text-2); list-style: none; }
+.src summary::-webkit-details-marker { display: none; }
+.src summary::before { content: "+ "; font-family: var(--mono); }
+.src[open] summary::before { content: "\2212  "; }
+.src .dmc-note { margin-top: 5px; font-size: 11px; }
+.src .dmc-credits { margin-top: 5px; }
+
+/* ---- hover read-out ---- */
+.tip { position: fixed; z-index: 5; left: 0; top: 0; pointer-events: none; padding: 7px 10px 8px; min-width: 150px; max-width: 230px;
+  background: rgba(10, 12, 17, .92); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 26px rgba(0, 0, 0, .45); display: grid; gap: 3px; }
+.tip[hidden] { display: none; }
+.tip .t { display: flex; align-items: center; gap: 7px; font-family: var(--mono); font-size: 19px; font-weight: 600; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.tip .t i { width: 11px; height: 11px; border-radius: 3px; box-shadow: 0 0 0 1px rgba(255, 255, 255, .3); }
+.tip .s { font-size: 11px; line-height: 1.35; color: var(--text-2); }
+.tip .s b { color: var(--text); font-weight: 600; }
+
+/* ---- pins: the ten hottest roof clusters, reservoir names ---- */
+.pin { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 50%; border: 0; padding: 0; cursor: pointer;
+  font: 600 10px var(--mono); color: #1A0E0C; background: var(--hot); box-shadow: 0 0 0 2px rgba(10, 12, 17, .85), 0 0 12px rgba(var(--hot-rgb), .8); }
+.pin::after { content: ""; position: absolute; inset: -8px; }
+.pin.on { background: #fff; box-shadow: 0 0 0 2px rgba(10, 12, 17, .85), 0 0 0 4px var(--hot), 0 0 18px rgba(var(--hot-rgb), .9); }
+.rlab { pointer-events: none; font: italic 500 10.5px var(--font); color: var(--cool); text-shadow: 0 0 3px #0A0D12, 0 0 6px #0A0D12, 0 1px 2px #000; white-space: nowrap; }
+.rlab span { opacity: 0; transition: opacity .4s; }
+.show-rlab .rlab span { opacity: 1; }
+.rlab b { font-family: var(--mono); font-style: normal; font-weight: 600; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.loading[hidden] { display: none; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .hero b { font-size: 25px; }
+  .card h2 { font-size: 13.5px; }
+  .card p { font-size: 11.5px; }
+}
+/* Phones held upright: the panel becomes a bottom sheet. */
+@media (max-width: 640px) and (orientation: portrait) {
+  .hp { left: 0; right: 0; bottom: 0; width: auto; max-height: 44vh; border-bottom: 0; border-radius: 16px 16px 0 0;
+    padding: 9px 12px calc(8px + env(safe-area-inset-bottom, 0px)); gap: 7px; }
+  .dots { display: none; }
+  .card p.more { display: none; }
+  .top10 { grid-template-columns: 1fr 1fr; gap: 0 6px; }
+  .pin { width: 17px; height: 17px; font-size: 9px; }
+}
+/* Phones held sideways: a right-hand column. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .hp { left: auto; right: calc(var(--gutter) + 48px + env(safe-area-inset-right, 0px)); width: min(320px, 46vw); max-height: calc(100% - 2 * var(--gutter)); padding: 9px 11px 8px; gap: 7px; }
+  .dots { display: none; }
+  .card p.more { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore coloured by ground temperature from Landsat: blue is cooler than the island's middle, red is hotter. Hover or tap for the temperature."></div>
+<div id="tip" class="tip dmc-chrome" hidden></div>
+<p id="loading" class="loading dmc-chrome">Developing the thermal picture&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="panel" class="dmc-glass hp" data-dmc-overlay aria-label="Hottest versus coolest: a tour">
+  <div class="hp-top">
+    <p class="kick"><span id="k-n">01</span><b id="k-label">The island</b></p>
+    <div class="stepper">
+      <div id="dots" class="dots"></div>
+      <button id="prev" type="button" aria-label="Previous stop"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+      <button id="next" type="button" aria-label="Next stop"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+    </div>
+  </div>
+  <div id="card" class="card" aria-live="polite"></div>
+
+  <div class="dist">
+    <div class="dist-head"><span>All land, by temperature <i class="nd" aria-hidden="true"></i> no reading</span><span id="d-hover">hover or tap the map</span></div>
+    <div id="dist"></div>
+    <div class="filter">
+      <div class="dmc-seg" role="group" aria-label="Filter the map">
+        <button type="button" data-f="all" aria-pressed="true">All</button>
+        <button type="button" data-f="hot" aria-pressed="false">Hotter than</button>
+        <button type="button" data-f="cool" aria-pressed="false">Cooler than</button>
+      </div>
+      <label for="thr" id="thr-v">45.0°</label>
+      <input id="thr" type="range" min="24" max="54" step="0.5" value="45" aria-label="Filter temperature, degrees Celsius" disabled>
+      <output id="thr-out" for="thr"></output>
+    </div>
+  </div>
+  <div class="row">
+    <button id="relief" class="dmc-btn" type="button" aria-pressed="false">Heat relief</button>
+    <span class="note" id="relief-note">Raise the ground by its temperature.</span>
+  </div>
+  <details class="src">
+    <summary>Method and sources</summary>
+    <p class="dmc-note" id="method"></p>
+    <p id="credits" class="dmc-credits"></p>
+  </details>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const A = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const DAY = {
+  n: 29,
+  title: 'Hot roofs, cool reservoirs: how hot Singapore\'s ground gets at 11 a.m.',
+  deck: 'Seven clear Landsat passes, each at about 11:16 a.m., blended into one cloud-free picture of the ground\'s temperature. Blue is cooler than the island\'s middle and red is hotter. This is the heat of surfaces, roofs, roads, leaves and water, not the air you feel.',
+  accent: '#FFADAD',
+  basemap: 'esri-imagery',
+  basemapPaint: { 'raster-saturation': -1, 'raster-contrast': .05, 'raster-brightness-max': .85, 'raster-opacity': ['interpolate', ['linear'], ['zoom'], 12.6, 0, 15, .9] },
+  basemapBg: '#0A0D12',
+  bounds: [[103.6, 1.205], [104.09, 1.472]],
+  minZoom: 9, maxZoom: 17.5,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 58 },
+  buildings: false,
+  creditsEl: 'credits',
+  author: '', nav: null,
+  attribution: [
+    'Surface temperature: ' + A('https://www.usgs.gov/landsat-missions/landsat-collection-2-level-2-science-products', 'USGS Landsat 8 &amp; 9 Collection 2 Level-2') + ' (ST_B10, QA_PIXEL, ST_QA) via ' + A('https://planetarycomputer.microsoft.com/dataset/landsat-c2-l2', 'Microsoft Planetary Computer') + '; scale 0.00341802, offset 149.0 K (' + A('https://www.usgs.gov/faqs/how-do-i-use-a-scale-factor-landsat-level-2-science-products', 'USGS') + ')',
+    'Reservoirs, nature reserve, land use, buildings, coastline: ' + DMC.OSM_CREDIT + ' (ODbL), 1 Nov 2026',
+    'Palette: ' + A('https://doi.org/10.5281/zenodo.1243862', 'berlin, Crameri scientific colour maps'),
+  ],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const f1 = v => v.toFixed(1);
+const nf = new Intl.NumberFormat('en-SG');
+const fmtDate = (d, t) => {
+  const dt = new Date(d + 'T00:00:00Z');
+  const s = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }).format(dt);
+  if (!t) return s;
+  const [h, m] = t.split(':').map(Number);
+  return `${s}, ${h > 12 ? h - 12 : h}:${String(m).padStart(2, '0')} ${h >= 12 ? 'p.m.' : 'a.m.'}`;
+};
+
+/* ---------- data ---------- */
+let J = null, CODES = null, GW = 0, GH = 0, LUT = null, PAL = null, NORM = null;
+const tempOf = c => J.grid.tmin + (c - 2) * J.grid.step;   // code 0 = sea, 1 = land with no reading
+const hex2rgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+
+// The palette is diverging around the island's median: below it runs from the coolest 1% to the
+// median, above it from the median to the hottest roofs. Each side is perceptually even.
+function colourAt(t) {
+  const { lo, mid, hi } = NORM;
+  let u = t <= mid ? .5 * Math.max(0, (t - lo) / (mid - lo)) : .5 + .5 * Math.min(1, (t - mid) / (hi - mid));
+  u = Math.max(0, Math.min(1, u)) * (PAL.length - 1);
+  const i = Math.min(PAL.length - 2, Math.floor(u)), f = u - i;
+  return PAL[i].map((v, k) => Math.round(v + (PAL[i + 1][k] - v) * f));
+}
+function buildLut() {
+  LUT = new Uint8ClampedArray(256 * 4);
+  LUT.set([44, 48, 56, 255], 4);   // land with no clear reading: flat grey
+  for (let c = 2; c < 256; c++) {
+    const [r, g, b] = colourAt(tempOf(c));
+    LUT.set([r, g, b, 255], c * 4);
+  }
+}
+
+/* ---------- the heat canvas ---------- */
+const heatCanvas = document.createElement('canvas');
+let heatCtx = null, heatImg = null;
+let filter = { mode: 'all', t: 45 };
+function paint() {
+  const d = heatImg.data, n = CODES.length, mode = filter.mode, cut = Math.round((filter.t - J.grid.tmin) / J.grid.step) + 2;
+  for (let i = 0, j = 0; i < n; i++, j += 4) {
+    const c = CODES[i];
+    if (!c) { d[j + 3] = 0; continue; }
+    const k = c * 4;
+    const keep = c === 1 || mode === 'all' || (mode === 'hot' ? c >= cut : c < cut);
+    if (keep) { d[j] = LUT[k]; d[j + 1] = LUT[k + 1]; d[j + 2] = LUT[k + 2]; d[j + 3] = 255; }
+    else { const g = (LUT[k] + LUT[k + 1] + LUT[k + 2]) / 3 * .35 + 14; d[j] = g; d[j + 1] = g; d[j + 2] = g + 3; d[j + 3] = 200; }
+  }
+  heatCtx.putImageData(heatImg, 0, 0);
+  const src = map.getSource('heat');
+  if (src) { src.play(); requestAnimationFrame(() => requestAnimationFrame(() => src.pause())); }
+}
+
+/* ---------- heat relief: the temperature drawn as terrain, tiles made in the browser ---------- */
+const R = 6378137, HALF = Math.PI * R;
+const RELIEF_M_PER_C = 10;   // metres of relief per degree above or below the median, before exaggeration
+let gridX0 = 0, gridY1 = 0, gridRes = 30;
+const mercX = lng => lng * Math.PI / 180 * R;
+const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) * R;
+// Relief only: land with no reading takes its nearest reading's height, so gaps don't stand up as walls.
+let DEMC = null;
+function demCodes() {
+  if (DEMC) return DEMC;
+  const a = CODES.slice();
+  for (let pass = 0; pass < 40; pass++) {
+    let left = 0;
+    const b = a.slice();
+    for (let r = 0; r < GH; r++) for (let c = 0; c < GW; c++) {
+      const i = r * GW + c;
+      if (a[i] !== 1) continue;
+      let sum = 0, n = 0;
+      if (c > 0 && a[i - 1] > 1) { sum += a[i - 1]; n++; }
+      if (c < GW - 1 && a[i + 1] > 1) { sum += a[i + 1]; n++; }
+      if (r > 0 && a[i - GW] > 1) { sum += a[i - GW]; n++; }
+      if (r < GH - 1 && a[i + GW] > 1) { sum += a[i + GW]; n++; }
+      if (n) b[i] = Math.round(sum / n); else left++;
+    }
+    a.set(b);
+    if (!left) break;
+  }
+  return (DEMC = a);
+}
+maplibregl.addProtocol('heatdem', async params => {
+  const DC = demCodes();
+  const [z, x, y] = params.url.replace('heatdem://', '').split('/').map(Number);
+  const S = 256, span = 2 * HALF / 2 ** z, tx0 = -HALF + x * span, ty1 = HALF - y * span, px = span / S;
+  const img = new ImageData(S, S), d = img.data, mid = NORM.mid;
+  for (let r = 0; r < S; r++) {
+    const my = ty1 - (r + .5) * px, gr = Math.floor((gridY1 - my) / gridRes);
+    for (let c = 0; c < S; c++) {
+      const mx = tx0 + (c + .5) * px, gc = Math.floor((mx - gridX0) / gridRes);
+      let e = 0;
+      if (gr >= 0 && gr < GH && gc >= 0 && gc < GW) { const v = DC[gr * GW + gc]; if (v > 1) e = (tempOf(v) - mid) * RELIEF_M_PER_C; }
+      const v = e + 32768, j = (r * S + c) * 4;
+      d[j] = Math.floor(v / 256); d[j + 1] = Math.floor(v) % 256; d[j + 2] = Math.floor((v % 1) * 256); d[j + 3] = 255;
+    }
+  }
+  return { data: await createImageBitmap(img, { premultiplyAlpha: 'none', colorSpaceConversion: 'none' }) };
+});
+let relief = false;
+// The relief is scaled to the view: about 1.4 km for the hottest roofs over the whole island,
+// a couple of hundred metres in a street-level view, so it reads as a landscape at every zoom.
+const reliefExag = () => Math.max(.8, Math.min(9, 9 * 2 ** (-(map.getZoom() - 10.3) * .62)));
+map.on('zoomend', () => { if (relief && map.getTerrain()) map.setTerrain({ source: 'heatdem', exaggeration: reliefExag() }); });
+const HEAT_OPACITY = ['interpolate', ['linear'], ['zoom'], 12.6, 1, 15, .62, 17, .5];
+function setRelief(on, keepCam) {
+  relief = on;
+  $('relief').setAttribute('aria-pressed', String(on));
+  if (!map.getSource('heatdem')) return;
+  map.setTerrain(on ? { source: 'heatdem', exaggeration: reliefExag() } : null);
+  map.setPaintProperty('heat-shade', 'hillshade-exaggeration', on ? .3 : 0);
+  map.setPaintProperty('heat', 'raster-opacity', on ? ['interpolate', ['linear'], ['zoom'], 12.6, 1, 16, .85] : HEAT_OPACITY);
+  if (on && !keepCam && map.getPitch() < 20) map.easeTo({ pitch: 58, bearing: map.getBearing() || -20, duration: reduceMotion ? 0 : 1200 });
+}
+$('relief').addEventListener('click', () => setRelief(!relief));
+
+/* ---------- outlines ---------- */
+function decodePolys(list) {
+  return list.map(rings => rings.map(a => { const out = []; let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / 1e5, y / 1e5]); } return out; }));
+}
+const fc = feats => ({ type: 'FeatureCollection', features: feats });
+const mp = (polys, props = {}) => ({ type: 'Feature', properties: props, geometry: { type: 'MultiPolygon', coordinates: decodePolys(polys) } });
+
+function addLayers() {
+  const { bounds } = J.grid, [[w, s], [e, n]] = bounds;
+  heatCanvas.width = GW; heatCanvas.height = GH;
+  heatCtx = heatCanvas.getContext('2d');
+  heatImg = heatCtx.createImageData(GW, GH);
+  paint();
+  map.addSource('heat', { type: 'canvas', canvas: heatCanvas, coordinates: [[w, n], [e, n], [e, s], [w, s]], animate: false });
+  map.addLayer({ id: 'heat', type: 'raster', source: 'heat', paint: { 'raster-opacity': HEAT_OPACITY, 'raster-fade-duration': 0, 'raster-resampling': 'linear' } });
+  map.addSource('heatdem', { type: 'raster-dem', tiles: ['heatdem://{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 8, maxzoom: 13, bounds: [w, s, e, n] });
+  map.addSource('heatshade', { type: 'raster-dem', tiles: ['heatdem://{z}/{x}/{y}'], tileSize: 256, encoding: 'terrarium', minzoom: 8, maxzoom: 13, bounds: [w, s, e, n] });
+  map.addLayer({ id: 'heat-shade', type: 'hillshade', source: 'heatshade', paint: { 'hillshade-exaggeration': 0, 'hillshade-shadow-color': '#000000', 'hillshade-highlight-color': 'rgba(255,240,235,.35)', 'hillshade-accent-color': '#000000', 'hillshade-illumination-direction': 315 } });
+
+  map.addSource('land', { type: 'geojson', data: fc([mp(J.shapes.land)]) });
+  map.addLayer({ id: 'land-line', type: 'line', source: 'land', paint: { 'line-color': '#C8D2E0', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, .5, 14, 1], 'line-opacity': .3 } });
+  map.addSource('res', { type: 'geojson', data: fc(J.shapes.reservoirs.map((p, i) => mp(p, { i }))) });
+  map.addSource('forest', { type: 'geojson', data: fc([mp(J.shapes.forest)]) });
+  map.addSource('ind', { type: 'geojson', data: fc([mp(J.shapes.industrial)]) });
+  map.addLayer({ id: 'res-line', type: 'line', source: 'res', paint: { 'line-color': '#CFD8FF', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, .5, 14, 1.4], 'line-opacity': .45, 'line-opacity-transition': { duration: 600 } } });
+  map.addLayer({ id: 'forest-line', type: 'line', source: 'forest', paint: { 'line-color': '#9EB0FF', 'line-width': 1.4, 'line-dasharray': [2, 2], 'line-opacity': 0, 'line-opacity-transition': { duration: 600 } } });
+  map.addLayer({ id: 'ind-line', type: 'line', source: 'ind', paint: { 'line-color': '#FFADAD', 'line-width': .9, 'line-opacity': 0, 'line-opacity-transition': { duration: 600 } } });
+}
+
+/* ---------- pins ---------- */
+let pins = [], rlabs = [];
+function addPins() {
+  pins = J.hot.map((h, i) => {
+    const el = document.createElement('button');
+    el.type = 'button'; el.className = 'pin dmc-chrome'; el.textContent = i + 1;
+    el.setAttribute('aria-label', `Hot roof cluster ${i + 1}: ${f1(h.peak)} degrees, ${h.label}`);
+    el.addEventListener('click', ev => { ev.stopPropagation(); showHot(i); });
+    return new maplibregl.Marker({ element: el }).setLngLat(h.at).addTo(map);
+  });
+  rlabs = [...J.zones.reservoirs.items, ...J.zones.reservoirs.solar].map(r => {
+    const el = document.createElement('div');
+    el.className = 'rlab';
+    el.innerHTML = `<span>${r.name.replace(' Reservoir', '')}${r.solar ? ' (solar)' : ''} <b>${f1(r.mean)}°</b></span>`;
+    return new maplibregl.Marker({ element: el }).setLngLat(r.at).addTo(map);
+  });
+  const sync = () => document.documentElement.classList.toggle('show-rlab', map.getZoom() >= 11.6);
+  map.on('zoom', sync); sync();
+}
+
+/* ---------- distribution strip ---------- */
+const DIST = { lo: 24, hi: 54, W: 318, H: 86, base: 70 };
+let distMarks = [];
+function drawDist(activeKey) {
+  const { lo, hi, W, H, base } = DIST;
+  const sx = t => (Math.max(lo, Math.min(hi, t)) - lo) / (hi - lo) * W;
+  // labels: place each in the first row where it doesn't touch the one before it
+  const CH = 5.8, rows = [], ROW_H = 11;
+  const placed = distMarks.map(m => {
+    const text = `${m.label} ${f1(m.t)}°`, w = text.length * CH, x = sx(m.t);
+    let x0 = Math.max(0, Math.min(W - w, x - w / 2));
+    let row = rows.findIndex(end => end + 6 <= x0);
+    if (row < 0) { row = rows.length; rows.push(-1e9); }
+    rows[row] = x0 + w;
+    return { ...m, text, x, x0, row };
+  });
+  const top = 4 + rows.length * ROW_H + 3;
+  const bins = new Map();
+  J.hist.forEach((n, i) => { if (!n) return; const t = tempOf(i + 2), b = Math.floor(t * 2) / 2; bins.set(b, (bins.get(b) || 0) + n); });
+  const maxN = Math.max(...bins.values());
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="How much land is at each temperature, ${lo} to ${hi} degrees: ${placed.map(m => m.text).join(', ')}">`;
+  for (const [b, n] of bins) {
+    if (b < lo || b >= hi) continue;
+    const h = Math.max(1, Math.sqrt(n / maxN) * (base - top - 2)), x = sx(b), bw = Math.max(.5, sx(b + .5) - x - .5);
+    const [r, g, bl] = colourAt(b + .25);
+    s += `<rect x="${x.toFixed(1)}" y="${(base - h).toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" fill="rgb(${r},${g},${bl})" stroke="rgba(255,255,255,.22)" stroke-width=".4"/>`;
+  }
+  s += `<line x1="0" x2="${W}" y1="${base + .5}" y2="${base + .5}" stroke="rgba(255,255,255,.25)"/>`;
+  for (let t = Math.ceil(lo / 5) * 5; t <= hi; t += 5) s += `<line x1="${sx(t)}" x2="${sx(t)}" y1="${base}" y2="${base + 3}" stroke="rgba(255,255,255,.4)"/><text class="tick" x="${sx(t)}" y="${H - 3}" text-anchor="${t === lo ? 'start' : 'middle'}">${t}°</text>`;
+  for (const m of placed) {
+    const on = m.key === activeKey, ly = 4 + (m.row + 1) * ROW_H - 2, col = m.hot ? 'var(--hot)' : m.cool ? 'var(--cool)' : 'var(--text)';
+    s += `<line x1="${m.x}" x2="${m.x}" y1="${ly + 2}" y2="${base}" stroke="${col}" stroke-width="${on ? 1.6 : .9}" stroke-dasharray="${on ? '' : '2 2'}" opacity="${on ? 1 : .75}"/>`;
+    s += `<text class="lab${on ? ' on' : ''}" x="${m.x0}" y="${ly}" style="fill:${col}">${m.text}</text>`;
+  }
+  s += `<line id="d-hov" x1="-10" x2="-10" y1="${top}" y2="${base}" stroke="#fff" stroke-width="1.4" opacity="0"/>`;
+  s += `<rect id="d-thr" x="0" y="${top}" width="0" height="${base - top}" fill="rgba(10,12,17,.65)" opacity="0"/>`;
+  s += '</svg>';
+  $('dist').innerHTML = s;
+  updateThrShade();
+}
+function updateThrShade() {
+  const r = document.getElementById('d-thr');
+  if (!r) return;
+  const { lo, hi, W } = DIST, x = (Math.max(lo, Math.min(hi, filter.t)) - lo) / (hi - lo) * W;
+  if (filter.mode === 'all') { r.setAttribute('opacity', 0); return; }
+  r.setAttribute('opacity', 1);
+  if (filter.mode === 'hot') { r.setAttribute('x', 0); r.setAttribute('width', x); }
+  else { r.setAttribute('x', x); r.setAttribute('width', W - x); }
+}
+function hoverDist(t) {
+  const l = document.getElementById('d-hov');
+  if (!l) return;
+  if (t == null) { l.setAttribute('opacity', 0); return; }
+  const x = (Math.max(DIST.lo, Math.min(DIST.hi, t)) - DIST.lo) / (DIST.hi - DIST.lo) * DIST.W;
+  l.setAttribute('x1', x); l.setAttribute('x2', x); l.setAttribute('opacity', 1);
+}
+
+/* ---------- filter ---------- */
+let CUM = null;   // land pixels at or below each code
+const pxKm2 = () => (J.grid.res * Math.cos(1.33 * Math.PI / 180)) ** 2 / 1e6;
+function setFilter(mode, t) {
+  if (mode) filter.mode = mode;
+  if (t != null) filter.t = t;
+  document.querySelectorAll('.filter [data-f]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.f === filter.mode)));
+  $('thr').disabled = filter.mode === 'all';
+  $('thr').value = filter.t;
+  $('thr-v').textContent = `${f1(filter.t)}°`;
+  const cut = Math.round((filter.t - J.grid.tmin) / J.grid.step) + 2, total = CUM[255];
+  const below = CUM[cut - 1];
+  const out = $('thr-out');
+  if (filter.mode === 'all') out.innerHTML = `Pick <b>Hotter than</b> or <b>Cooler than</b> to grey out the rest.`;
+  else {
+    const n = filter.mode === 'hot' ? total - below : below;
+    out.innerHTML = `<b>${nf.format(Math.round(n * pxKm2()))} km²</b> of land (${f1(n / total * 100)}%) is ${filter.mode === 'hot' ? 'at or above' : 'below'} <b>${f1(filter.t)} °C</b>.`;
+  }
+  paint();
+  updateThrShade();
+}
+document.querySelectorAll('.filter [data-f]').forEach(b => b.addEventListener('click', () => setFilter(b.dataset.f)));
+$('thr').addEventListener('input', e => setFilter(null, +e.target.value));
+
+/* ---------- hover read-out ---------- */
+const tip = $('tip');
+function valueAt(lngLat) {
+  const mx = mercX(lngLat.lng), my = mercY(lngLat.lat);
+  const c = Math.floor((mx - gridX0) / gridRes), r = Math.floor((gridY1 - my) / gridRes);
+  if (r < 0 || r >= GH || c < 0 || c >= GW) return 0;
+  return CODES[r * GW + c];
+}
+function probe(e) {
+  if (!CODES) return;
+  const code = valueAt(e.lngLat);
+  if (!code) { tip.hidden = true; hoverDist(null); $('d-hover').textContent = 'hover or tap the map'; return; }
+  if (code === 1) {
+    tip.innerHTML = '<div class="s"><b>No reading here.</b> Cloud on every clear pass, or a gap in Landsat’s temperature product.</div>';
+    tip.hidden = false; placeTip(e); hoverDist(null); $('d-hover').textContent = 'hover or tap the map'; return;
+  }
+  const t = tempOf(code), pct = CUM[code - 1] / CUM[255] * 100;
+  const [r, g, b] = colourAt(t);
+  const d = t - NORM.mid;
+  tip.innerHTML = `<div class="t"><i style="background:rgb(${r},${g},${b})"></i>${f1(t)} °C</div>
+    <div class="s">${Math.abs(d) < .3 ? 'About the island\'s middle' : `<b>${f1(Math.abs(d))}°</b> ${d > 0 ? 'hotter' : 'cooler'} than the island's middle`}<br>Hotter than <b>${pct < 1 ? '<1' : pct > 99 ? Math.min(99.9, pct).toFixed(1) : Math.round(pct)}%</b> of the land</div>`;
+  tip.hidden = false;
+  placeTip(e);
+  hoverDist(t);
+  $('d-hover').innerHTML = `here <b>${f1(t)}°</b>`;
+}
+function placeTip(e) {
+  const W = innerWidth, H = innerHeight, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.point.x + 16, y = e.point.y + 16;
+  if (x + w > W - 8) x = e.point.x - w - 16;
+  if (y + h > H - 8) y = e.point.y - h - 16;
+  tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${Math.max(8, y)}px`;
+}
+const canHover = matchMedia('(hover: hover)').matches;
+if (canHover) map.on('mousemove', probe);
+map.on('click', probe);
+map.getCanvas().addEventListener('mouseleave', () => { tip.hidden = true; hoverDist(null); $('d-hover').textContent = 'hover or tap the map'; });
+map.on('movestart', e => { if (!canHover || !e.originalEvent) { tip.hidden = true; hoverDist(null); } });
+
+/* ---------- the tour ---------- */
+let STOPS = [], active = -1;
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+function camPadding() {
+  const p = $('panel').getBoundingClientRect(), st = $('dmc-stamp').getBoundingClientRect();
+  if (document.documentElement.classList.contains('dmc-focus')) return { top: 30, right: 30, bottom: 30, left: 30 };
+  if (isSheet()) return { top: Math.round(st.bottom + 8), right: 12, bottom: Math.round(innerHeight - p.top + 8), left: 12 };
+  if (p.left > innerWidth / 2) return { top: 16, right: Math.round(innerWidth - p.left + 12), bottom: 16, left: 16 };
+  return { top: 20, right: 58, bottom: 20, left: Math.round(p.right + 12) };
+}
+function go(c) {
+  const padding = camPadding();
+  let cam;
+  if (c.bounds) {
+    const fit = fitBounds(c.bounds, padding);
+    cam = { center: fit.center, zoom: fit.zoom + (c.dz || 0), pitch: c.pitch || 0, bearing: c.bearing || 0, padding };
+  } else cam = { center: c.center, zoom: c.zoom - (isSheet() ? .5 : 0), pitch: c.pitch || 0, bearing: c.bearing || 0, padding };
+  if (reduceMotion) map.jumpTo(cam); else map.flyTo({ ...cam, speed: .8, curve: 1.3, maxDuration: 4200, essential: true });
+}
+// Flat fit of a lon/lat box into the space the panels leave (cameraForBounds fails mid-tilt with terrain).
+function fitBounds([[w, so], [e, n]], p) {
+  const mx = l => (l + 180) / 360, my = l => (1 - Math.log(Math.tan(Math.PI / 4 + l * Math.PI / 360)) / Math.PI) / 2;
+  const cw = map.getContainer().clientWidth, ch = map.getContainer().clientHeight;
+  const aw = Math.max(80, cw - p.left - p.right), ah = Math.max(80, ch - p.top - p.bottom);
+  const zoom = Math.log2(Math.min(aw / ((mx(e) - mx(w)) * 512), ah / ((my(so) - my(n)) * 512)));
+  return { center: [(w + e) / 2, (so + n) / 2], zoom: Math.max(map.getMinZoom(), zoom) };
+}
+function setActivePin(i) { pins.forEach((p, k) => p.getElement().classList.toggle('on', k === i)); }
+
+function hotCard(i) {
+  const h = J.hot[i];
+  return `<h2>${i ? `No. ${i + 1}: ` : 'The hottest roofs in Singapore: '}${h.label}</h2>
+    <div class="hero hot"><b>${f1(h.peak)}<small>°C</small></b><span>its hottest 90 m square,<br>median of ${h.n_obs} passes</span></div>
+    <p>${h.what}. On its hottest pass, <b>${fmtDate(h.hottest_scene.date, h.hottest_scene.time)}</b>, the same spot read <b>${f1(h.hottest_scene.t)} °C</b>.</p>
+    <div class="vs"><div class="h"><span>This roof</span><b>${f1(h.peak)}°</b></div><i>${f1(h.peak - J.zones.reservoirs.mean)}° apart</i><div class="c"><span>Reservoirs</span><b>${f1(J.zones.reservoirs.mean)}°</b></div></div>`;
+}
+// A pin or a list entry: fly to that cluster and show its card, without leaving the tour.
+function showHot(i) {
+  $('card').innerHTML = hotCard(i) + (STOPS[active].key === 'top' ? '<button type="button" class="dmc-btn" id="back-top" style="justify-self:start">Back to the list</button>' : '');
+  const b = $('back-top');
+  if (b) b.addEventListener('click', () => goStop(active, true));
+  $('k-label').textContent = `Roof no. ${i + 1}`; $('k-label').className = 'hot';
+  if (!relief) setRelief(true, true);
+  go({ center: J.hot[i].at, zoom: 15, pitch: 55, bearing: -24 });
+  setActivePin(i);
+}
+function buildStops() {
+  const Z = J.zones, hot = J.hot, top1 = hot[0], res = Z.reservoirs, coolRes = res.items[0];
+  const scenes = J.scenes, first = scenes[0], last = scenes[scenes.length - 1];
+  const gap = top1.peak - res.mean;
+  STOPS = [
+    { key: 'mid', kind: '', label: 'At 11 a.m.', cam: { bounds: DAY.bounds, pitch: 0 }, relief: false, lines: { res: .45 },
+      html: `<h2>How hot does Singapore's ground get in the late morning?</h2>
+        <div class="hero"><b>${f1(J.land.median)}<small>°C</small></b><span>the middle of all land,<br>the typical ground at 11:16 a.m.</span></div>
+        <p>Each colour is the <b>median of ${scenes.length} clear Landsat passes</b>, ${fmtDate(first.date)} to ${fmtDate(last.date)}, all at about 11:16 a.m. Blue is cooler than the middle, red hotter.</p>
+        <p class="note">Land-surface temperature is the heat of the surfaces themselves: roofs, roads, leaves, water. It is not the air temperature, which is usually far lower on a hot roof.</p>` },
+    { key: 'hot0', kind: 'hot', hot: 0, label: 'Hottest roofs', cam: { center: top1.at, zoom: 15, pitch: 55, bearing: -24 }, relief: true, lines: { res: .3 },
+      html: hotCard(0) },
+    { key: 'res', kind: 'cool', label: 'Coolest water', cam: { center: coolRes.at, zoom: 13.3, pitch: 50, bearing: 18 }, relief: true, lines: { res: 1 },
+      html: `<h2>The reservoirs stay coolest of all</h2>
+        <div class="hero cool"><b>${f1(res.mean)}<small>°C</small></b><span>across ${res.items.length} reservoirs,<br>away from their shores</span></div>
+        <p>Water soaks up the sun without warming much. ${coolRes.name} is the coolest at <b>${f1(coolRes.mean)} °C</b>; the warmest, ${res.items[res.items.length - 1].name}, is <b>${f1(res.items[res.items.length - 1].mean)} °C</b>.</p>
+        ${res.solar.map(r => `<p class="more">The exception: <b>${r.name.replace(' Reservoir', '')}</b>, ${Math.round(r.solar * 100)}% covered by floating solar panels, reads <b>${f1(r.mean)} °C</b>${r.mean > J.land.median ? ', hotter than the island\'s middle' : ''}.</p>`).join('')}
+        <div class="vs"><div class="h"><span>Hottest roofs</span><b>${f1(top1.peak)}°</b></div><i>${f1(gap)}° apart</i><div class="c"><span>Reservoirs</span><b>${f1(res.mean)}°</b></div></div>` },
+    { key: 'ind', kind: 'hot', label: 'Industrial estates', cam: { center: [103.685, 1.318], zoom: 12.2, pitch: 52, bearing: -12 }, relief: true, lines: { res: .3, ind: .8 },
+      html: `<h2>Industrial estates run hot all over</h2>
+        <div class="hero hot"><b>${f1(Z.industrial.mean)}<small>°C</small></b><span>the average over ${nf.format(Math.round(Z.industrial.km2))} km²<br>mapped as industrial</span></div>
+        <p>Big metal and concrete roofs, open yards and few trees. On average the estates are <b>${f1(Z.industrial.mean - J.land.median)}°</b> hotter than the island's middle. Nine of the ten hottest roof clusters are in industrial areas; the tenth is a wholesale market.</p>` },
+    { key: 'forest', kind: 'cool', label: 'Catchment forest', cam: { center: [103.805, 1.372], zoom: 12.6, pitch: 52, bearing: 14 }, relief: true, lines: { res: 1, forest: .9 },
+      html: `<h2>The catchment forest keeps itself cool</h2>
+        <div class="hero cool"><b>${f1(Z.forest.mean)}<small>°C</small></b><span>the Central Catchment<br>Nature Reserve, its water left out</span></div>
+        <p>Leaves shade the ground and cool themselves by giving off water. The forest around the central reservoirs is <b>${f1(Z.industrial.mean - Z.forest.mean)}°</b> cooler than the industrial estates on average.</p>
+        <div class="vs"><div class="h"><span>Industrial estates</span><b>${f1(Z.industrial.mean)}°</b></div><i>${f1(Z.industrial.mean - Z.forest.mean)}° apart</i><div class="c"><span>Catchment forest</span><b>${f1(Z.forest.mean)}°</b></div></div>` },
+    { key: 'top', kind: 'hot', label: 'Top 10 roofs', cam: { bounds: DAY.bounds, pitch: 0 }, relief: false, lines: { res: .45 },
+      html: `<h2>The 10 hottest roof clusters</h2>
+        <ol class="top10">${hot.map((h, i) => `<li><button type="button" data-hot="${i}" title="${h.label}: ${f1(h.peak)} °C"><span class="n">${i + 1}</span><span class="w">${h.short}</span><span class="t">${f1(h.peak)}°</span></button></li>`).join('')}</ol>
+        <p class="note">Hottest 90 m square in each, median of the ${scenes.length} passes at 11:16 a.m. Tap one to fly there.</p>` },
+  ];
+}
+
+function goStop(i, fromPin) {
+  i = Math.max(0, Math.min(STOPS.length - 1, i));
+  if (i === active && !fromPin) return;
+  active = i;
+  const s = STOPS[i];
+  $('k-n').textContent = String(i + 1).padStart(2, '0');
+  $('k-label').textContent = s.label;
+  $('k-label').className = s.kind;
+  $('card').innerHTML = s.html;
+  $('prev').disabled = i === 0; $('next').disabled = i === STOPS.length - 1;
+  dots.forEach((b, k) => { if (k === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  const L = s.lines || {};
+  map.setPaintProperty('res-line', 'line-opacity', L.res ?? .45);
+  map.setPaintProperty('forest-line', 'line-opacity', L.forest ?? 0);
+  map.setPaintProperty('ind-line', 'line-opacity', L.ind ?? 0);
+  setActivePin(s.hot ?? -1);
+  setRelief(s.relief, true);
+  drawDist(s.key);
+  $('card').querySelectorAll('[data-hot]').forEach(b => b.addEventListener('click', () => showHot(+b.dataset.hot)));
+  if (!skipCam) go(s.cam);
+  skipCam = false;
+}
+let dots = [], skipCam = params.has('view');
+$('prev').addEventListener('click', () => goStop(active - 1));
+$('next').addEventListener('click', () => goStop(active + 1));
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea, select, .dmc-stamp')) return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goStop(active + 1); }
+  else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); goStop(active - 1); }
+});
+
+/* ---------- layout: the panel stays clear of the stamp ---------- */
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open')) document.documentElement.style.setProperty('--stamp-h', `${Math.round(st.getBoundingClientRect().height)}px`);
+}
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { layout(); if (active >= 0 && !params.has('view')) map.jumpTo((() => { const s = STOPS[active].cam; const padding = camPadding(); if (s.bounds) { const f = map.cameraForBounds(s.bounds, { padding }); return { center: f.center, zoom: f.zoom, pitch: map.getPitch(), bearing: map.getBearing(), padding }; } return { center: s.center, zoom: s.zoom - (isSheet() ? .5 : 0), padding }; })()); }, 180); });
+
+/* ---------- load ---------- */
+async function loadCodes(url) {
+  const blob = await (await fetch(url)).blob();
+  const bmp = await createImageBitmap(blob, { colorSpaceConversion: 'none', premultiplyAlpha: 'none' });
+  const c = document.createElement('canvas'); c.width = bmp.width; c.height = bmp.height;
+  const g = c.getContext('2d', { willReadFrequently: true });
+  g.drawImage(bmp, 0, 0);
+  const d = g.getImageData(0, 0, bmp.width, bmp.height).data, out = new Uint8Array(bmp.width * bmp.height);
+  for (let i = 0, j = 0; i < out.length; i++, j += 4) out[i] = d[j];
+  return { codes: out, w: bmp.width, h: bmp.height };
+}
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([fetch('data/day29/lst.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }), loadCodes('data/day29/lst.png'), styleP]).then(([j, img]) => {
+  J = j; CODES = img.codes; GW = img.w; GH = img.h;
+  if (GW !== J.grid.w || GH !== J.grid.h) throw new Error('grid size mismatch');
+  gridX0 = mercX(J.grid.bounds[0][0]); gridY1 = mercY(J.grid.bounds[1][1]); gridRes = (mercX(J.grid.bounds[1][0]) - gridX0) / GW;
+  PAL = J.palette.map(hex2rgb);
+  NORM = { lo: J.norm.lo, mid: J.land.median, hi: J.norm.hi };
+  DIST.lo = J.norm.axis[0]; DIST.hi = J.norm.axis[1];
+  $('thr').min = DIST.lo; $('thr').max = DIST.hi;
+  filter.t = Math.round(J.land.p95 * 2) / 2;
+  CUM = new Float64Array(256); for (let c = 2; c < 256; c++) CUM[c] = CUM[c - 1] + J.hist[c - 2];   // CUM[c]: land readings at or below code c
+  buildLut();
+  distMarks = [
+    { key: 'res', label: 'Water', t: J.zones.reservoirs.mean, cool: 1 },
+    { key: 'forest', label: 'Forest', t: J.zones.forest.mean, cool: 1 },
+    { key: 'mid', label: 'Middle', t: J.land.median },
+    { key: 'ind', label: 'Industry', t: J.zones.industrial.mean, hot: 1 },
+    { key: 'hot0', label: 'Top roof', t: J.hot[0].peak, hot: 1 },
+  ].sort((a, b) => a.t - b.t);
+  addLayers();
+  addPins();
+  setFilter('all');
+  buildStops();
+  const Z = J.zones.reservoirs;
+  $('method').innerHTML = `Each pixel is the median of up to ${J.scenes.length} clear Landsat 8 and 9 passes (${J.scenes.map(s => fmtDate(s.date)).join(', ')}; all at about 11:16 a.m.), from USGS Collection 2 Level-2 band ST_B10: kelvin = value &times; 0.00341802 + 149.0, then minus 273.15 for &deg;C. Passes differ by a few degrees with the weather, so each is first shifted to the same island-wide middle (by ${f1(Math.min(...J.scenes.map(s => s.shift)))}&deg; to +${f1(Math.max(...J.scenes.map(s => s.shift)))}&deg;), which keeps cloud gaps from leaving seams; the hottest-pass readings are as measured. Pixels flagged as cloud, cirrus or shadow in QA_PIXEL are left out, and so is any value more than 6&deg; below its pixel's median (haze the cloud mask missed). Grey land has no reading in any pass: gaps in Landsat&rsquo;s temperature product, mostly where its emissivity input is missing. The thermal sensor sees 100 m squares, which USGS resamples to 30 m, so a &ldquo;roof cluster&rdquo; is a group of big roofs, not one roof. Reservoirs are measured at least 90 m from the shore${Z.nodata.length ? `; ${Z.nodata.join(', ')} ha${Z.nodata.length > 1 ? 've' : 's'} no temperature data from Landsat` : ''}${Z.solar.length ? `; ${Z.solar.map(r => `${r.name}, ${Math.round(r.solar * 100)}% under floating solar panels (OpenStreetMap)`).join(', ')}, ${Z.solar.length > 1 ? 'are' : 'is'} counted apart` : ''}. Catchment forest is the Central Catchment Nature Reserve without its water (grown by 90 m). Industrial estates are all land OpenStreetMap maps as industrial.`;
+  dots = STOPS.map((s, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = s.kind; b.setAttribute('aria-label', `Stop ${i + 1}: ${s.label}`);
+    b.addEventListener('click', () => goStop(i));
+    $('dots').append(b);
+    return b;
+  });
+  const start = Math.max(0, Math.min(STOPS.length - 1, (parseInt(params.get('stop') || '1', 10) || 1) - 1));
+  if (start === 0) skipCam = true;   // the kit has already framed the island
+  goStop(start);
+  map.once('idle', () => { $('loading').hidden = true; });
+}).catch(err => {
+  $('loading').textContent = 'The temperature data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body></html>
