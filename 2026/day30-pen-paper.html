@@ -1,0 +1,1133 @@
+<!DOCTYPE html>
+<html lang="en-SG" class="drawing">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F3EEE3">
+<title>Day 30 · Draw Singapore from memory</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 30, Pen &amp; paper: draw Singapore's main island from memory on a blank sheet, pin four places, then lift the paper to see SLA's real coast on OneMap and how your drawing scores against Claude's from Day 10.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F3EEE3'/%3E%3Cpath d='M5 17c2-4 5-6 9-6 3 0 5 1 8 1 2 0 4 1 5 3-2 3-5 4-9 4-5 0-9 0-13-2z' fill='none' stroke='%2334322F' stroke-width='1.8' stroke-linejoin='round'/%3E%3Cpath d='M4 19c3-5 7-7 11-7s8 1 12 4' fill='none' stroke='%231E6BB8' stroke-width='1.6' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Kalam:wght@300;400;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 30: a pencil drawing on a scanned sheet, then the paper lifts off OneMap ===== */
+:root {
+  --paper: #F3EEE3; --paper-hi: #FBF8F1;
+  --graphite: #34322F; --graphite-2: rgba(52, 50, 47, .74); --graphite-3: rgba(52, 50, 47, .5);
+  --claude: #8A4F7D; --friend: #6B6762;
+  --hand: "Kalam", "Segoe Print", "Bradley Hand", cursive;
+  /* the kit's glass, re-drawn as paper */
+  --glass: rgba(251, 248, 241, .97); --line: rgba(52, 50, 47, .2);
+  --text: var(--graphite); --text-2: var(--graphite-2);
+  --panel-w: 300px; --panel-top: 104px;
+  --wobble: 255px 14px 225px 14px / 14px 225px 14px 255px;
+  color-scheme: light;
+}
+body { background: var(--paper); color: var(--graphite); }
+.dmc-map { background: var(--paper); }
+.dmc-glass { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 rgba(255, 255, 255, .8) inset, 0 8px 22px rgba(70, 55, 30, .14), 0 1px 3px rgba(70, 55, 30, .12); }
+.dmc-num { text-shadow: none; }
+.dmc-theme { font-family: var(--hand); font-weight: 700; text-transform: none; font-size: 17px; letter-spacing: 0; }
+.dmc-more, .dmc-btn { background: rgba(52, 50, 47, .05); color: var(--graphite); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(52, 50, 47, .11); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(52, 50, 47, .2); }
+.dmc-index li.done { background: rgba(52, 50, 47, .1); }
+.dmc-index li.today { color: #fff; box-shadow: none; }
+.dmc-keys kbd { color: var(--graphite); }
+.dmc-focus-credit { background: rgba(251, 248, 241, .92); }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
+.maplibregl-ctrl-attrib.maplibregl-compact a { color: var(--graphite); }
+.maplibregl-ctrl-attrib-button { filter: none; }
+html.drawing .maplibregl-ctrl-top-right { visibility: hidden; }
+
+/* ---- the scanned sheet: base tone (fades on reveal) and grain (stays, multiplied over the map) ---- */
+.paper { position: absolute; inset: 0; pointer-events: none; z-index: 1; }
+.paper > div { position: absolute; inset: 0; }
+.paper-base {
+  background-color: var(--paper);
+  background-image:
+    linear-gradient(101deg, transparent 61.6%, rgba(255, 255, 255, .55) 61.75%, rgba(95, 78, 50, .09) 61.9%, transparent 62.3%),
+    linear-gradient(90deg, rgba(70, 58, 36, .16), transparent 3.5%, transparent 97%, rgba(70, 58, 36, .1)),
+    radial-gradient(ellipse 80% 75% at 48% 44%, transparent 55%, rgba(95, 78, 50, .13)),
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='520' height='520'><filter id='b'><feTurbulence type='fractalNoise' baseFrequency='.0055' numOctaves='3' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .47  0 0 0 0 .32  0 0 0 -.7 .38'/></filter><rect width='100%25' height='100%25' filter='url(%23b)'/></svg>");
+  transition: opacity 1.5s ease;
+}
+.paper-grain {
+  mix-blend-mode: multiply;
+  background-image:
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='260' height='260'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' seed='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .36  0 0 0 0 .31  0 0 0 0 .23  0 0 0 -1.15 .62'/></filter><rect width='100%25' height='100%25' filter='url(%23g)'/></svg>"),
+    url("data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' width='420' height='420'><filter id='f'><feTurbulence type='fractalNoise' baseFrequency='.07 .12' numOctaves='2' seed='11' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .5  0 0 0 0 .43  0 0 0 0 .3  0 0 0 -1 .4'/></filter><rect width='100%25' height='100%25' filter='url(%23f)'/></svg>");
+  transition: opacity 1.5s ease;
+}
+html:not(.drawing) .paper-base { opacity: 0; }
+html:not(.drawing) .paper-grain { opacity: .8; }
+
+/* ---- the drawing sheet: placed over the window the map frames ---- */
+.sheet { position: absolute; z-index: 1; left: 0; top: 0; width: 0; height: 0; touch-action: none; user-select: none; -webkit-user-select: none; outline: none; transition: opacity .6s; }
+.sheet svg { display: block; width: 100%; height: 100%; overflow: visible; cursor: crosshair; }
+.sheet:focus-visible .frame { stroke: var(--day-accent); }
+.sheet.pin-mode svg { cursor: copy; }
+html:not(.drawing) .sheet { opacity: 0; pointer-events: none; visibility: hidden; transition: opacity .6s, visibility 0s .6s; }
+.sheet .frame { fill: none; stroke: var(--graphite); stroke-opacity: .7; stroke-linejoin: round; }
+.sheet .tick { stroke: var(--graphite); stroke-opacity: .55; fill: none; stroke-linecap: round; }
+.sheet .tick-l { font-family: var(--hand); fill: var(--graphite-2); }
+.sheet .note { font-family: var(--hand); fill: var(--graphite-3); }
+.sheet .stroke { fill: none; stroke: var(--graphite); stroke-linecap: round; stroke-linejoin: round; }
+.sheet .closer { fill: none; stroke: var(--graphite); stroke-opacity: .35; stroke-linecap: round; }
+.sheet .friend { fill: none; stroke: var(--friend); stroke-linecap: round; stroke-linejoin: round; }
+.sheet .pin-x { stroke: var(--graphite); stroke-linecap: round; fill: none; }
+.sheet .pin-l { font-family: var(--hand); font-weight: 700; fill: var(--graphite); paint-order: stroke; stroke: var(--paper); stroke-linejoin: round; }
+.sheet .kbd-cur { fill: none; stroke: var(--day-accent); }
+.sheet .hint { transition: opacity .5s; }
+
+/* ---- the panel: a taped index card ---- */
+.card { position: absolute; z-index: 2; top: var(--panel-top); left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--panel-w); display: flex; flex-direction: column; border-radius: 6px 9px 7px 10px;
+  background-color: var(--paper-hi);
+  background-image: repeating-linear-gradient(transparent 0 21px, rgba(30, 107, 184, .07) 21px 22px);
+  background-position: 0 50px; }
+.card::before { content: ""; position: absolute; top: -9px; left: 50%; width: 86px; height: 20px; transform: translateX(-50%) rotate(-2.5deg);
+  background: rgba(226, 214, 180, .62); box-shadow: 0 1px 2px rgba(70, 55, 30, .12); border-left: 1px dashed rgba(255, 255, 255, .6); border-right: 1px dashed rgba(255, 255, 255, .6); pointer-events: none; }
+.card-in { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; padding: 13px 15px 10px; display: grid; align-content: start; gap: 10px; }
+.card-foot:empty { display: none; }
+.card-foot { padding: 8px 15px 11px; border-top: 1px dashed rgba(52, 50, 47, .22); display: grid; gap: 7px; }
+.card :is(p, h2, h3, ol, ul, table) { margin: 0; }
+.card .kick { font-size: 10.5px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--day-accent); }
+.card h2 { font-family: var(--hand); font-weight: 700; font-size: 23px; line-height: 1.08; letter-spacing: -.005em; }
+.card p { font-size: 12px; line-height: 1.5; color: var(--graphite-2); }
+.card p b { color: var(--graphite); font-weight: 600; }
+.card .lbl { font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--graphite-3); }
+.grp { display: grid; gap: 5px; }
+
+/* hand-drawn buttons */
+.hb { position: relative; font: 400 14px/1.1 var(--hand); color: var(--graphite); background: transparent; border: 1.6px solid var(--graphite); border-radius: var(--wobble);
+  padding: 5px 10px 4px; min-height: 32px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+.hb::after { content: ""; position: absolute; inset: -6px -3px; }
+.hb:hover { background: rgba(52, 50, 47, .06); }
+.hb[aria-pressed="true"] { background: rgba(30, 107, 184, .11); border-color: var(--day-accent); color: #134a82; }
+.hb:disabled { opacity: .4; cursor: not-allowed; }
+.hb svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }
+.hb.big { font-size: 18px; font-weight: 700; min-height: 42px; padding: 7px 14px 5px; border-width: 2px; color: #fff; background: var(--day-accent); border-color: #134a82; width: 100%; }
+.hb.big:hover { background: #185da1; }
+.card #reveal { position: sticky; bottom: 0; z-index: 1; box-shadow: 0 -10px 12px -2px var(--paper-hi), 0 2px 0 4px var(--paper-hi); }
+.hb.big:disabled { background: rgba(30, 107, 184, .45); }
+.row { display: flex; flex-wrap: wrap; gap: 6px; }
+.pins .hb { font-size: 13.5px; padding: 4px 8px 3px; min-height: 30px; }
+.pins .hb .ok { color: var(--day-accent); font-weight: 700; }
+.seg2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.seg2 .hb { font-size: 14px; }
+.small { font-size: 11px !important; line-height: 1.45 !important; }
+.status { min-height: 1.45em; }
+
+/* results */
+.card .verdict { font-family: var(--hand); font-weight: 700; font-size: 24px; line-height: 1.05; color: #134a82; }
+.card .verdict small { display: block; font-size: 14px; font-weight: 400; color: var(--graphite-2); margin-top: 3px; }
+.tbl { width: 100%; border-collapse: collapse; font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.tbl th { font-size: 10px; font-weight: 600; letter-spacing: .05em; text-transform: uppercase; color: var(--graphite-3); text-align: right; padding: 0 0 4px 6px; vertical-align: bottom; }
+.tbl th:first-child { text-align: left; padding-left: 0; }
+.tbl td { padding: 5px 0 4px 6px; border-top: 1px dashed rgba(52, 50, 47, .2); text-align: right; vertical-align: top; white-space: nowrap; }
+.tbl td:first-child { text-align: left; padding-left: 0; white-space: normal; color: var(--graphite-2); line-height: 1.3; }
+.tbl td:first-child small { display: block; font-size: 10px; color: var(--graphite-3); }
+.tbl .v { position: relative; display: inline-block; font: 700 15px/1 var(--hand); color: var(--graphite); padding: 3px 5px 1px; }
+.tbl .v.win::before { content: ""; position: absolute; inset: -2px -3px -1px -4px; border: 1.6px solid var(--day-accent); border-radius: 50% 44% 52% 47% / 55% 50% 46% 52%; transform: rotate(-4deg); }
+.tbl .sub { display: block; font-size: 10px; color: var(--graphite-3); margin-top: 1px; }
+.legend { display: grid; gap: 4px; font-size: 11.5px; color: var(--graphite-2); }
+.legend label, .legend span.k { display: flex; align-items: center; gap: 7px; }
+.legend i { flex: none; width: 22px; height: 0; border-top: 2.4px solid; }
+.legend input { margin: 0; accent-color: var(--day-accent); width: 15px; height: 15px; }
+.copybox { width: 100%; font: 11px var(--font); padding: 5px 6px; border: 1px solid var(--line); border-radius: 5px; background: #fff; color: var(--graphite); }
+.copybox[hidden] { display: none; }
+.card .dmc-credits { padding-top: 8px; border-top: 1px dashed rgba(52, 50, 47, .22); }
+.dmc-credits a { text-decoration-color: rgba(52, 50, 47, .35); }
+[hidden] { display: none !important; }
+
+/* ---- the ruler: all 30 days ---- */
+.ruler { position: absolute; z-index: 2; right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  display: flex; align-items: stretch; border-radius: 3px; overflow: hidden;
+  background: rgba(250, 236, 170, .9);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 4px 12px rgba(70, 55, 30, .18); }
+.ruler .rt { flex: none; display: grid; place-items: center; padding: 0 9px; font: 700 13px/1 var(--hand); color: var(--graphite); border-right: 1px solid rgba(52, 50, 47, .3); }
+.ruler ol { list-style: none; margin: 0; padding: 0 3px; display: flex;
+  background-image: repeating-linear-gradient(90deg, rgba(52, 50, 47, .55) 0 1px, transparent 1px 22px), repeating-linear-gradient(90deg, rgba(52, 50, 47, .35) 0 1px, transparent 1px 11px);
+  background-size: 100% 9px, 100% 5px; background-repeat: no-repeat; background-position: 3px 0, 3px 0; }
+.ruler li { width: 22px; flex: none; }
+.ruler li > * { display: grid; place-items: end center; height: 34px; padding-bottom: 5px; font: 400 12.5px/1 var(--hand); color: var(--graphite); text-decoration: none; border-radius: 3px; }
+.ruler li > a:hover { background: rgba(52, 50, 47, .1); }
+.ruler li > span { color: var(--graphite-3); }
+.ruler li > a[aria-current="page"] { color: #134a82; font-weight: 700; position: relative; }
+.ruler li > a[aria-current="page"]::before { content: ""; position: absolute; left: 1px; right: 1px; bottom: 1px; height: 20px; border: 1.5px solid var(--day-accent); border-radius: 50% 46% 52% 44%; transform: rotate(-6deg); }
+
+/* ---- map pins after the reveal ---- */
+.mk { width: 16px; height: 16px; pointer-events: none; }
+.mk .x { display: block; width: 16px; height: 16px; }
+.mk .t { position: absolute; left: 50%; bottom: 100%; transform: translateX(-50%); }
+.mk.truth { width: 9px; height: 9px; }
+.mk.truth .t { bottom: auto; top: calc(100% + 1px); }
+.mk .x path { stroke: var(--graphite); stroke-width: 2.4; stroke-linecap: round; }
+.mk .t { padding: 0 4px; font: 700 13px/1.15 var(--hand); color: var(--graphite); white-space: nowrap; text-shadow: 0 0 3px var(--paper-hi), 0 0 3px var(--paper-hi), 0 0 2px var(--paper-hi); text-align: center; }
+.mk .t small { display: block; font-weight: 400; font-size: 11.5px; color: var(--graphite-2); }
+.mk.truth .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--day-accent); box-shadow: 0 0 0 2px var(--paper-hi); }
+.mk.truth .t { color: #134a82; font-weight: 400; font-size: 12px; }
+.busy { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 6px 14px 4px; font: 700 16px var(--hand); color: var(--graphite); background: var(--paper-hi); border: 1.6px solid var(--graphite); border-radius: var(--wobble); }
+.busy[hidden] { display: none; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .card h2 { font-size: 20px; }
+  .card .verdict { font-size: 20px; }
+  .card-in { padding: 11px 12px 9px; gap: 8px; }
+  .card-foot { padding: 7px 12px 9px; }
+  .ruler { position: static; margin-top: 2px; overflow-x: auto; box-shadow: none; }
+  .ruler li > * { height: 30px; padding-bottom: 3px; font-size: 12px; }
+  .ruler .rt { font-size: 12px; padding: 0 7px; }
+  .mk .t { font-size: 11.5px; }
+  .mk .t small { font-size: 10.5px; }
+  .mk.truth .t { font-size: 10.5px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .card { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: 44vh; height: 44dvh; border-radius: 14px 14px 0 0; background-position: 0 40px; }
+  .card::before { display: none; }
+  .card-foot { padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .card { left: auto; right: calc(var(--gutter) + 48px + env(safe-area-inset-right, 0px)); top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); width: min(330px, 46vw); }
+  .card::before { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .paper-base, .paper-grain, .sheet { transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="A blank paper sheet to draw Singapore's main island on from memory. After the reveal it lifts to show OneMap with SLA's real coastline and your drawing over it."></div>
+<div id="sheet" class="sheet" tabindex="0" role="application" aria-roledescription="drawing sheet"
+  aria-label="Drawing sheet. Draw with a finger, mouse or pen. By keyboard: arrow keys move the pencil (hold Shift for big steps), Space adds a point, Backspace undoes."></div>
+<p id="busy" class="busy dmc-chrome" hidden>Measuring&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="card" class="dmc-glass card" data-dmc-overlay aria-label="Draw Singapore from memory">
+  <div class="card-in">
+    <!-- step 1: draw -->
+    <div id="v-draw" class="grp" style="gap:10px">
+      <p class="kick">Pen &amp; paper &middot; the last day</p>
+      <h2>Draw Singapore from memory</h2>
+      <p id="draw-intro">No peeking. Draw the main island's coast on the sheet with a finger, mouse or pen. Lift and carry on as often as you like: your strokes join up into one outline.</p>
+      <p id="friend-intro" hidden>A friend drew Singapore from memory and sent you their sheet. <b>Draw yours first</b>, without looking at a map, then see who got closer. Or just reveal theirs.</p>
+      <div class="grp">
+        <p class="lbl">Then pin what you know <span style="text-transform:none;letter-spacing:0;font-weight:400">(optional)</span></p>
+        <div id="pins" class="row pins"></div>
+      </div>
+      <div class="row">
+        <button id="undo" class="hb" type="button" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3 2 6l3 3M2 6h7a4 4 0 0 1 0 8H6"/></svg>Undo</button>
+        <button id="clear" class="hb" type="button" disabled><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 4h10M6 4V2.5h4V4M4.5 4l.7 9.5h5.6l.7-9.5"/></svg>Clear</button>
+        <button id="friend-reveal" class="hb" type="button" hidden>Reveal theirs</button>
+      </div>
+      <div class="grp">
+        <p class="lbl">How should it be scored?</p>
+        <div class="seg2" role="group" aria-label="How to score the drawing">
+          <button class="hb mode" type="button" data-mode="drawn" aria-pressed="true">As drawn</button>
+          <button class="hb mode" type="button" data-mode="fit" aria-pressed="false">Best fit</button>
+        </div>
+        <p class="small mode-note"></p>
+      </div>
+      <button id="reveal" class="hb big" type="button" disabled>Lift the paper</button>
+      <p id="draw-status" class="small status" aria-live="polite">Draw a closed shape to reveal the real coast.</p>
+    </div>
+
+    <!-- step 2: the reveal -->
+    <div id="v-result" class="grp" style="gap:10px" hidden>
+      <p class="kick" id="r-kick">The real Singapore</p>
+      <p class="verdict" id="verdict" aria-live="polite"></p>
+      <div class="grp">
+        <div class="seg2" role="group" aria-label="How to score the drawing">
+          <button class="hb mode" type="button" data-mode="drawn" aria-pressed="true">As drawn</button>
+          <button class="hb mode" type="button" data-mode="fit" aria-pressed="false">Best fit</button>
+        </div>
+        <p class="small mode-note"></p>
+      </div>
+      <table class="tbl" id="tbl" aria-label="Scores"></table>
+      <p id="summary"></p>
+      <div class="legend" id="legend">
+        <span class="k"><i style="border-color:var(--day-accent)"></i>SLA's real coast (main island and islands)</span>
+        <span class="k" id="lg-mine"><i style="border-color:var(--graphite)"></i><span id="lg-mine-t">Your drawing</span></span>
+        <label id="lg-friend" hidden><input type="checkbox" id="show-friend" checked><i style="border-color:var(--friend);border-top-style:dotted"></i>Your friend's drawing</label>
+        <label><input type="checkbox" id="show-claude"><i style="border-color:var(--claude);border-top-style:dashed"></i>Claude's drawing from Day 10</label>
+      </div>
+      <div class="row">
+        <button id="share" class="hb" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5 9.5 6.5M7 4.5l1.3-1.3a2.8 2.8 0 0 1 4 4L11 8.5M9 11.5l-1.3 1.3a2.8 2.8 0 0 1-4-4L5 7.5"/></svg>Copy a link to your drawing</button>
+        <button id="again" class="hb" type="button">Draw again</button>
+        <button id="try" class="hb" type="button" hidden>Now try it yourself</button>
+      </div>
+      <input id="copybox" class="copybox" type="text" readonly aria-label="Link to your drawing" hidden>
+      <p id="share-status" class="small status" aria-live="polite"></p>
+      <p id="method" class="small"></p>
+    </div>
+    <p id="credits" class="dmc-credits"></p>
+  </div>
+  <div class="card-foot" id="card-foot"></div>
+</section>
+
+<nav id="ruler" class="ruler" data-dmc-overlay aria-label="All 30 days of the challenge">
+  <span class="rt">All 30 days</span>
+  <ol id="ruler-days"></ol>
+</nav>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 30,
+  title: 'Draw Singapore from memory',
+  deck: 'Draw the main island from memory on a blank sheet and pin four places you know. Then lift the paper: SLA\'s real coast appears on OneMap, and your drawing is scored the way Claude\'s was on Day 10.',
+  accent: '#1E6BB8',
+  basemap: 'Grey',
+  basemapPaint: { 'raster-contrast': -.12, 'raster-brightness-min': .08 },
+  basemapBg: '#F3EEE3',
+  bounds: [[103.565, 1.15671], [104.115, 1.523276]],   // the sheet's window, also in data/day30/paper.json
+  maxBounds: [[102.6, .5], [105.0, 2.2]], minZoom: 8, maxZoom: 17,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 50 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Coast: <a href="https://data.gov.sg/datasets/d_29f066d67df3eae91df8a42f443863c8/view" target="_blank" rel="noopener noreferrer">SLA National Map Polygon</a> (Coastal Outlines, Oct 2026) via data.gov.sg, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>',
+    'Landmarks: LTA station points via <a href="https://github.com/cheeaun/sgraildata" target="_blank" rel="noopener noreferrer">sgraildata</a> 5.1.0 (12 Jul 2026)',
+    'Claude\'s drawing and scores: <a href="day10-prompting.html">Day 10</a>',
+  ],
+  author: '', nav: null,
+};
+// Every day page in this folder when Day 30 was built, by day number (null: not published yet).
+const DAY_FILES = ['day01-points.html', 'day02-lines.html', 'day03-polygons.html', 'day04-clusters.html', 'day05-sight.html',
+  'day06-vintage.html', 'day07-print-studio.html', 'day08-utopia.html', 'day09-urban-rural.html', 'day10-prompting.html',
+  'day11-sound.html', 'day12-power.html', 'day13-interactions.html', 'day14-borgesian.html', 'day15-inside-out.html',
+  'day16-collaborative.html', 'day17-light-dark.html', 'day18-null.html', 'day19-smell.html', 'day20-hexagons.html',
+  'day21-openstreetmap.html', 'day22-projections.html', 'day23-taste.html', 'day24-network.html', 'day25-is-this-a-map.html',
+  'day26-water.html', 'day27-new-tool.html', 'day28-feeling.html', 'day29-raster.html', 'day30-pen-paper.html'];
+
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY, { interactive: true });
+window.map = map;
+// The scanned sheet lives inside the map, above the tiles and below the buttons.
+const paperEl = document.createElement('div');
+paperEl.className = 'paper';
+paperEl.innerHTML = '<div class="paper-base"></div><div class="paper-grain"></div>';
+map.getContainer().insertBefore(paperEl, map.getContainer().querySelector('.maplibregl-control-container'));
+
+const $ = id => document.getElementById(id);
+const html = document.documentElement;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const compactQ = matchMedia(DMC.COMPACT_Q);
+const nf = new Intl.NumberFormat('en-SG');
+const svgNS = 'http://www.w3.org/2000/svg';
+const mk = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(svgNS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (parent) parent.append(e);
+  return e;
+};
+const hel = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+
+/* ---------- the ruler of 30 days ---------- */
+(function ruler() {
+  const ol = $('ruler-days');
+  DAY_FILES.forEach((f, i) => {
+    const li = hel('li'), d = i + 1, label = `Day ${d}: ${DMC.THEMES[i]}`;
+    const a = f ? hel('a', null, String(d)) : hel('span', null, String(d));
+    if (f) { a.href = f; a.title = label; a.setAttribute('aria-label', label); }
+    else { a.title = `${label} (not published yet)`; a.setAttribute('aria-label', `${label}, not published yet`); }
+    if (d === DAY.n) a.setAttribute('aria-current', 'page');
+    li.append(a); ol.append(li);
+  });
+  // On phones the ruler lives at the foot of the card instead of along the bottom of the screen.
+  const place = () => { if (compactQ.matches) $('card-foot').prepend($('ruler')); else document.body.append($('ruler')); };
+  compactQ.addEventListener('change', place); place();
+})();
+
+// The card starts under the stamp on wide screens.
+new ResizeObserver(() => {
+  const r = $('dmc-stamp').getBoundingClientRect();
+  html.style.setProperty('--panel-top', `${Math.round(r.bottom + 12)}px`);
+}).observe($('dmc-stamp'));
+
+/* ---------- geometry: the sheet, Web Mercator and SVY21 ---------- */
+const SW = 3000, SH = 2000;                       // sheet units: 3 wide by 2 high, about 20 m each
+const [[WW, WS], [WE, WN]] = DAY.bounds;
+const mercY = lat => Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360));
+const mercLat = y => (2 * Math.atan(Math.exp(y)) - Math.PI / 2) * 180 / Math.PI;
+const YN = mercY(WN), YS = mercY(WS);
+const sheetToLL = ([x, y]) => [WW + x / SW * (WE - WW), mercLat(YN - y / SH * (YN - YS))];
+const llToSheet = ([lon, lat]) => [(lon - WW) / (WE - WW) * SW, (YN - mercY(lat)) / (YN - YS) * SH];
+
+// SVY21 (EPSG:3414): transverse Mercator on WGS84, origin 1°22'N 103°50'E, scale 1.
+const SVY = (() => {
+  const a = 6378137, f = 1 / 298.257223563, e2 = 2 * f - f * f, e4 = e2 * e2, e6 = e4 * e2;
+  const A0 = 1 - e2 / 4 - 3 * e4 / 64 - 5 * e6 / 256, A2 = 3 / 8 * (e2 + e4 / 4 + 15 * e6 / 128), A4 = 15 / 256 * (e4 + 3 * e6 / 4), A6 = 35 * e6 / 3072;
+  const R = Math.PI / 180, lat0 = 1.366666 * R, lon0 = 103.833333 * R, N0 = 38744.572, E0 = 28001.642, k = 1;
+  const M = p => a * (A0 * p - A2 * Math.sin(2 * p) + A4 * Math.sin(4 * p) - A6 * Math.sin(6 * p));
+  const M0 = M(lat0);
+  function fwd(lon, lat) {
+    const p = lat * R, s = Math.sin(p), c = Math.cos(p), c2 = c * c, c3 = c2 * c, c4 = c2 * c2, c5 = c4 * c, c6 = c3 * c3, c7 = c6 * c;
+    const t = Math.tan(p), t2 = t * t, t4 = t2 * t2, t6 = t4 * t2;
+    const rho = a * (1 - e2) / Math.pow(1 - e2 * s * s, 1.5), v = a / Math.sqrt(1 - e2 * s * s), psi = v / rho, psi2 = psi * psi, psi3 = psi2 * psi, psi4 = psi3 * psi;
+    const w = lon * R - lon0, w2 = w * w, w4 = w2 * w2, w6 = w4 * w2, w8 = w6 * w2;
+    const n1 = w2 / 2 * v * s * c, n2 = w4 / 24 * v * s * c3 * (4 * psi2 + psi - t2);
+    const n3 = w6 / 720 * v * s * c5 * (8 * psi4 * (11 - 24 * t2) - 28 * psi3 * (1 - 6 * t2) + psi2 * (1 - 32 * t2) - psi * 2 * t2 + t4);
+    const n4 = w8 / 40320 * v * s * c7 * (1385 - 3111 * t2 + 543 * t4 - t6);
+    const e1 = w2 / 6 * c2 * (psi - t2), ee2 = w4 / 120 * c4 * (4 * psi3 * (1 - 6 * t2) + psi2 * (1 + 8 * t2) - psi * 2 * t2 + t4);
+    const ee3 = w6 / 5040 * c6 * (61 - 479 * t2 + 179 * t4 - t6);
+    return [E0 + k * v * w * c * (1 + e1 + ee2 + ee3), N0 + k * (M(p) - M0 + n1 + n2 + n3 + n4)];
+  }
+  function inv(E, N) {   // Newton's method on fwd: exact to well under a millimetre
+    let lon = 103.833333 + (E - E0) / 111320, lat = 1.366666 + (N - N0) / 110570;
+    for (let i = 0; i < 5; i++) {
+      const h = 1e-5, [e0, n0] = fwd(lon, lat), [e1, n1] = fwd(lon + h, lat), [ex, nx] = fwd(lon, lat + h);
+      const A = (e1 - e0) / h, B = (ex - e0) / h, C = (n1 - n0) / h, Dd = (nx - n0) / h, det = A * Dd - B * C;
+      const dE = E - e0, dN = N - n0;
+      lon += (Dd * dE - B * dN) / det; lat += (-C * dE + A * dN) / det;
+    }
+    return [lon, lat];
+  }
+  return { fwd, inv };
+})();
+const toSv = ll => SVY.fwd(ll[0], ll[1]);
+
+/* ---------- the drawing: strokes, pins, simplification and the share code ---------- */
+const MARKS = ['Changi Airport', 'Jurong', 'Woodlands', 'Marina Bay'];
+const S = { strokes: [], pins: [null, null, null, null], tool: -1, undo: [], kb: null, cursor: [SW / 2, SH / 2], kbStroke: null };
+let friend = null, badLink = false;   // a drawing that came in through a link: { ring, pins }
+let mode = 'drawn', phase = 'draw', shown = null;   // shown: 'mine' | 'friend'
+
+function rdp(pts, tol) {
+  if (pts.length < 3) return pts.slice();
+  const keep = new Uint8Array(pts.length); keep[0] = keep[pts.length - 1] = 1;
+  const stack = [[0, pts.length - 1]];
+  while (stack.length) {
+    const [i0, i1] = stack.pop();
+    const [ax, ay] = pts[i0], [bx, by] = pts[i1], dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+    let best = -1, bi = -1;
+    for (let i = i0 + 1; i < i1; i++) {
+      const [px, py] = pts[i];
+      let d;
+      if (!L2) d = Math.hypot(px - ax, py - ay);
+      else { const t = Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)); d = Math.hypot(px - ax - t * dx, py - ay - t * dy); }
+      if (d > best) { best = d; bi = i; }
+    }
+    if (best > tol) { keep[bi] = 1; stack.push([i0, bi], [bi, i1]); }
+  }
+  return pts.filter((_, i) => keep[i]);
+}
+const MAX_PTS = 1500;
+// The outline that is scored and shared: every stroke joined in order, simplified, on whole sheet units.
+function myRing() {
+  const all = S.strokes.flat();
+  if (all.length < 3) return null;
+  let tol = 3, out;
+  do {
+    out = [];
+    for (const [x, y] of rdp(all, tol)) {
+      const p = [Math.round(Math.min(SW, Math.max(0, x))), Math.round(Math.min(SH, Math.max(0, y)))];
+      const q = out[out.length - 1];
+      if (!q || q[0] !== p[0] || q[1] !== p[1]) out.push(p);
+    }
+    while (out.length > 1 && out[0][0] === out[out.length - 1][0] && out[0][1] === out[out.length - 1][1]) out.pop();
+    tol *= 1.5;
+  } while (out.length > MAX_PTS);
+  return out.length >= 3 && Math.abs(shoelace(out)) > 400 ? out : null;   // at least ~0.16 km2
+}
+function shoelace(r) { let s = 0; for (let i = 0, j = r.length - 1; i < r.length; j = i++) s += (r[j][0] + r[i][0]) * (r[j][1] - r[i][1]); return s / 2; }
+const myPins = () => S.pins.map(p => p && [Math.round(p[0]), Math.round(p[1])]);
+
+// Share code v1, base64url: [1][pin mask][n varint][x0 y0 uint16][dx dy zigzag varints...][pins uint16 pairs]
+function encode(ring, pins) {
+  const b = [1];
+  let mask = 0; pins.forEach((p, i) => { if (p) mask |= 1 << i; }); b.push(mask);
+  const vu = n => { while (n > 127) { b.push((n & 127) | 128); n >>>= 7; } b.push(n); };
+  const u16 = n => b.push(n & 255, n >> 8);
+  vu(ring.length); u16(ring[0][0]); u16(ring[0][1]);
+  for (let i = 1; i < ring.length; i++) for (const k of [0, 1]) { const d = ring[i][k] - ring[i - 1][k]; vu(d >= 0 ? d * 2 : -d * 2 - 1); }
+  pins.forEach(p => { if (p) { u16(p[0]); u16(p[1]); } });
+  let s = ''; for (const x of b) s += String.fromCharCode(x);
+  return btoa(s).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+}
+// Reads a code from a link. Anything malformed or out of range is refused, never drawn.
+function decode(code) {
+  if (typeof code !== 'string' || code.length > 9000 || !/^[A-Za-z0-9_-]{8,}$/.test(code)) return null;
+  let bin;
+  try { bin = atob(code.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((code.length + 3) % 4)); } catch { return null; }
+  const b = Uint8Array.from(bin, c => c.charCodeAt(0));
+  let i = 0;
+  const need = n => { if (i + n > b.length) throw 0; };
+  const vu = () => { let n = 0, sh = 0, x; do { need(1); x = b[i++]; n |= (x & 127) << sh; sh += 7; if (sh > 21) throw 0; } while (x & 128); return n; };
+  const u16 = () => { need(2); const v = b[i] | b[i + 1] << 8; i += 2; return v; };
+  const inX = v => v >= 0 && v <= SW, inY = v => v >= 0 && v <= SH;
+  try {
+    need(2);
+    if (b[i++] !== 1) return null;
+    const mask = b[i++];
+    if (mask > 15) return null;
+    const n = vu();
+    if (n < 3 || n > MAX_PTS) return null;
+    const ring = [[u16(), u16()]];
+    for (let k = 1; k < n; k++) {
+      const p = ring[k - 1].map(() => 0);
+      for (const j of [0, 1]) { const z = vu(); p[j] = ring[k - 1][j] + (z & 1 ? -(z + 1) / 2 : z / 2); }
+      ring.push(p);
+    }
+    if (!ring.every(([x, y]) => inX(x) && inY(y))) return null;
+    const pins = [0, 1, 2, 3].map(k => (mask >> k) & 1 ? [u16(), u16()] : null);
+    if (!pins.every(p => !p || (inX(p[0]) && inY(p[1])))) return null;
+    if (i !== b.length) return null;
+    if (Math.abs(shoelace(ring)) <= 400) return null;
+    return { ring, pins };
+  } catch { return null; }
+}
+
+/* ---------- truth and scoring (the same measures as Day 10) ---------- */
+let D = null, T = null;
+function decRing(a, k) { const o = []; let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; o.push([x / k, y / k]); } return o; }
+
+function prepTruth(d) {
+  const ext = decRing(d.sv.ext, 10), holes = d.sv.holes.map(h => decRing(h, 10));
+  let bb = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const [x, y] of ext) bb = [Math.min(bb[0], x), Math.min(bb[1], y), Math.max(bb[2], x), Math.max(bb[3], y)];
+  // Day 10: the real coast (outer ring) sampled every 25 m from its first vertex
+  const samples = [];
+  let carry = 0;
+  for (let i = 0; i < ext.length; i++) {
+    const [ax, ay] = ext[i], [bx, by] = ext[(i + 1) % ext.length], L = Math.hypot(bx - ax, by - ay);
+    let s = carry;
+    while (s < L) { samples.push([ax + (bx - ax) * s / L, ay + (by - ay) * s / L]); s += 25; }
+    carry = s - L;
+  }
+  const marks = d.marks.map(m => ({ ...m, sv: toSv(m.t), csv: toSv(m.claude) }));
+  return { ext, holes, bb, samples, marks };
+}
+
+let cv = null, cx = null;
+function ctxFor(w, h) {
+  if (!cv) { cv = document.createElement('canvas'); cx = cv.getContext('2d', { willReadFrequently: true }); }
+  if (cv.width !== w || cv.height !== h) { cv.width = w; cv.height = h; }
+  return cx;
+}
+function tracePath(ctx, r) { if (!r.length) return; ctx.moveTo(r[0][0], r[0][1]); for (let i = 1; i < r.length; i++) ctx.lineTo(r[i][0], r[i][1]); ctx.closePath(); }
+// Overlap and area on a grid of `cell` metres: the real island in red, the drawing in green, added.
+function overlap(ring, cell) {
+  let [x0, y0, x1, y1] = T.bb;
+  for (const [x, y] of ring) { if (x < x0) x0 = x; if (y < y0) y0 = y; if (x > x1) x1 = x; if (y > y1) y1 = y; }
+  x0 -= 2 * cell; y0 -= 2 * cell; x1 += 2 * cell; y1 += 2 * cell;
+  const w = Math.ceil((x1 - x0) / cell), h = Math.ceil((y1 - y0) / cell), ctx = ctxFor(w, h);
+  ctx.setTransform(1, 0, 0, 1, 0, 0); ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+  ctx.setTransform(1 / cell, 0, 0, -1 / cell, -x0 / cell, y1 / cell);
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = '#f00'; ctx.beginPath(); tracePath(ctx, T.ext); T.holes.forEach(r => tracePath(ctx, r)); ctx.fill('evenodd');
+  ctx.fillStyle = '#0f0'; ctx.beginPath(); tracePath(ctx, ring); ctx.fill('nonzero');
+  const px = ctx.getImageData(0, 0, w, h).data;
+  let nr = 0, ng = 0, nb = 0, gx = 0, gy = 0, rx = 0, ry = 0;
+  for (let row = 0, i = 0; row < h; row++) for (let col = 0; col < w; col++, i += 4) {
+    const r = px[i] >= 128, g = px[i + 1] >= 128;
+    if (r) { nr++; rx += col; ry += row; }
+    if (g) { ng++; gx += col; gy += row; if (r) nb++; }
+  }
+  const c2 = cell * cell / 1e6, un = nr + ng - nb;
+  return { iou: un ? nb / un : 0, km2: ng * c2, real_km2: nr * c2,
+    gc: ng ? [x0 + (gx / ng + .5) * cell, y1 - (gy / ng + .5) * cell] : null, rc: [x0 + (rx / nr + .5) * cell, y1 - (ry / nr + .5) * cell] };
+}
+function segDist(px, py, ax, ay, bx, by) {
+  const dx = bx - ax, dy = by - ay, L2 = dx * dx + dy * dy;
+  let t = L2 ? ((px - ax) * dx + (py - ay) * dy) / L2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const ex = px - ax - t * dx, ey = py - ay - t * dy;
+  return ex * ex + ey * ey;
+}
+function ringDist(p, r) {
+  let best = Infinity;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) { const d = segDist(p[0], p[1], r[j][0], r[j][1], r[i][0], r[i][1]); if (d < best) best = d; }
+  return Math.sqrt(best);
+}
+function inRing(p, r) {
+  let c = false;
+  for (let i = 0, j = r.length - 1; i < r.length; j = i++) {
+    if ((r[i][1] > p[1]) !== (r[j][1] > p[1]) && p[0] < (r[j][0] - r[i][0]) * (p[1] - r[i][1]) / (r[j][1] - r[i][1]) + r[i][0]) c = !c;
+  }
+  return c;
+}
+const onLand = p => inRing(p, T.ext) && !T.holes.some(h => inRing(p, h));
+const mean = a => a.reduce((s, v) => s + v, 0) / a.length;
+
+// Every measure for a drawing already in SVY21 metres (ring and pins; pins may be null).
+function measure(ring, pins) {
+  const o = overlap(ring, 20);
+  const cd = ring.map(p => ringDist(p, T.ext));
+  const sd = T.samples.map(p => ringDist(p, ring));
+  const pd = pins.map((p, i) => p ? Math.hypot(p[0] - T.marks[i].sv[0], p[1] - T.marks[i].sv[1]) : null);
+  return { iou: o.iou, km2: o.km2, gc: o.gc, corners: ring.length, mean_m: mean(cd), at_sea: ring.filter(p => !onLand(p)).length, coast_mean_m: mean(sd), pins: pd };
+}
+
+// Best fit: move and scale (no rotation, no reshaping) to overlap the real island most.
+// A pattern search on a coarse grid, then on a finer one.
+function fitOf(ring) {
+  const o = overlap(ring, 150), c = o.gc;
+  if (!c) return { c: [0, 0], s: 1, dx: 0, dy: 0 };
+  let p = { s: Math.min(5, Math.max(.2, Math.sqrt(TR.real_km2 / o.km2))), dx: TR.rc[0] - c[0], dy: TR.rc[1] - c[1] };
+  const apply = q => ring.map(([x, y]) => [c[0] + q.s * (x - c[0]) + q.dx, c[1] + q.s * (y - c[1]) + q.dy]);
+  let st = { s: .08, d: 2000 };
+  for (const [cell, stop] of [[150, 120], [60, 15]]) {
+    let best = overlap(apply(p), cell).iou, guard = 0;
+    while (st.d >= stop && guard++ < 120) {
+      let moved = false;
+      for (const [key, step] of [['dx', st.d], ['dy', st.d], ['s', st.s]]) {
+        for (const sg of [1, -1]) {
+          const q = { ...p, [key]: p[key] + sg * step };
+          if (q.s < .2 || q.s > 5) continue;
+          const v = overlap(apply(q), cell).iou;
+          if (v > best + 1e-9) { best = v; p = q; moved = true; break; }
+        }
+      }
+      if (!moved) { st.d /= 2; st.s /= 2; }
+    }
+    st = { s: .02, d: 240 };
+  }
+  return { c, ...p };
+}
+const applyFit = (f, t = 1) => p => p && [f.c[0] + (1 + (f.s - 1) * t) * (p[0] - f.c[0]) + f.dx * t, f.c[1] + (1 + (f.s - 1) * t) * (p[1] - f.c[1]) + f.dy * t];
+
+let TR = null;   // the real island measured on the same grid (centroid, grid area)
+const cache = new Map();
+// subject: { key, svRing, svPins }
+function scoreOf(sub, m) {
+  const k = `${sub.key}:${m}`;
+  if (cache.has(k)) return cache.get(k);
+  let res;
+  if (m === 'fit') {
+    const f = fitOf(sub.svRing), A = applyFit(f);
+    res = { ...measure(sub.svRing.map(A), sub.svPins.map(A)), fit: f };
+  } else res = measure(sub.svRing, sub.svPins);
+  cache.set(k, res);
+  return res;
+}
+function subjectFromSheet(key, d) {
+  const ll = d.ring.map(sheetToLL);
+  return { key, ring: d.ring, pins: d.pins, ll, svRing: ll.map(toSv), svPins: d.pins.map(p => p && toSv(sheetToLL(p))) };
+}
+let CLAUDE = null;
+
+/* ---------- the sheet (SVG) ---------- */
+const sheetEl = $('sheet');
+const svg = mk('svg', { viewBox: `0 0 ${SW} ${SH}`, preserveAspectRatio: 'none', 'aria-hidden': 'true' }, sheetEl);
+const defs = mk('defs', {}, svg);
+const gDeco = mk('g', {}, svg), gInk = mk('g', { filter: 'url(#graphite)' }, svg), gPins = mk('g', {}, svg), gCur = mk('g', {}, svg);
+let U = 1;   // sheet units per screen pixel
+
+function setFilter() {
+  // pencil: a little wobble, then grain eaten out of the line; sized in screen pixels
+  defs.innerHTML = '';
+  const f = mk('filter', { id: 'graphite', x: '-2%', y: '-2%', width: '104%', height: '104%' }, defs);
+  mk('feTurbulence', { type: 'fractalNoise', baseFrequency: (0.9 / U).toFixed(4), numOctaves: 2, seed: 4, result: 'n' }, f);
+  mk('feDisplacementMap', { in: 'SourceGraphic', in2: 'n', scale: (1.6 * U).toFixed(2), xChannelSelector: 'R', yChannelSelector: 'G', result: 'd' }, f);
+  mk('feTurbulence', { type: 'fractalNoise', baseFrequency: (1.4 / U).toFixed(4), numOctaves: 1, seed: 9, result: 'g' }, f);
+  mk('feColorMatrix', { in: 'g', type: 'matrix', values: '0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.75', result: 'ga' }, f);
+  mk('feComposite', { in: 'd', in2: 'ga', operator: 'in' }, f);
+}
+
+// A seeded wobble, so the hand-drawn frame is the same every visit.
+function rng(seed) { let s = seed; return () => (s = (s * 16807) % 2147483647) / 2147483647; }
+function wobbleLine(x0, y0, x1, y1, amp, r) {
+  const n = Math.max(2, Math.round(Math.hypot(x1 - x0, y1 - y0) / (60 * U))), pts = [];
+  for (let i = 0; i <= n; i++) {
+    const t = i / n, j = (i === 0 || i === n) ? 0 : (r() - .5) * amp;
+    pts.push([x0 + (x1 - x0) * t + (y1 !== y0 ? j : 0), y0 + (y1 - y0) * t + (x1 !== x0 ? j : 0)]);
+  }
+  return 'M' + pts.map(p => p.map(v => v.toFixed(1)).join(' ')).join('L');
+}
+function drawDeco() {
+  gDeco.innerHTML = '';
+  const r = rng(30), m = 0, amp = 2.2 * U;
+  const frame = [wobbleLine(m - 4 * U, m, SW + 6 * U, m + 3 * U, amp, r), wobbleLine(SW, m - 5 * U, SW - 2 * U, SH + 4 * U, amp, r),
+    wobbleLine(SW + 4 * U, SH, -6 * U, SH - 2 * U, amp, r), wobbleLine(0, SH + 5 * U, 2 * U, -4 * U, amp, r)].join('');
+  mk('path', { class: 'frame', d: frame, 'stroke-width': (1.4 * U).toFixed(2) }, gDeco);
+  const fs = 11.5 * U, tl = 7 * U, sw = (1.1 * U).toFixed(2);
+  // longitude ticks along the top and bottom, latitude along the sides
+  for (let lon = 103.6; lon < WE; lon += .1) {
+    const x = llToSheet([lon, 1.3])[0], lab = `${lon.toFixed(1)}°E`;
+    mk('path', { class: 'tick', d: `M${x} 0v${tl}M${x} ${SH}v${-tl}`, 'stroke-width': sw }, gDeco);
+    const t = mk('text', { class: 'tick-l', x, y: SH - tl - 3 * U, 'text-anchor': 'middle', 'font-size': fs }, gDeco); t.textContent = lab;
+  }
+  for (let lat = 1.2; lat < WN; lat += .1) {
+    const y = llToSheet([103.8, lat])[1], lab = `${lat.toFixed(1)}°N`;
+    mk('path', { class: 'tick', d: `M0 ${y}h${tl}M${SW} ${y}h${-tl}`, 'stroke-width': sw }, gDeco);
+    if (y > SH - tl - 3 * U - 2.4 * fs) continue;   // clear of the longitude labels
+    const t = mk('text', { class: 'tick-l', x: tl + 3 * U, y: y + fs * .35, 'font-size': fs }, gDeco); t.textContent = lab;
+  }
+  // scale bar: 10 km on the ground at the sheet's middle latitude (WGS84 radius of the parallel)
+  const lat = 1.34 * Math.PI / 180, e2 = 0.00669437999014, perDeg = Math.PI / 180 * 6378137 * Math.cos(lat) / Math.sqrt(1 - e2 * Math.sin(lat) ** 2);
+  const len = 10000 / perDeg / (WE - WW) * SW, bx = SW - 30 * U - len, by = SH - 34 * U;
+  mk('path', { class: 'tick', d: `${wobbleLine(bx, by, bx + len, by, 1.2 * U, r)}M${bx} ${by - 6 * U}v${12 * U}M${bx + len / 2} ${by - 4 * U}v${8 * U}M${bx + len} ${by - 6 * U}v${12 * U}`, 'stroke-width': (1.4 * U).toFixed(2) }, gDeco);
+  const sl = mk('text', { class: 'tick-l', x: bx + len / 2, y: by - 9 * U, 'text-anchor': 'middle', 'font-size': 13 * U }, gDeco); sl.textContent = '10 km';
+  // north arrow
+  const nx = SW - 34 * U, ny = 40 * U;
+  mk('path', { class: 'tick', d: `M${nx} ${ny + 24 * U}L${nx} ${ny - 2 * U}M${nx - 6 * U} ${ny + 6 * U}L${nx} ${ny - 3 * U}L${nx + 6 * U} ${ny + 6 * U}`, 'stroke-width': (1.4 * U).toFixed(2) }, gDeco);
+  const nt = mk('text', { class: 'tick-l', x: nx, y: ny + 40 * U, 'text-anchor': 'middle', 'font-size': 14 * U, 'font-weight': 700 }, gDeco); nt.textContent = 'N';
+  if (SW / U >= 560) {
+  const title = mk('text', { class: 'note', x: 34 * U, y: 40 * U, 'font-size': 17 * U, 'font-weight': 700 }, gDeco); title.textContent = 'Singapore, from memory';
+  const sub = mk('text', { class: 'note', x: 34 * U, y: 60 * U, 'font-size': 12.5 * U }, gDeco); sub.textContent = 'Main island only. Up is north.';
+  }
+  const hint = mk('text', { class: 'note hint', id: 'hint', x: SW / 2, y: SH / 2, 'text-anchor': 'middle', 'font-size': 22 * U }, gDeco);
+  hint.textContent = 'Draw the coast here. No peeking!';
+  hint.style.opacity = S.strokes.length ? 0 : 1;
+}
+
+const ptsPath = pts => pts.length ? 'M' + pts.map(p => `${p[0].toFixed(1)} ${p[1].toFixed(1)}`).join('L') : '';
+function drawInk() {
+  gInk.innerHTML = '';
+  const w = (2.3 * U).toFixed(2);
+  for (const s of S.strokes) mk('path', { class: 'stroke', d: s.length === 1 ? `M${s[0][0]} ${s[0][1]}l.1 0` : ptsPath(s), 'stroke-width': w }, gInk);
+  const all = S.strokes.flat();
+  if (all.length > 2) {
+    const a = all[all.length - 1], b = all[0];
+    mk('path', { class: 'closer', d: `M${a[0]} ${a[1]}L${b[0]} ${b[1]}`, 'stroke-width': (1.2 * U).toFixed(2), 'stroke-dasharray': `${5 * U} ${5 * U}` }, gInk);
+  }
+  const hint = $('hint');
+  if (hint) hint.style.opacity = all.length ? 0 : 1;
+  drawPins();
+  syncButtons();
+}
+function drawPins() {
+  gPins.innerHTML = '';
+  const draw = (p, label, cls) => {
+    const g = mk('g', { transform: `translate(${p[0]} ${p[1]}) scale(${U})`, class: cls }, gPins);
+    mk('path', { class: 'pin-x', d: 'M-6 -6L6 6M6 -6L-6 6', 'stroke-width': 2.2 }, g);
+    const t = mk('text', { class: 'pin-l', x: 9, y: -7, 'font-size': 14, 'stroke-width': 3.5 }, g); t.textContent = label;
+  };
+  S.pins.forEach((p, i) => { if (p) draw(p, MARKS[i]); });
+}
+function drawCursor() {
+  gCur.innerHTML = '';
+  if (!S.kb) return;
+  const [x, y] = S.cursor;
+  mk('path', { class: 'kbd-cur', d: `M${x - 12 * U} ${y}h${24 * U}M${x} ${y - 12 * U}v${24 * U}`, 'stroke-width': (1.6 * U).toFixed(2) }, gCur);
+  mk('circle', { class: 'kbd-cur', cx: x, cy: y, r: 6 * U, 'stroke-width': (1.4 * U).toFixed(2) }, gCur);
+}
+
+// Place the sheet over the map's window, wherever the kit framed it.
+function placeSheet() {
+  const a = map.project([WW, WN]), b = map.project([WE, WS]);
+  const r = map.getContainer().getBoundingClientRect();
+  Object.assign(sheetEl.style, { left: `${r.left + a.x}px`, top: `${r.top + a.y}px`, width: `${b.x - a.x}px`, height: `${b.y - a.y}px` });
+  const u = SW / Math.max(1, b.x - a.x);
+  if (Math.abs(u - U) / U > .002 || !gDeco.childNodes.length) { U = u; setFilter(); drawDeco(); drawInk(); drawCursor(); }
+}
+map.on('move', () => { if (phase === 'draw') placeSheet(); });
+map.on('resize', () => { if (phase === 'draw') placeSheet(); });
+let rsT = 0;
+addEventListener('resize', () => { clearTimeout(rsT); rsT = setTimeout(() => { if (phase === 'draw') { DMC.frame(map); placeSheet(); } }, 200); });
+/* ---------- drawing by pointer and keyboard ---------- */
+const toSheet = e => {
+  const r = svg.getBoundingClientRect();
+  return [(e.clientX - r.left) / r.width * SW, (e.clientY - r.top) / r.height * SH];
+};
+let live = null;
+svg.addEventListener('pointerdown', e => {
+  if (phase !== 'draw' || e.button > 0) return;
+  e.preventDefault();
+  sheetEl.focus({ preventScroll: true });
+  S.kb = null; drawCursor();
+  const p = toSheet(e);
+  if (S.tool >= 0) { placePin(S.tool, p); return; }
+  endKbStroke();
+  live = { id: e.pointerId, pts: [p] };
+  S.strokes.push(live.pts);
+  svg.setPointerCapture(e.pointerId);
+  drawInk();
+});
+svg.addEventListener('pointermove', e => {
+  if (!live || e.pointerId !== live.id) return;
+  const evs = e.getCoalescedEvents ? e.getCoalescedEvents() : [e];
+  for (const ev of (evs.length ? evs : [e])) {
+    const p = toSheet(ev), q = live.pts[live.pts.length - 1];
+    if (Math.hypot(p[0] - q[0], p[1] - q[1]) >= 1.5 * U) live.pts.push(p);
+  }
+  const path = gInk.querySelectorAll('.stroke');
+  const last = path[path.length - 1];
+  if (last) last.setAttribute('d', ptsPath(live.pts));
+});
+const endStroke = e => {
+  if (!live || (e && e.pointerId !== live.id)) return;
+  if (live.pts.length < 2) S.strokes.pop(); else S.undo.push({ type: 'stroke' });
+  live = null;
+  drawInk();
+};
+svg.addEventListener('pointerup', endStroke);
+svg.addEventListener('pointercancel', endStroke);
+
+function placePin(i, p) {
+  S.undo.push({ type: 'pin', i, prev: S.pins[i] });
+  S.pins[i] = [Math.min(SW, Math.max(0, p[0])), Math.min(SH, Math.max(0, p[1]))];
+  // the next unplaced pin, or back to the pencil
+  const next = S.pins.findIndex(q => !q);
+  setTool(-1);
+  drawInk();
+  status(`${MARKS[i]} pinned.${next >= 0 ? ` Pick another place, or keep drawing.` : ''}`);
+}
+function endKbStroke() { if (S.kbStroke) { if (S.kbStroke.length < 2) { S.strokes.splice(S.strokes.indexOf(S.kbStroke), 1); S.undo.pop(); } S.kbStroke = null; } }
+sheetEl.addEventListener('keydown', e => {
+  if (phase !== 'draw') return;
+  const step = e.shiftKey ? 75 : 15;
+  const mv = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] }[e.key];
+  if (mv) {
+    e.preventDefault();
+    S.kb = true;
+    S.cursor = [Math.min(SW, Math.max(0, S.cursor[0] + mv[0])), Math.min(SH, Math.max(0, S.cursor[1] + mv[1]))];
+    drawCursor();
+  } else if (e.key === ' ' || e.key === 'Enter') {
+    e.preventDefault();
+    S.kb = true;
+    if (S.tool >= 0) { placePin(S.tool, S.cursor.slice()); drawCursor(); return; }
+    if (!S.kbStroke) { S.kbStroke = []; S.strokes.push(S.kbStroke); S.undo.push({ type: 'stroke' }); }
+    S.kbStroke.push(S.cursor.slice());
+    drawInk(); drawCursor();
+    status(`Point added (${S.kbStroke.length} in this line).`);
+  } else if (e.key === 'Backspace') {
+    e.preventDefault(); undo();
+  } else if (e.key === 'Escape') {
+    endKbStroke(); setTool(-1); drawInk();
+  }
+});
+sheetEl.addEventListener('focus', () => { if (!live && sheetEl.matches(':focus-visible')) { S.kb = true; drawCursor(); } });
+sheetEl.addEventListener('blur', () => { S.kb = null; drawCursor(); });
+
+function undo() {
+  const a = S.undo.pop();
+  if (!a) return;
+  if (a.type === 'stroke') {
+    const s = S.strokes[S.strokes.length - 1];
+    if (s === S.kbStroke && s.length > 1) { s.pop(); S.undo.push(a); }
+    else { S.strokes.pop(); if (s === S.kbStroke) S.kbStroke = null; }
+  } else S.pins[a.i] = a.prev;
+  drawInk();
+}
+$('undo').addEventListener('click', undo);
+$('clear').addEventListener('click', () => {
+  S.strokes = []; S.pins = [null, null, null, null]; S.undo = []; S.kbStroke = null;
+  drawInk(); status('Cleared. A fresh sheet.');
+});
+
+/* ---------- panel controls ---------- */
+const pinBtns = MARKS.map((name, i) => {
+  const b = hel('button', 'hb');
+  b.type = 'button';
+  b.setAttribute('aria-pressed', 'false');
+  b.addEventListener('click', () => { setTool(S.tool === i ? -1 : i); });
+  $('pins').append(b);
+  return b;
+});
+function setTool(i) {
+  S.tool = i;
+  sheetEl.classList.toggle('pin-mode', i >= 0);
+  pinBtns.forEach((b, k) => {
+    b.setAttribute('aria-pressed', String(k === i));
+    b.replaceChildren();
+    if (S.pins[k]) { const ok = hel('span', 'ok', '✓'); ok.setAttribute('aria-hidden', 'true'); b.append(ok); }
+    b.append(document.createTextNode(MARKS[k]));
+    b.setAttribute('aria-label', `${MARKS[k]}: ${S.pins[k] ? 'pinned, press to move it' : 'press, then tap the sheet to pin it'}`);
+  });
+  if (i >= 0) status(`Now tap the sheet where ${MARKS[i]} is${S.kb ? ', or press Space' : ''}.`);
+}
+function status(t) { $('draw-status').textContent = t; }
+function syncButtons() {
+  const ring = myRing();
+  $('reveal').disabled = !ring;
+  $('undo').disabled = !S.undo.length;
+  $('clear').disabled = !S.strokes.length && !S.pins.some(Boolean);
+  setTool(S.tool);
+  if (!S.strokes.length && badLink) status('That link\'s drawing could not be read, so here is a blank sheet.');
+  else if (!S.strokes.length) status(friend ? 'Your sheet is blank. Draw the coast, then lift the paper.' : 'Draw a closed shape to reveal the real coast.');
+  else if (!ring) status('Keep going: it needs to enclose some land.');
+  else if (!live && S.tool < 0) status(`Your outline has ${ring.length} corners. Lift the paper when you are ready.`);
+}
+const MODE_NOTE = {
+  drawn: 'Scored where you drew it on the sheet: no moving or scaling.',
+  fit: 'Moved and scaled (never turned or reshaped) to overlap the real island as much as possible, then scored. Your pins move with it.',
+};
+function setMode(m) {
+  mode = m;
+  document.querySelectorAll('.mode').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.mode === m)));
+  document.querySelectorAll('.mode-note').forEach(p => { p.textContent = MODE_NOTE[m]; });
+  if (phase === 'reveal') showResult(true);
+}
+document.querySelectorAll('.mode').forEach(b => b.addEventListener('click', () => setMode(b.dataset.mode)));
+setMode('drawn');
+setTool(-1);
+placeSheet();
+
+/* ---------- map layers for the reveal ---------- */
+const EMPTY = { type: 'FeatureCollection', features: [] };
+const poly = (ring, props = {}) => ({ type: 'Feature', properties: props, geometry: { type: 'Polygon', coordinates: [[...ring, ring[0]]] } });
+const ACC = DAY.accent, GRAPH = '#34322F';
+function addLayers() {
+  for (const id of ['truth', 'truth-draw', 'others', 'mine', 'friend', 'claude', 'links']) map.addSource(id, { type: 'geojson', data: EMPTY, tolerance: .2 });
+  map.addLayer({ id: 'truth-fill', type: 'fill', source: 'truth', paint: { 'fill-color': ACC, 'fill-opacity': .07 } });
+  map.addLayer({ id: 'mine-fill', type: 'fill', source: 'mine', paint: { 'fill-color': GRAPH, 'fill-opacity': .07 } });
+  map.addLayer({ id: 'others-line', type: 'line', source: 'others', layout: { 'line-join': 'round' }, paint: { 'line-color': ACC, 'line-width': 1.1, 'line-opacity': .75 } });
+  map.addLayer({ id: 'claude-line', type: 'line', source: 'claude', layout: { 'line-join': 'round', visibility: 'none' }, paint: { 'line-color': '#8A4F7D', 'line-width': 1.8, 'line-dasharray': [3, 2] } });
+  map.addLayer({ id: 'friend-line', type: 'line', source: 'friend', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': '#6B6762', 'line-width': 2, 'line-dasharray': [.1, 2.2] } });
+  // two passes of the pencil for each outline: a firm line and a lighter one slightly off
+  map.addLayer({ id: 'truth-line2', type: 'line', source: 'truth-draw', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ACC, 'line-width': 1, 'line-opacity': .5, 'line-translate': [1.1, .8] } });
+  map.addLayer({ id: 'truth-line', type: 'line', source: 'truth-draw', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': ACC, 'line-width': 2.2 } });
+  map.addLayer({ id: 'mine-line2', type: 'line', source: 'mine', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': GRAPH, 'line-width': .9, 'line-opacity': .45, 'line-translate': [-.9, 1] } });
+  map.addLayer({ id: 'mine-line', type: 'line', source: 'mine', layout: { 'line-join': 'round', 'line-cap': 'round' }, paint: { 'line-color': GRAPH, 'line-width': 2.2, 'line-opacity': .92 } });
+  map.addLayer({ id: 'links', type: 'line', source: 'links', layout: { 'line-cap': 'round' }, paint: { 'line-color': GRAPH, 'line-width': 1.3, 'line-dasharray': [2, 2], 'line-opacity': .8 } });
+}
+let markers = [];
+function clearMarkers() { markers.forEach(m => m.remove()); markers = []; }
+function marker(lngLat, el, anchor = 'center') { const m = new maplibregl.Marker({ element: el, anchor }).setLngLat(lngLat).addTo(map); markers.push(m); }
+const fmtM = m => m == null ? '–' : m < 1000 ? `${nf.format(Math.round(m))} m` : `${(m / 1000).toFixed(m < 10000 ? 2 : 1)} km`;
+
+/* ---------- reveal ---------- */
+function setInteractive(on) {
+  for (const h of ['dragPan', 'scrollZoom', 'boxZoom', 'dragRotate', 'keyboard', 'doubleClickZoom', 'touchZoomRotate', 'touchPitch']) map[h] && (on ? map[h].enable() : map[h].disable());
+}
+setInteractive(false);
+
+let sub = null;        // what is being scored: mine or friend's
+let animT = 0;
+function reveal(which) {
+  if (!D) return;
+  if (which === 'mine') {
+    const ring = myRing();
+    if (!ring) return;
+    endKbStroke();
+    sub = subjectFromSheet(`mine-${encode(ring, myPins())}`, { ring, pins: myPins() });
+    sub.code = encode(ring, myPins());
+    history.replaceState(null, '', `#d=${sub.code}`);
+  } else {
+    sub = subjectFromSheet('friend', friend);
+  }
+  shown = which;
+  phase = 'reveal';
+  // a camera call of our own, so the kit stops re-framing; the map stays exactly under the sheet
+  map.jumpTo({ center: map.getCenter() });
+  html.classList.remove('drawing');
+  setInteractive(true);
+  $('v-draw').hidden = true; $('v-result').hidden = false;
+  $('card').setAttribute('aria-label', 'Your scores');
+  // map: the real coast draws itself in blue pencil
+  const main = D.showMain;
+  map.getSource('truth').setData(poly(main));
+  map.getSource('others').setData({ type: 'FeatureCollection', features: D.showOthers.map(r => poly(r)) });
+  const t0 = performance.now(), dur = reduceMotion ? 0 : 1800;
+  cancelAnimationFrame(animT);
+  const step = () => {
+    const t = dur ? Math.min(1, (performance.now() - t0) / dur) : 1, n = Math.max(2, Math.round(main.length * t));
+    map.getSource('truth-draw').setData({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: t < 1 ? main.slice(0, n) : [...main, main[0]] } });
+    if (t < 1) animT = requestAnimationFrame(step);
+  };
+  step();
+  showResult(false);
+}
+
+function lineOf(sv, f, t) { const A = f ? applyFit(f, t) : null; return sv.map(p => SVY.inv(...(A ? A(p) : p))); }
+let fitAnim = 0;
+function drawSubjectOnMap(res, animate) {
+  const f = res.fit || null;
+  const prev = drawSubjectOnMap.last;
+  drawSubjectOnMap.last = { f };
+  cancelAnimationFrame(fitAnim);
+  const from = prev && prev.f ? 1 : 0, to = f ? 1 : 0, fit = f || (prev && prev.f);
+  const dur = animate && !reduceMotion && from !== to ? 1100 : 0, t0 = performance.now();
+  const frame = () => {
+    const k = dur ? Math.min(1, (performance.now() - t0) / dur) : 1, e = k < .5 ? 2 * k * k : 1 - (-2 * k + 2) ** 2 / 2, t = from + (to - from) * e;
+    const ring = fit && t > 0 ? lineOf(sub.svRing, fit, t) : sub.ll;
+    map.getSource('mine').setData(poly(ring));
+    if (k < 1) fitAnim = requestAnimationFrame(frame);
+    else placePinsOnMap(res);
+  };
+  clearMarkers();
+  frame();
+}
+function placePinsOnMap(res) {
+  clearMarkers();
+  const f = res.fit, A = f ? applyFit(f) : null, links = [];
+  sub.svPins.forEach((p, i) => {
+    if (!p) return;
+    const ll = SVY.inv(...(A ? A(p) : p)), m = T.marks[i];
+    links.push({ type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: [ll, m.t] } });
+    const g = hel('div', 'mk');
+    g.innerHTML = '<svg class="x" viewBox="-8 -8 16 16" aria-hidden="true"><path d="M-5 -5L5 5M5 -5L-5 5"/></svg>';
+    const t = hel('div', 't', MARKS[i]); t.append(hel('small', null, `${fmtM(res.pins[i])} off`));
+    g.append(t);
+    marker(ll, g);
+    const tg = hel('div', 'mk truth'); tg.append(hel('div', 'dot'), hel('div', 't', `${m.station} MRT`));
+    marker(m.t, tg);
+  });
+  map.getSource('links').setData({ type: 'FeatureCollection', features: links });
+}
+
+const dirOf = (dx, dy) => ['east', 'north-east', 'north', 'north-west', 'west', 'south-west', 'south', 'south-east'][((Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) % 8) + 8) % 8];
+const pct = v => `${Math.round(v * 100)}%`;
+function showResult(animate) {
+  const busy = $('busy');
+  const go = () => {
+    const res = scoreOf(sub, mode);
+    const cl = mode === 'fit' ? scoreOf(CLAUDE, 'fit') : null;
+    const fr = friend && shown === 'mine' ? scoreOf(subjectFromSheet('friend', friend), mode) : null;
+    busy.hidden = true;
+    renderTable(res, cl, fr);
+    drawSubjectOnMap(res, animate);
+    syncSideLayers();
+  };
+  if (mode === 'fit' && (!cache.has(`${sub.key}:fit`) || !cache.has('claude:fit'))) { busy.hidden = false; busy.textContent = 'Finding the best fit…'; setTimeout(go, 30); }
+  else go();
+}
+
+function renderTable(res, cl, fr) {
+  const me = shown === 'mine', who = me ? 'You' : 'Your friend';
+  const d10 = D.claude.day10;
+  // Claude, as drawn: Day 10's published numbers. Best fit: the same fit, run here on Claude's outline.
+  const C = cl ? { iou: cl.iou, km2: cl.km2, mean_m: cl.mean_m, coast_mean_m: cl.coast_mean_m, pins: cl.pins }
+    : { iou: d10.iou, km2: d10.guess_km2, mean_m: d10.mean_m, coast_mean_m: d10.coast_mean_m, pins: T.marks.map(m => m.claude_m) };
+  const real = D.truth.km2;
+  const placed = res.pins.map((p, i) => p != null ? i : -1).filter(i => i >= 0);
+  const pinMean = (s, idx) => idx.length ? mean(idx.map(i => s.pins[i])) : null;
+  const rows = [
+    { k: 'Overlap', s: 'area in both ÷ area in either', f: s => pct(s.iou), v: s => s.iou, hi: true },
+    { k: 'Area', s: `the real island: ${nf.format(Math.round(real))} km²`, f: s => { const v = (s.km2 / real - 1) * 100; return Math.abs(v) < .05 ? '0.0%' : `${v > 0 ? '+' : '−'}${Math.abs(v).toFixed(1)}%`; }, sub: s => `${nf.format(Math.round(s.km2))} km²`, v: s => Math.abs(s.km2 / real - 1) },
+    { k: 'Corners to the coast', s: 'mean, every corner of the outline', f: s => fmtM(s.mean_m), v: s => s.mean_m },
+    { k: 'The coast to the outline', s: 'mean, every 25 m of real coast', f: s => fmtM(s.coast_mean_m), v: s => s.coast_mean_m },
+    { k: 'Landmarks', s: placed.length ? `mean, ${placed.length === 4 ? 'all four' : `${placed.length} of 4`} pinned` : 'none pinned', f: s => fmtM(pinMean(s, placed)), v: s => pinMean(s, placed), skip: !placed.length },
+  ];
+  const cols = [[who, res], ...(fr ? [['Friend', fr]] : []), ['Claude', C]];
+  const tbl = $('tbl');
+  tbl.replaceChildren();
+  const thead = hel('thead'), hr = hel('tr');
+  hr.append(hel('th', null, ''));
+  cols.forEach(([n]) => hr.append(hel('th', null, n)));
+  thead.append(hr); tbl.append(thead);
+  const tb = hel('tbody');
+  let wins = 0, played = 0;
+  for (const r of rows) {
+    const tr = hel('tr'), th = hel('td', null, r.k); th.append(hel('small', null, r.s)); tr.append(th);
+    const vals = cols.map(([, s]) => r.skip ? null : r.v(s));
+    const ok = vals.filter(v => v != null);
+    const best = ok.length ? (r.hi ? Math.max(...ok) : Math.min(...ok)) : null;
+    cols.forEach(([, s], j) => {
+      const td = hel('td'), v = hel('span', 'v', r.skip ? '–' : r.f(s));
+      if (vals[j] != null && vals[j] === best && ok.length > 1) v.classList.add('win');
+      td.append(v);
+      if (r.sub && !r.skip) td.append(hel('span', 'sub', r.sub(s)));
+      tr.append(td);
+    });
+    if (!r.skip) { played++; const mine = vals[0], cv = vals[vals.length - 1]; if (r.hi ? mine > cv : mine < cv) wins++; }
+    tb.append(tr);
+  }
+  tbl.append(tb);
+  const v = $('verdict');
+  v.replaceChildren(document.createTextNode(wins === played ? `${me ? 'You' : 'Your friend'} beat Claude on all ${played} measures!`
+    : wins === 0 ? `Claude wins on all ${played} measures${me ? '. Its memory had coordinates.' : '.'}` : `${me ? 'You' : 'Your friend'} beat Claude on ${wins} of ${played} measures.`));
+  const sm = hel('small', null, mode === 'fit' ? 'Scored after the best fit, for both of you.' : 'Scored as drawn. Claude\'s scores are Day 10\'s.');
+  v.append(sm);
+  $('r-kick').textContent = me ? 'The real Singapore' : 'Your friend\'s Singapore';
+  // one plain summary
+  const s = [];
+  const big = res.km2 / real - 1;
+  if (mode === 'fit') {
+    const f = res.fit, mv = Math.hypot(f.dx, f.dy);
+    s.push(`To fit best, ${me ? 'your' : 'their'} drawing was moved ${fmtM(mv)} ${dirOf(f.dx, f.dy)} and made ${f.s >= 1 ? `${Math.round((f.s - 1) * 100)}% bigger` : `${Math.round((1 - f.s) * 100)}% smaller`} across.`);
+  } else if (res.gc) {
+    const dx = res.gc[0] - TR.rc[0], dy = res.gc[1] - TR.rc[1];
+    s.push(`${me ? 'Your' : 'Their'} island covers ${nf.format(Math.round(res.km2))} km², ${Math.abs(big * 100).toFixed(0)}% ${big >= 0 ? 'more' : 'less'} than the real ${nf.format(Math.round(real))} km². Its middle sits ${fmtM(Math.hypot(dx, dy))} ${dirOf(dx, dy)} of the real island's.`);
+  }
+  s.push(`${res.at_sea} of ${me ? 'your' : 'their'} ${res.corners} corners are out at sea.`);
+  $('summary').textContent = s.join(' ');
+  $('method').textContent = `How it was scored: the drawing is simplified to corners about 60 m apart. Overlap and area are counted on a 20 m grid; distances are on the ground, in SVY21 metres, against SLA's full-detail coast, as on Day 10. Each landmark is scored against its MRT station (Jurong: Jurong East). Claude's landmarks are its Day 10 station guesses.`;
+  $('share').hidden = !me; $('again').hidden = !me; $('try').hidden = me;
+  $('lg-mine-t').textContent = me ? 'Your drawing' : 'Your friend\'s drawing';
+  $('lg-friend').hidden = !(friend && me);
+}
+
+function syncSideLayers() {
+  const showC = $('show-claude').checked;
+  map.setLayoutProperty('claude-line', 'visibility', showC ? 'visible' : 'none');
+  if (showC) {
+    const r = mode === 'fit' ? scoreOf(CLAUDE, 'fit') : null;
+    map.getSource('claude').setData(poly(r ? lineOf(CLAUDE.svRing, r.fit, 1) : CLAUDE.ll));
+  }
+  const showF = friend && shown === 'mine' && $('show-friend').checked;
+  map.setLayoutProperty('friend-line', 'visibility', showF ? 'visible' : 'none');
+  if (showF) {
+    const fs = subjectFromSheet('friend', friend), r = mode === 'fit' ? scoreOf(fs, 'fit') : null;
+    map.getSource('friend').setData(poly(r ? lineOf(fs.svRing, r.fit, 1) : fs.ll));
+  }
+}
+$('show-claude').addEventListener('change', () => { if (phase === 'reveal') { if (mode === 'fit' && !cache.has('claude:fit')) showResult(false); else syncSideLayers(); } });
+$('show-friend').addEventListener('change', () => { if (phase === 'reveal') syncSideLayers(); });
+
+function backToDraw(clear) {
+  phase = 'draw';
+  html.classList.add('drawing');
+  cancelAnimationFrame(animT); cancelAnimationFrame(fitAnim);
+  drawSubjectOnMap.last = null;
+  clearMarkers();
+  for (const id of ['truth', 'truth-draw', 'others', 'mine', 'friend', 'claude', 'links']) map.getSource(id)?.setData(EMPTY);
+  setInteractive(false);
+  $('v-draw').hidden = false; $('v-result').hidden = true;
+  $('card').setAttribute('aria-label', 'Draw Singapore from memory');
+  if (clear) { S.strokes = []; S.pins = [null, null, null, null]; S.undo = []; S.kbStroke = null; }
+  history.replaceState(null, '', location.pathname + location.search);
+  map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+  DMC.frame(map);
+  placeSheet(); drawInk();
+  $('copybox').hidden = true; $('share-status').textContent = '';
+  sheetEl.focus({ preventScroll: true });
+}
+$('again').addEventListener('click', () => backToDraw(true));
+$('try').addEventListener('click', () => { backToDraw(true); setFriendIntro(); });
+$('reveal').addEventListener('click', () => reveal('mine'));
+$('friend-reveal').addEventListener('click', () => reveal('friend'));
+
+$('share').addEventListener('click', async () => {
+  if (!sub || !sub.code) return;
+  const url = `${location.origin}${location.pathname}#d=${sub.code}`;
+  const box = $('copybox');
+  try {
+    await navigator.clipboard.writeText(url);
+    $('share-status').textContent = 'Link copied. Send it to a friend: they draw theirs, then see yours.';
+    box.hidden = true;
+  } catch {
+    box.hidden = false; box.value = url; box.focus(); box.select();
+    $('share-status').textContent = 'Copy this link and send it to a friend.';
+  }
+});
+
+/* ---------- a shared drawing in the link ---------- */
+function setFriendIntro() {
+  $('draw-intro').hidden = !!friend; $('friend-intro').hidden = !friend; $('friend-reveal').hidden = !friend;
+}
+(function readHash() {
+  const m = /^#d=([A-Za-z0-9_-]+)$/.exec(location.hash);
+  if (!m) return;
+  friend = decode(m[1]);
+  if (!friend) { badLink = true; status('That link\'s drawing could not be read, so here is a blank sheet.'); return; }
+  // Their drawing stays hidden until the reveal: no peeking before you draw yours.
+  setFriendIntro();
+})();
+
+/* ---------- data ---------- */
+fetch('data/day30/paper.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+  D = d;
+  T = prepTruth(d);
+  TR = overlap([], 20);
+  D.showMain = decRing(d.show.main, 1e5);
+  D.showOthers = d.show.others.map(r => decRing(r, 1e5));
+  const cring = decRing(d.claude.ring, 1e5);
+  CLAUDE = { key: 'claude', ll: cring, svRing: cring.map(toSv), svPins: T.marks.map(m => m.csv) };
+  const ready = () => { addLayers(); syncButtons(); };
+  if (map.loaded()) ready(); else map.once('load', ready);
+  window.__d30 = { measure, overlap, fitOf, toSv, svyInv: SVY.inv, encode, decode, sheetToLL, llToSheet, T: () => T, D: () => D, CLAUDE: () => CLAUDE, scoreOf, S, reveal, myRing };
+}).catch(err => { status('The coastline could not be loaded. Please reload the page.'); console.warn(err); });
+</script>
+</body>
+</html>
