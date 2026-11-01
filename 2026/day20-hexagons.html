@@ -1,0 +1,853 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#FBFAF7">
+<title>Day 20 · The price of an HDB square foot, hexagon by hexagon</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 20, Hexagons: every HDB resale since January 2017, pooled into H3 hexagons and coloured by the median price per square foot. Scrub the years, pick a flat type, and find the dearest and cheapest hexagons.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%23FBFAF7'/%3E%3Cpath d='M10 4.5l6 3.5v7l-6 3.5-6-3.5V8z' fill='%238daffe'/%3E%3Cpath d='M22 4.5l6 3.5v7l-6 3.5-6-3.5V8z' fill='%232f5af0'/%3E%3Cpath d='M16 15l6 3.5v7L16 29l-6-3.5v-7z' fill='%230c1b47'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter+Tight:wght@400;500;600;700;800&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 20: a flat Swiss poster; the honeycomb is the picture ===== */
+:root {
+  --ink: #111111; --ink-2: #57544D; --ink-3: #8A867C;
+  --paper: #FBFAF7; --sea: #E6E3DC; --rule: #111111; --hair: #DCD8CF;
+  --glass: #FFFFFF; --line: rgba(17, 17, 17, .9); --text: var(--ink); --text-2: var(--ink-2);
+  --font: "Inter Tight", "Helvetica Neue", Helvetica, Arial, sans-serif;
+  --display: var(--font);
+  --radius: 0px;
+  --side-w: 318px;
+  --side-top: 96px;
+  --film-h: 92px;
+  color-scheme: light;
+}
+body { background: var(--sea); }
+.dmc-map { background: var(--sea); }
+
+/* ---- kit chrome, re-set as flat print ---- */
+.dmc-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: #fff; border: 1.5px solid var(--ink); border-radius: 0; box-shadow: none; }
+.dmc-stamp { width: var(--side-w); border-top-width: 6px; }
+.dmc-num { color: var(--day-accent); text-shadow: none; font-weight: 800; letter-spacing: -.04em; }
+.dmc-theme { font-weight: 800; letter-spacing: .06em; }
+.dmc-title { font-weight: 700; letter-spacing: -.01em; }
+.dmc-more, .dmc-btn { border-radius: 0; background: #fff; color: var(--ink); border: 1.5px solid var(--ink); }
+.dmc-more:hover, .dmc-btn:hover { background: var(--ink); color: #fff; }
+.dmc-body { border-top: 1.5px solid var(--ink); }
+.dmc-index li { border-radius: 0; box-shadow: inset 0 0 0 1px rgba(17, 17, 17, .22); }
+.dmc-index li.done { background: rgba(17, 17, 17, .08); }
+.dmc-index li.today { color: #fff; box-shadow: none; }
+.dmc-keys kbd { border-color: rgba(17, 17, 17, .3); }
+.maplibregl-ctrl-group { background: #fff !important; border: 1.5px solid var(--ink); border-radius: 0 !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid rgba(17, 17, 17, .25) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
+.dmc-ctrl button { color: var(--ink); }
+.dmc-ctrl button[aria-pressed="true"] { color: #fff; background: var(--ink); }
+.dmc-focus-credit { background: rgba(255, 255, 255, .9); color: var(--ink-2); border-radius: 0; }
+.dmc-focus-exit { background: #fff; color: var(--ink); border: 1.5px solid var(--ink); border-radius: 0; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.dmc-credits a { text-decoration-color: rgba(17, 17, 17, .35); }
+
+/* ---- the side column: hero, controls, key, ranks ---- */
+.hx-side {
+  position: absolute; z-index: 2;
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); top: var(--side-top); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--side-w); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 11px;
+}
+.hx-side > * { margin: 0; flex: none; }
+.kick { margin: 0; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--ink); }
+.kick span { color: var(--ink-2); font-weight: 600; }
+.hero { display: grid; gap: 3px; }
+.hero-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.hero .yr { margin: 0; font-size: 46px; font-weight: 800; line-height: .86; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+.hero .val { margin: 0; font-size: 26px; font-weight: 800; line-height: 1; letter-spacing: -.03em; color: var(--day-accent); font-variant-numeric: tabular-nums; }
+.hero .val small { font-size: 12px; font-weight: 600; letter-spacing: 0; color: var(--ink); margin-left: 3px; }
+.hero .sub { margin: 2px 0 0; font-size: 11.5px; line-height: 1.4; color: var(--ink-2); }
+.hero .sub b { color: var(--ink); font-weight: 600; }
+.delta { display: inline-block; margin-left: 2px; padding: 0 5px; font-size: 11px; font-weight: 700; color: #fff; background: var(--ink); font-variant-numeric: tabular-nums; }
+.delta.dn { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+
+.ctl { display: grid; gap: 7px; padding-top: 9px; border-top: 1.5px solid var(--ink); }
+.ctl-row { display: grid; gap: 4px; }
+.ctl-lab { font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; }
+.seg { display: flex; border: 1.5px solid var(--ink); }
+.seg button { position: relative; flex: 1 1 0; min-width: 0; min-height: 28px; padding: 3px 4px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--ink); background: #fff; border: 0; cursor: pointer; white-space: nowrap; }
+.seg button + button { border-left: 1px solid rgba(17, 17, 17, .35); }
+.seg button:hover { background: #EFEDE7; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.seg button small { font-weight: 500; opacity: .75; }
+.seg button::after { content: ""; position: absolute; inset: -7px 0; }
+
+/* key: a hexagon per class, a bar of how many hexagons sit in each */
+.key { display: grid; gap: 4px; padding-top: 9px; border-top: 1.5px solid var(--ink); }
+.key-bars { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; align-items: end; height: 30px; }
+.key-bars i { display: block; background: var(--ink); min-height: 1px; }
+.key-bars span { display: grid; align-items: end; height: 100%; position: relative; }
+.key-bars em { position: absolute; left: 0; right: 0; bottom: calc(var(--h) + 2px); font-style: normal; font-size: 9px; font-weight: 600; text-align: center; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.key-hex { display: grid; grid-template-columns: repeat(8, 1fr); gap: 2px; }
+.key-hex svg { display: block; width: 100%; height: 22px; }
+.key-ticks { position: relative; height: 12px; font-size: 9.5px; font-weight: 600; color: var(--ink); font-variant-numeric: tabular-nums; }
+.key-ticks span { position: absolute; top: 0; transform: translateX(-50%); white-space: nowrap; }
+.key-cap { font-size: 10.5px; color: var(--ink-2); }
+.key-more { display: flex; flex-wrap: wrap; gap: 3px 12px; font-size: 10.5px; color: var(--ink-2); }
+.key-more span { display: inline-flex; align-items: center; gap: 5px; }
+.key-more svg { width: 13px; height: 14px; flex: none; }
+
+.ranks { display: grid; grid-template-columns: 1fr; gap: 8px; padding-top: 9px; border-top: 1.5px solid var(--ink); }
+.ranks h2 { margin: 0 0 3px; font-size: 10px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; display: flex; justify-content: space-between; gap: 6px; }
+.ranks h2 span { font-weight: 600; letter-spacing: .02em; text-transform: none; color: var(--ink-2); }
+.rank { list-style: none; margin: 0; padding: 0; display: grid; }
+.rank li + li { border-top: 1px solid var(--hair); }
+.rank button { width: 100%; display: grid; grid-template-columns: 14px minmax(0, 1fr) auto; align-items: center; gap: 2px 8px; padding: 4px 2px; font: inherit; text-align: left; color: var(--ink); background: transparent; border: 0; cursor: pointer; }
+.rank button:hover, .rank button.on { background: #EFEDE7; }
+.rank .n { font-size: 11px; font-weight: 800; color: var(--day-accent); font-variant-numeric: tabular-nums; }
+.rank .nm { min-width: 0; font-size: 11.5px; font-weight: 600; line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rank .nm i { font-style: normal; font-weight: 500; color: var(--ink-2); }
+.rank .v { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 800; font-variant-numeric: tabular-nums; }
+.rank .v svg { width: 11px; height: 12px; }
+.rank .v small { min-width: 34px; text-align: right; font-size: 10px; font-weight: 500; color: var(--ink-2); }
+.rank-empty { font-size: 11px; color: var(--ink-2); padding: 4px 2px; }
+.note { margin: 0; padding-top: 9px; border-top: 1.5px solid var(--ink); font-size: 10.5px; line-height: 1.45; color: var(--ink-2); display: grid; gap: 4px; }
+.note p { margin: 0; }
+.note b { color: var(--ink); font-weight: 600; }
+.dmc-credits { margin: 0; }
+
+/* ---- the year strip: one small honeycomb per year ---- */
+.film {
+  position: absolute; z-index: 2;
+  left: calc(var(--side-w) + 2 * var(--gutter) + env(safe-area-inset-left, 0px)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  height: var(--film-h); display: flex; align-items: stretch; gap: 0; padding: 0;
+}
+.film-head { flex: none; display: grid; align-content: space-between; gap: 6px; width: 78px; padding: 8px 9px; border-right: 1.5px solid var(--ink); }
+.film-head .kick { line-height: 1.25; }
+.film-head small { display: block; margin-top: 2px; font-size: 9.5px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--ink-2); }
+.play { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 26px; padding: 2px 8px; font: inherit; font-size: 11px; font-weight: 700; color: #fff; background: var(--ink); border: 0; cursor: pointer; }
+.play svg { width: 10px; height: 10px; fill: currentColor; }
+.play:hover { background: var(--day-accent); }
+.play::after { content: ""; position: absolute; inset: -8px -4px; }
+.tiles { flex: 1; min-width: 0; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); touch-action: pan-y; }
+.tile { position: relative; min-width: 0; display: grid; grid-template-rows: 1fr auto; gap: 2px; padding: 6px 5px 5px; font: inherit; color: var(--ink); background: #fff; border: 0; border-left: 1px solid var(--hair); cursor: pointer; text-align: left; }
+.tile:first-child { border-left: 0; }
+.tile canvas { display: block; width: 100%; height: 100%; min-height: 0; }
+.tile .lbl { display: flex; justify-content: space-between; align-items: baseline; gap: 4px; font-size: 11px; font-weight: 800; letter-spacing: -.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tile .lbl span { font-size: 10px; font-weight: 600; color: var(--ink-2); }
+.tile:hover { background: #F4F2EC; }
+.tile[aria-checked="true"] { background: var(--ink); color: #fff; }
+.tile[aria-checked="true"] .lbl span { color: rgba(255, 255, 255, .78); }
+.tile[aria-checked="true"]::before { content: ""; position: absolute; left: 0; right: 0; top: -1.5px; height: 4px; background: var(--day-accent); }
+.tile.all { border-left: 1.5px solid var(--ink); }
+.tile:focus-visible { outline: 2px solid var(--day-accent); outline-offset: -3px; }
+
+/* ---- town names and the hover card ---- */
+.town { pointer-events: none; }
+.town span { display: block; padding: 1px 4px 0; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--ink); background: #fff; white-space: nowrap;
+  opacity: 0; visibility: hidden; transition: opacity .3s, visibility .3s; }
+.show-towns .town span { opacity: 1; visibility: visible; }
+.tip {
+  position: fixed; z-index: 5; left: 0; top: 0; width: 228px; pointer-events: none; padding: 9px 11px 9px;
+  background: #fff; border: 1.5px solid var(--ink); border-top-width: 5px; display: grid; gap: 6px;
+}
+.tip[hidden] { display: none; }
+.tip.pinned { pointer-events: auto; }
+.tip .x { position: absolute; top: 3px; right: 3px; width: 26px; height: 26px; display: none; place-items: center; font: inherit; font-size: 16px; line-height: 1; color: var(--ink); background: transparent; border: 0; cursor: pointer; }
+.tip.pinned .x { display: grid; }
+.tip .t1 { font-size: 12.5px; font-weight: 700; line-height: 1.2; padding-right: 18px; }
+.tip .t1 small { display: block; font-size: 10.5px; font-weight: 500; color: var(--ink-2); }
+.tip .t2 { display: flex; align-items: baseline; gap: 6px; }
+.tip .t2 b { font-size: 28px; font-weight: 800; line-height: .95; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.tip .t2 span { font-size: 10.5px; color: var(--ink-2); line-height: 1.2; }
+.tip .t3 { font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tip .t3 b { color: var(--ink); font-weight: 600; }
+.tip svg { display: block; width: 100%; overflow: visible; }
+.tip .ax { font: 600 9px var(--font); fill: var(--ink-2); font-variant-numeric: tabular-nums; }
+.tip .bd, .tip .l, .tip .r { display: grid; gap: 6px; min-width: 0; }
+.tip .cell { margin: 2px 0 0; font-size: 9.5px; color: var(--ink-3); font-variant-numeric: tabular-nums; letter-spacing: .02em; }
+/* dearest and cheapest: a stem and a tag on the island view */
+.call { position: relative; width: 0; height: 0; pointer-events: none; transition: opacity .3s, visibility .3s; }
+.call .dot { position: absolute; left: -4px; top: -4px; width: 8px; height: 8px; border-radius: 50%; background: #fff; box-shadow: 0 0 0 2px var(--ink); }
+.call .stem { position: absolute; left: -.75px; width: 1.5px; height: 30px; background: var(--ink); }
+.call .box { position: absolute; left: -12px; display: grid; gap: 0; padding: 3px 7px 4px; white-space: nowrap; background: var(--ink); color: #fff; }
+.call.lo .box { background: #fff; color: var(--ink); box-shadow: inset 0 0 0 1.5px var(--ink); }
+.call .box b { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+.call .box span { font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.call .box span em { font-style: normal; font-size: 14px; font-weight: 800; letter-spacing: -.02em; margin-right: 4px; }
+.call.up .stem { bottom: 4px; } .call.up .box { bottom: 34px; }
+.call.down .stem { top: 4px; } .call.down .box { top: 34px; }
+.call.flip .box { left: auto; right: -12px; }
+.call.off { opacity: 0; visibility: hidden; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 45%; transform: translate(-50%, -50%); padding: 7px 14px; background: #fff; border: 1.5px solid var(--ink); font-size: 12px; font-weight: 600; }
+.loading[hidden] { display: none; }
+
+/* ---- shorter desktop windows: tighten the column ---- */
+@media (max-height: 820px) and (min-width: 641px) {
+  .hx-side { gap: 9px; }
+  .hero .yr { font-size: 40px; }
+  .note p.more { display: none; }
+}
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  :root { --film-h: 66px; }
+  .hx-side { padding: 10px 12px 9px; gap: 9px; }
+  .hero .yr { font-size: 34px; }
+  .hero .val { font-size: 22px; }
+  .film-head { width: 58px; padding: 6px 7px; }
+  .film-head .kick small { display: none; }
+  .tiles { overflow-x: auto; overscroll-behavior-x: contain; scrollbar-width: none; grid-auto-columns: 68px; touch-action: pan-x; }
+  .tiles::-webkit-scrollbar { display: none; }
+  .tile { padding: 4px 4px 3px; }
+  .tile .lbl { font-size: 10.5px; }
+  .tile .lbl span { display: none; }
+  .tip { width: 214px; }
+  .call .stem, .call .box { display: none; }   /* small maps: the ranks name them; the map just rings them */
+  .tip.pinned { width: auto; padding: 8px 11px 8px; }
+  .tip.pinned .bd { grid-template-columns: minmax(0, .9fr) minmax(0, 1.1fr); align-items: start; gap: 4px 12px; }
+  .tip.pinned .t2 b { font-size: 24px; }
+}
+/* phones held upright: the column becomes a bottom sheet, the year strip rides on top of it */
+@media (max-width: 640px) and (orientation: portrait) {
+  :root { --sheet-h: 37vh; }
+  .hx-side { left: 0; right: 0; top: auto; bottom: 0; width: auto; height: var(--sheet-h); border-left: 0; border-right: 0; border-bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .film { left: 0; right: 0; bottom: var(--sheet-h); height: var(--film-h); border-left: 0; border-right: 0; border-bottom: 0; }
+  .hero-row { gap: 8px; }
+  .note p.more { display: none; }
+  .tip.pinned { left: 0 !important; right: 0; top: auto !important; bottom: calc(var(--sheet-h) + var(--film-h)); border-left: 0; border-right: 0; }
+}
+/* phones held sideways: the column on the right, the strip along the bottom */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --side-w: min(300px, 40vw); }
+  .hx-side { left: auto; right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); top: var(--gutter); }
+  .film { left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); right: calc(var(--side-w) + 2 * var(--gutter) + 46px + env(safe-area-inset-right, 0px)); height: var(--film-h); }
+  .dmc-stamp { width: min(250px, calc(100vw - var(--side-w) - 4 * var(--gutter) - 46px)); }
+  .tip.pinned { left: calc(var(--gutter) + env(safe-area-inset-left, 0px)) !important; top: auto !important; bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+    right: calc(var(--side-w) + 2 * var(--gutter) + 46px + env(safe-area-inset-right, 0px)); }
+  .note p.more { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore as a honeycomb of H3 hexagons, each coloured by the median HDB resale price per square foot"></div>
+<p id="loading" class="loading dmc-chrome">Pooling 243,874 resales into hexagons&hellip;</p>
+<div id="tip" class="tip dmc-chrome" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="side" class="dmc-glass hx-side" data-dmc-overlay aria-label="Selection, key and rankings">
+  <section class="hero" aria-live="polite">
+    <p class="kick">Median resale price <span>per square foot</span></p>
+    <div class="hero-row"><p id="h-yr" class="yr">&nbsp;</p><p id="h-val" class="val">&nbsp;</p></div>
+    <p id="h-sub" class="sub">&nbsp;</p>
+  </section>
+
+  <section class="ctl" aria-label="Filters">
+    <div class="ctl-row"><span class="ctl-lab" id="lab-type">Flat type</span><div id="types" class="seg" role="group" aria-labelledby="lab-type"></div></div>
+    <div class="ctl-row"><span class="ctl-lab" id="lab-res">Hexagon size</span><div id="res" class="seg" role="group" aria-labelledby="lab-res"></div></div>
+  </section>
+
+  <section class="key" aria-label="Colour key">
+    <div id="key-bars" class="key-bars" aria-hidden="true"></div>
+    <div id="key-hex" class="key-hex" aria-hidden="true"></div>
+    <div id="key-ticks" class="key-ticks" aria-hidden="true"></div>
+    <p id="key-cap" class="key-cap">Median $ per sq ft, nominal. Bars count the hexagons in each band.</p>
+    <p class="key-more"><span><svg viewBox="0 0 13 14" aria-hidden="true"><path d="M6.5 1l5 3v6l-5 3-5-3V4z" fill="none" stroke="#8A867C" stroke-width="1.3"/></svg><span id="key-hollow">Fewer than 5 resales</span></span><span><svg viewBox="0 0 13 14" aria-hidden="true"><path d="M6.5 1l5 3v6l-5 3-5-3V4z" fill="#FBFAF7" stroke="#CFCAC0" stroke-width="1"/></svg>No HDB resales since 2017</span></p>
+  </section>
+
+  <section class="ranks" aria-label="Most and least expensive hexagons">
+    <div><h2>Most expensive hexagons <span>median · resales</span></h2><ol id="top" class="rank"></ol></div>
+    <div><h2>Least expensive hexagons</h2><ol id="bot" class="rank"></ol></div>
+  </section>
+
+  <div class="note">
+    <p><b>$ per sq ft</b> = resale price &divide; (floor area in m&sup2; &times; 10.7639). Prices are nominal: not adjusted for inflation.</p>
+    <p id="n-geo">Each sale sits at the centre of its block's footprint; a hexagon pools every block inside it and is named after the street with the most resales.</p>
+    <p class="more" id="n-hollow">Hexagons with fewer than 5 resales in your selection are left hollow.</p>
+  </div>
+  <p id="credits" class="dmc-credits"></p>
+</aside>
+
+<section id="film" class="dmc-glass film" data-dmc-overlay aria-label="Year">
+  <div class="film-head">
+    <p class="kick">Year<small>Nominal prices</small></p>
+    <button id="play" class="play" type="button" aria-label="Play the years from 2017"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M1 0l9 5-9 5z"/></svg><span>Play</span></button>
+  </div>
+  <div id="tiles" class="tiles" role="radiogroup" aria-label="Year of sale"></div>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const ACCENT = '#2F5AF0';
+// One hue, light to dark: OKLCH hue 266, L 0.76 -> 0.24 in eight even steps. Checked with the dataviz
+// validator in ordinal mode on the paper (#FBFAF7): lightness monotone, every step >= 0.06 apart,
+// the lightest at 2.08:1 against the paper, a single hue.
+const RAMP = ['#8daffe', '#6a94ff', '#4877ff', '#2f5af0', '#1f43d1', '#1531a8', '#0f2578', '#0c1b47'];
+const BREAKS = [400, 450, 500, 550, 600, 700, 850];
+const C = { sea: '#E6E3DC', land: '#FBFAF7', lattice: '#D3CFC5', hollow: '#8A867C', ink: '#111111' };
+const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const STYLE = {
+  version: 8,
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: { ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+  layers: [
+    { id: 'bg', type: 'background', paint: { 'background-color': C.sea } },
+    { id: 'roads', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 12,
+      filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor'], true, false],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': 'rgba(17,17,17,.10)', 'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 12, .4, 15, 1.4, 17, 3] } },
+    { id: 'bld', type: 'fill', source: 'ofm', 'source-layer': 'building', minzoom: 14.5, paint: { 'fill-color': 'rgba(17,17,17,.07)' } },
+  ],
+};
+const DAY = {
+  n: 20,
+  title: 'The price of an HDB square foot, hexagon by hexagon',
+  deck: 'Every HDB resale flat sold since January 2017, placed at its block and pooled into H3 hexagons. Each hexagon shows the median price per square foot; run the years to watch the honeycomb darken.',
+  accent: ACCENT,
+  style: STYLE, basemapBg: C.sea,
+  styleCredit: 'Streets: ' + ext('https://openfreemap.org/', 'OpenFreeMap') + ', ' + ext('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', ' + DMC.OSM_CREDIT,
+  // Phones frame the HDB towns; wider screens get the whole island.
+  bounds: matchMedia('(max-width: 640px), (max-height: 520px)').matches ? [[103.672, 1.262], [103.995, 1.462]] : [[103.6, 1.225], [104.05, 1.472]],
+  maxBounds: [[102.6, .5], [105.0, 2.2]],
+  minZoom: 8.5, maxZoom: 17.5,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 45 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Resale prices: ' + ext('https://data.gov.sg/datasets/d_8b84c4ee58e3cfc0ece0d773c8ca6abc/view', 'HDB, Resale flat prices from Jan 2017') + ' via data.gov.sg, ' + ext('https://data.gov.sg/open-data-licence', 'Singapore Open Data Licence'),
+    'Block positions: HDB ' + ext('https://data.gov.sg/datasets/d_16b157c52ed637edd6ba1232e026258d/view', 'Existing Building') + ' footprints joined to ' + ext('https://data.gov.sg/datasets/d_17f5382f26140b1fdae0ba2ef6239d2f/view', 'Property Information') + ' (as built for day 6); one block from ' + ext('https://www.onemap.gov.sg/', 'OneMap') + ' search, &copy; SLA',
+    'Hexagons: ' + ext('https://h3geo.org/', 'H3') + ' (Uber, Apache 2.0). Coastline: ' + DMC.OSM_CREDIT,
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const usd = v => '$' + nf.format(v);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canHover = matchMedia('(hover: hover)').matches;
+const params = new URLSearchParams(location.search);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const cls = v => { let k = 0; while (k < BREAKS.length && v >= BREAKS[k]) k++; return k; };
+
+/* ---------- data ---------- */
+function decode(str) {   // Google polyline, lng first, 1e5
+  const out = [];
+  let i = 0, x = 0, y = 0;
+  while (i < str.length) {
+    for (let k = 0; k < 2; k++) {
+      let shift = 0, res = 0, b;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (k === 0) x += d; else y += d;
+    }
+    out.push([x / 1e5, y / 1e5]);
+  }
+  return out;
+}
+const closeRing = r => (r.push(r[0]), r);
+let D = null;
+const RES = {};          // '8' | '9' -> { hex: [{ring, c:[lng,lat], cell, all}], lattice, fc, latFc, area }
+const S = { y: 0, t: 0, r: '8' };
+const cache = new Map(); // 'r|y|t' -> Map(i -> rec)
+function recs(r, y, t) {
+  const key = `${r}|${y}|${t}`;
+  if (cache.has(key)) return cache.get(key);
+  const a = D.res[r].v[`${y}|${t}`] || [], m = new Map();
+  for (let j = 0; j < a.length; j += 6) m.set(a[j], { m: a[j + 1], n: a[j + 2], lo: a[j + 3], hi: a[j + 4], p: a[j + 5] });
+  cache.set(key, m);
+  return m;
+}
+function prepare(d) {
+  D = d;
+  for (const r of ['8', '9']) {
+    const src = d.res[r];
+    const hex = src.hex.map(([poly, cell, all]) => {
+      const ring = decode(poly);
+      const c = [ring.reduce((s, p) => s + p[0], 0) / ring.length, ring.reduce((s, p) => s + p[1], 0) / ring.length];
+      return { ring: closeRing(ring), c, cell, all };
+    });
+    RES[r] = {
+      hex, area: src.area,
+      fc: { type: 'FeatureCollection', features: hex.map((h, i) => ({ type: 'Feature', id: i, properties: {}, geometry: { type: 'Polygon', coordinates: [h.ring] } })) },
+      latFc: { type: 'FeatureCollection', features: src.lattice.map(p => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [closeRing(decode(p))] } })) },
+      latRings: r === '8' ? src.lattice.map(decode) : null,
+    };
+  }
+  const poly = list => ({ type: 'FeatureCollection', features: list.map(p => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: p.map(r => closeRing(decode(r))) } })) });
+  D.landFc = poly(d.land);
+  D.resFc = poly(d.reservoirs);
+  const [ly, lm] = d.meta.to.split('-').map(Number);
+  D.lastYear = ly; D.lastMonth = lm;
+  S.y = d.years.length;   // the latest year
+  const qy = parseInt(params.get('y'), 10), qt = parseInt(params.get('t'), 10);
+  if (params.get('y') === 'all') S.y = 0; else if (d.years.includes(qy)) S.y = d.years.indexOf(qy) + 1;
+  if (qt >= 0 && qt < d.types.length) S.t = qt;
+  if (params.get('r') === '9') S.r = '9';
+}
+const yearLong = y => {
+  if (y === 0) return `${MONTHS[0]} ${D.years[0]} to ${MONTHS[D.lastMonth - 1]} ${D.lastYear}`;
+  const yr = D.years[y - 1];
+  return yr === D.lastYear && D.lastMonth < 12 ? `${MONTHS[0]}–${MONTHS[D.lastMonth - 1]} ${yr}` : `${yr}`;
+};
+const typeName = t => t === 0 ? 'all flat types' : D.types[t].replace('Executive', 'Executive and multi-generation') + ' flats';
+const place = p => D.places[p] || ['', ''];
+
+/* ---------- map layers ---------- */
+const STATE_COLOR = ['match', ['feature-state', 'k'], ...RAMP.flatMap((c, i) => [i, c]), 'rgba(0,0,0,0)'];
+function addLayers() {
+  const first = map.getLayer('roads') ? 'roads' : undefined;
+  map.addSource('land', { type: 'geojson', data: D.landFc, tolerance: .2 });
+  map.addSource('resv', { type: 'geojson', data: D.resFc, tolerance: .2 });
+  map.addLayer({ id: 'land', type: 'fill', source: 'land', paint: { 'fill-color': C.land } }, first);
+  map.addLayer({ id: 'resv', type: 'fill', source: 'resv', paint: { 'fill-color': C.sea } }, first);
+  for (const r of ['8', '9']) {
+    const vis = r === S.r ? 'visible' : 'none';
+    const gap = r === '8' ? ['interpolate', ['exponential', 1.6], ['zoom'], 9, .5, 11, 1.1, 13, 2, 16, 4.5] : ['interpolate', ['exponential', 1.6], ['zoom'], 9, .25, 11, .6, 13, 1.3, 16, 3];
+    map.addSource(`lat${r}`, { type: 'geojson', data: RES[r].latFc, tolerance: 0 });
+    map.addSource(`hex${r}`, { type: 'geojson', data: RES[r].fc, tolerance: 0 });
+    map.addLayer({ id: `lat${r}`, type: 'line', source: `lat${r}`, layout: { visibility: vis },
+      paint: { 'line-color': C.lattice, 'line-width': r === '8' ? ['interpolate', ['linear'], ['zoom'], 9, .4, 13, .9, 16, 1.4] : ['interpolate', ['linear'], ['zoom'], 9, .2, 11, .45, 14, .9] } });
+    map.addLayer({ id: `fill${r}`, type: 'fill', source: `hex${r}`, layout: { visibility: vis },
+      paint: { 'fill-color': STATE_COLOR, 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14, 1, 16, .78], 'fill-antialias': false } });
+    map.addLayer({ id: `gap${r}`, type: 'line', source: `hex${r}`, layout: { visibility: vis, 'line-join': 'round' },
+      paint: { 'line-color': ['case', ['>=', ['coalesce', ['feature-state', 'k'], -2], 0], C.land, C.lattice], 'line-width': gap } });
+    map.addLayer({ id: `hollow${r}`, type: 'line', source: `hex${r}`, layout: { visibility: vis, 'line-join': 'round' },
+      paint: { 'line-color': C.hollow, 'line-width': r === '8' ? 1.1 : .8, 'line-opacity': ['case', ['==', ['coalesce', ['feature-state', 'k'], -2], -1], 1, 0] } });
+    map.addLayer({ id: `hov${r}`, type: 'line', source: `hex${r}`, layout: { visibility: vis, 'line-join': 'round' },
+      paint: { 'line-color': C.ink, 'line-width': r === '8' ? 2.4 : 1.8, 'line-opacity': ['case', ['any', ['boolean', ['feature-state', 'hov'], false], ['boolean', ['feature-state', 'sel'], false], ['boolean', ['feature-state', 'call'], false]], 1, 0] } });
+  }
+  map.addSource('vals', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'vals', type: 'symbol', source: 'vals', minzoom: 12.2,
+    layout: { 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12.2, 9.5, 15, 13, 17, 16],
+      'text-allow-overlap': true, 'text-ignore-placement': true, 'text-padding': 0, 'text-letter-spacing': -.02 },
+    paint: { 'text-color': ['case', ['>=', ['get', 'k'], 3], '#FFFFFF', C.ink], 'text-opacity': ['interpolate', ['linear'], ['zoom'], 12.2, 0, 12.6, 1] } });
+}
+// Value labels: hexagon medians, written in once the hexes are big enough to hold them.
+function setValLayer() {
+  const valMin = S.r === '8' ? 12.2 : 13.9;
+  map.setLayerZoomRange('vals', valMin, 24);
+  map.setPaintProperty('vals', 'text-opacity', ['interpolate', ['linear'], ['zoom'], valMin, 0, valMin + .4, 1]);
+  map.setLayoutProperty('vals', 'text-size', S.r === '8' ? ['interpolate', ['linear'], ['zoom'], 12.2, 10, 14, 15, 17, 28] : ['interpolate', ['linear'], ['zoom'], 13.9, 10, 15, 14, 17, 24]);
+}
+
+/* ---------- apply a selection ---------- */
+let shown = [];   // [i, rec] with a median, current selection
+function apply() {
+  if (!map.getSource('vals')) { syncControls(); return; }
+  const R = RES[S.r], m = recs(S.r, S.y, S.t);
+  shown = [];
+  const vals = [];
+  R.hex.forEach((h, i) => {
+    const rec = m.get(i);
+    const k = rec ? (rec.m ? cls(rec.m) : -1) : -2;
+    map.setFeatureState({ source: `hex${S.r}`, id: i }, { k });
+    if (rec && rec.m) {
+      shown.push([i, rec]);
+      vals.push({ type: 'Feature', properties: { t: usd(rec.m), k }, geometry: { type: 'Point', coordinates: h.c } });
+    }
+  });
+  map.getSource('vals').setData({ type: 'FeatureCollection', features: vals });
+  for (const r of ['8', '9']) for (const id of ['lat', 'fill', 'gap', 'hollow', 'hov']) map.setLayoutProperty(`${id}${r}`, 'visibility', r === S.r ? 'visible' : 'none');
+  setValLayer();
+  hero(); key(); ranks(); callouts(); syncControls();
+  if (pinned != null) showTip(pinned, null, true);
+}
+
+/* ---------- callouts: the dearest and the cheapest hexagon, named on the island view ---------- */
+const CALL = {};
+let callIds = [];
+function callout(kind) {
+  const el = document.createElement('div');
+  el.className = `call ${kind} off dmc-chrome`;
+  el.innerHTML = '<i class="stem"></i><i class="dot"></i><span class="box"><b></b><span></span></span>';
+  return { el, m: new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([103.8, 1.35]).addTo(map) };
+}
+function callouts() {
+  if (!CALL.hi) { CALL.hi = callout('hi'); CALL.lo = callout('lo'); }
+  for (const c of callIds) map.setFeatureState(c, { call: false });
+  callIds = [];
+  const sorted = shown.slice().sort((a, b) => b[1].m - a[1].m || b[1].n - a[1].n);
+  for (const [kind, pick, label] of [['hi', sorted[0], 'Dearest'], ['lo', sorted[sorted.length - 1], 'Cheapest']]) {
+    const c = CALL[kind];
+    if (!pick || sorted.length < 2) { c.el.style.display = 'none'; continue; }
+    c.el.style.display = '';
+    const [i, rec] = pick, h = RES[S.r].hex[i], [st] = place(rec.p);
+    c.el.querySelector('b').textContent = label;
+    c.el.querySelector('.box span').innerHTML = `<em>${usd(rec.m)}</em>${esc(st)}`;
+    // the tag hangs south over the sea for the southern towns, and north for the rest
+    c.el.classList.toggle('up', h.c[1] >= 1.322);
+    c.el.classList.toggle('down', h.c[1] < 1.322);
+    c.el.classList.toggle('flip', h.c[0] > 103.86);
+    c.m.setLngLat(h.c);
+    const id = { source: `hex${S.r}`, id: i };
+    map.setFeatureState(id, { call: true });
+    callIds.push(id);
+  }
+  syncCallouts();
+}
+function syncCallouts() {
+  const off = map.getZoom() >= (S.r === '8' ? 12.2 : 13.9) || pinned != null;
+  for (const c of Object.values(CALL)) c.el.classList.toggle('off', off);
+}
+map.on('zoom', () => { if (CALL.hi) syncCallouts(); });
+
+/* ---------- hero ---------- */
+function hero() {
+  const isl = D.island[`${S.y}|${S.t}`], base = D.island[`1|${S.t}`];
+  $('h-yr').textContent = S.y === 0 ? `${D.years[0]}–${String(D.lastYear).slice(2)}` : D.years[S.y - 1];
+  $('h-val').innerHTML = isl ? `${usd(isl[0])}<small>psf</small>` : '–';
+  let delta = '';
+  if (isl && S.y > 1 && base) {
+    const p = Math.round(100 * (isl[0] / base[0] - 1));
+    delta = ` <span class="delta${p < 0 ? ' dn' : ''}">${p > 0 ? '+' : p < 0 ? '−' : '±'}${Math.abs(p)}% on ${D.years[0]}</span>`;
+  }
+  $('h-sub').innerHTML = isl
+    ? `Median of <b>${nf.format(isl[1])}</b> resales, ${esc(yearLong(S.y))}, ${esc(typeName(S.t))}.${delta}${S.y === 0 ? ' <span class="delta dn">nominal, pooled</span>' : ''}`
+    : 'No resales in this selection.';
+}
+
+/* ---------- key: hex swatches, ticks, a bar per band ---------- */
+const HEX = (fill, stroke = 'none', sw = 0) => `<svg viewBox="0 0 20 22" preserveAspectRatio="xMidYMid meet"><path d="M10 1l8.66 5v10L10 21l-8.66-5V6z" fill="${fill}" stroke="${stroke}" stroke-width="${sw}"/></svg>`;
+function buildKey() {
+  $('key-hex').innerHTML = RAMP.map(c => HEX(c)).join('');
+  $('key-ticks').innerHTML = BREAKS.map((b, i) => `<span style="left:${(i + 1) * 12.5}%">${nf.format(b)}</span>`).join('');
+  $('key-hollow').textContent = `Fewer than ${D.meta.threshold} resales`;
+}
+function key() {
+  const counts = RAMP.map(() => 0);
+  for (const [, rec] of shown) counts[cls(rec.m)]++;
+  const max = Math.max(1, ...counts);
+  $('key-bars').innerHTML = counts.map(n => `<span><i style="height:${n ? Math.max(2, 22 * n / max) : 0}px"></i><em style="--h:${n ? Math.max(2, 22 * n / max) : 0}px">${n || ''}</em></span>`).join('');
+  $('key-cap').textContent = `Median $ per sq ft, nominal. Bars count the ${nf.format(shown.length)} hexagons with ${D.meta.threshold}+ resales.`;
+}
+
+/* ---------- most and least expensive ---------- */
+function ranks() {
+  const sorted = shown.slice().sort((a, b) => b[1].m - a[1].m || b[1].n - a[1].n);
+  const k = 5;
+  const row = ([i, rec], n) => {
+    const [st, tw] = place(rec.p);
+    return `<li><button type="button" data-i="${i}" aria-label="${esc(`${n}. Around ${st}, ${tw}: ${usd(rec.m)} per square foot, ${rec.n} resales`)}"><span class="n">${n}</span><span class="nm">${esc(st)} <i>${esc(tw)}</i></span><span class="v">${HEX(RAMP[cls(rec.m)])}${usd(rec.m)}<small>${nf.format(rec.n)}</small></span></button></li>`;
+  };
+  const top = sorted.slice(0, k), bot = sorted.slice(-k).reverse();
+  $('top').innerHTML = top.length ? top.map((r, j) => row(r, j + 1)).join('') : '<li class="rank-empty">No hexagon has enough resales.</li>';
+  $('bot').innerHTML = bot.length ? bot.map((r, j) => row(r, j + 1)).join('') : '<li class="rank-empty">No hexagon has enough resales.</li>';
+  for (const b of document.querySelectorAll('.rank button')) {
+    b.addEventListener('click', () => focusHex(+b.dataset.i));
+    b.classList.toggle('on', +b.dataset.i === pinned);
+  }
+}
+
+/* ---------- controls ---------- */
+function buildControls() {
+  const short = ['All', '1–2 rm', '3 rm', '4 rm', '5 rm', 'Exec'];
+  $('types').innerHTML = D.types.map((t, i) => `<button type="button" data-t="${i}" aria-label="${esc(i ? D.types[i].replace('Executive', 'Executive and multi-generation') + ' flats' : 'All flat types')}">${short[i]}</button>`).join('');
+  $('types').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { S.t = +b.dataset.t; stopPlay(); drawTiles(); apply(); }));
+  const a = r => RES[r].area.toFixed(r === '8' ? 2 : 2);
+  $('res').innerHTML = `<button type="button" data-r="8">Coarse <small>res 8 · ${a('8')} km²</small></button><button type="button" data-r="9">Fine <small>res 9 · ${a('9')} km²</small></button>`;
+  $('res').querySelectorAll('button').forEach(b => b.addEventListener('click', () => { if (S.r === b.dataset.r) return; clearHover(); unpin(); for (const c of callIds) map.setFeatureState(c, { call: false }); callIds = []; S.r = b.dataset.r; apply(); }));
+}
+function syncControls() {
+  $('types').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.t === S.t)));
+  $('res').querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.r === S.r)));
+  tiles.forEach((b, y) => { b.setAttribute('aria-checked', String(y === S.y)); b.tabIndex = y === S.y ? 0 : -1; });
+}
+
+/* ---------- the year strip: small multiples, one honeycomb per year ---------- */
+let tiles = [];
+const ORDER = () => [...D.years.map((_, k) => k + 1), 0];   // 2017 ... latest, then all years
+function buildTiles() {
+  const host = $('tiles');
+  host.innerHTML = '';
+  tiles = [];
+  for (const y of ORDER()) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.className = 'tile' + (y === 0 ? ' all' : '');
+    b.setAttribute('role', 'radio');
+    b.dataset.y = y;
+    b.innerHTML = `<canvas aria-hidden="true"></canvas><span class="lbl">${esc(y === 0 ? 'All' : D.years[y - 1])}<span></span></span>`;
+    b.addEventListener('click', () => { stopPlay(); setYear(y); });
+    b.addEventListener('keydown', e => {
+      const o = ORDER(), k = o.indexOf(y);
+      const next = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
+      let to = null;
+      if (next) to = o[(k + next + o.length) % o.length];
+      else if (e.key === 'Home') to = o[0];
+      else if (e.key === 'End') to = o[o.length - 1];
+      if (to == null) return;
+      e.preventDefault(); e.stopPropagation(); stopPlay(); setYear(to); tiles[to].focus();
+    });
+    host.append(b);
+    tiles[y] = b;
+  }
+  // Drag across the strip to scrub through the years.
+  let scrubbing = false;
+  const pick = e => { const el = document.elementFromPoint(e.clientX, e.clientY); const t = el && el.closest('.tile'); if (t && +t.dataset.y !== S.y) setYear(+t.dataset.y); };
+  host.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse' && e.button === 0) { scrubbing = true; stopPlay(); } });
+  addEventListener('pointermove', e => { if (scrubbing) pick(e); });
+  addEventListener('pointerup', () => { scrubbing = false; });
+}
+let tileBox = null;
+function drawTiles() {
+  // Frame every tile on the same box: the honeycomb's extent at res 8.
+  if (!tileBox) {
+    let w = 180, s = 90, e = -180, n = -90;
+    const eat = p => { if (p[0] < w) w = p[0]; if (p[0] > e) e = p[0]; if (p[1] < s) s = p[1]; if (p[1] > n) n = p[1]; };
+    RES['8'].hex.forEach(h => h.ring.forEach(eat)); RES['8'].latRings.forEach(r => r.forEach(eat));
+    tileBox = { w, s, e, n, k: Math.cos(1.35 * Math.PI / 180) };
+  }
+  const dpr = Math.min(2, devicePixelRatio || 1);
+  for (const y of ORDER()) {
+    const b = tiles[y], cv = b.querySelector('canvas');
+    const W = cv.clientWidth, H = cv.clientHeight;
+    if (!W || !H) continue;
+    cv.width = Math.round(W * dpr); cv.height = Math.round(H * dpr);
+    const g = cv.getContext('2d');
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, W, H);
+    const bw = (tileBox.e - tileBox.w) * tileBox.k, bh = tileBox.n - tileBox.s;
+    const sc = Math.min(W / bw, H / bh), ox = (W - bw * sc) / 2, oy = (H - bh * sc) / 2;
+    const P = p => [ox + (p[0] - tileBox.w) * tileBox.k * sc, oy + (tileBox.n - p[1]) * sc];
+    const path = ring => { g.beginPath(); ring.forEach((p, j) => { const [x, yy] = P(p); j ? g.lineTo(x, yy) : g.moveTo(x, yy); }); g.closePath(); };
+    const on = y === S.y;
+    g.fillStyle = on ? '#3A3936' : '#E7E4DD';
+    for (const r of RES['8'].latRings) { path(r); g.fill(); }
+    const m = recs('8', y, S.t);
+    RES['8'].hex.forEach((h, i) => {
+      const rec = m.get(i);
+      path(h.ring);
+      g.fillStyle = rec && rec.m ? RAMP[cls(rec.m)] : (on ? '#3A3936' : '#E7E4DD');
+      g.fill();
+    });
+    const isl = D.island[`${y}|${S.t}`];
+    b.querySelector('.lbl span').textContent = isl ? usd(isl[0]) : '–';
+    b.setAttribute('aria-label', `${y === 0 ? `All years, ${yearLong(0)}, pooled` : yearLong(y)}: median ${isl ? usd(isl[0]) : 'none'} per square foot`);
+  }
+}
+function setYear(y) {
+  if (y === S.y) return;
+  S.y = y;
+  apply();
+  drawTiles();
+  showTile(true);
+}
+// On phones the strip scrolls sideways: keep the chosen year in view.
+function showTile(smooth) {
+  const host = $('tiles'), t = tiles[S.y];
+  if (!t || host.scrollWidth <= host.clientWidth) return;
+  const left = t.offsetLeft - host.offsetLeft, to = Math.max(0, Math.min(left - (host.clientWidth - t.offsetWidth) / 2, host.scrollWidth - host.clientWidth));
+  host.scrollTo({ left: to, behavior: smooth && !reduceMotion ? 'smooth' : 'auto' });
+}
+let playT = 0, touched = false;
+for (const ev of ['pointerdown', 'wheel', 'keydown']) addEventListener(ev, () => { touched = true; }, { capture: true, passive: true });
+map.getContainer().addEventListener('pointerdown', () => stopPlay());
+map.getContainer().addEventListener('wheel', () => stopPlay(), { passive: true });
+function stopPlay() {
+  if (!playT) return;
+  clearInterval(playT); playT = 0;
+  $('play').querySelector('span').textContent = 'Play';
+  $('play').setAttribute('aria-label', 'Play the years from ' + D.years[0]);
+  $('play').querySelector('svg').innerHTML = '<path d="M1 0l9 5-9 5z"/>';
+}
+function play() {
+  if (playT) { stopPlay(); return; }
+  setYear(1);
+  $('play').querySelector('span').textContent = 'Stop';
+  $('play').setAttribute('aria-label', 'Stop playing the years');
+  $('play').querySelector('svg').innerHTML = '<path d="M1 1h8v8H1z"/>';
+  playT = setInterval(() => {
+    if (S.y >= D.years.length || S.y === 0) { stopPlay(); return; }
+    setYear(S.y + 1);
+  }, 950);
+}
+$('play').addEventListener('click', play);
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || !D || e.target.closest('input, textarea, select, .tile, .dmc-stamp')) return;
+  const o = ORDER(), k = o.indexOf(S.y);
+  if (e.key === '[' || e.key === ',') { stopPlay(); setYear(o[Math.max(0, k - 1)]); }
+  else if (e.key === ']' || e.key === '.') { stopPlay(); setYear(o[Math.min(o.length - 1, k + 1)]); }
+});
+
+/* ---------- hover card ---------- */
+const tip = $('tip');
+let hoverId = null, pinned = null;
+function spark(i) {
+  // This hexagon's median in every year, for the chosen flat type, on its own scale from zero.
+  const ys = D.years.map((yr, k) => { const r = recs(S.r, k + 1, S.t).get(i); return { yr, m: r && r.m ? r.m : 0, k: k + 1 }; });
+  const hi = Math.max(...ys.map(o => o.m));
+  if (!hi) return '';
+  const W = 204, H = 34, bw = W / ys.length;
+  const firstWith = ys.find(o => o.m), lastWith = ys.slice().reverse().find(o => o.m);
+  let s = `<svg viewBox="0 0 ${W} ${H + 12}" role="img" aria-label="Median per year: ${ys.map(o => `${o.yr} ${o.m ? usd(o.m) : 'too few'}`).join(', ')}">`;
+  ys.forEach((o, j) => {
+    const x = j * bw + 1, w = bw - 3;
+    if (o.m) {
+      const h = Math.max(2, H * o.m / hi);
+      s += `<rect x="${x}" y="${H - h}" width="${w}" height="${h}" fill="${o.k === S.y ? C.ink : RAMP[cls(o.m)]}"/>`;
+    } else s += `<rect x="${x}" y="${H - 1}" width="${w}" height="1" fill="${C.hollow}"/>`;
+  });
+  s += `<text class="ax" x="0" y="${H + 10}">${firstWith.yr} ${usd(firstWith.m)}</text><text class="ax" x="${W}" y="${H + 10}" text-anchor="end">${lastWith.yr} ${usd(lastWith.m)}</text></svg>`;
+  return s;
+}
+function rangeBar(rec) {
+  const W = 204, lo = 0, hi = Math.max(1600, rec.hi), x = v => (v - lo) / (hi - lo) * W;
+  return `<svg viewBox="0 0 ${W} 22" aria-hidden="true"><line x1="0" x2="${W}" y1="6" y2="6" stroke="#E2DED6" stroke-width="1"/>
+    <line x1="${x(rec.lo)}" x2="${x(rec.hi)}" y1="6" y2="6" stroke="${C.ink}" stroke-width="2"/>
+    <line x1="${x(rec.lo)}" x2="${x(rec.lo)}" y1="2" y2="10" stroke="${C.ink}" stroke-width="1.5"/><line x1="${x(rec.hi)}" x2="${x(rec.hi)}" y1="2" y2="10" stroke="${C.ink}" stroke-width="1.5"/>
+    <rect x="${x(rec.m) - 4}" y="2" width="8" height="8" fill="${RAMP[cls(rec.m)]}" stroke="${C.ink}" stroke-width="1.5"/>
+    <text class="ax" x="0" y="21">$0</text><text class="ax" x="${W}" y="21" text-anchor="end">${usd(hi)}</text></svg>`;
+}
+function tipHtml(i) {
+  const rec = recs(S.r, S.y, S.t).get(i), h = RES[S.r].hex[i];
+  const span = S.y === 0 ? `from ${yearLong(0)}` : `in ${yearLong(S.y)}`;
+  const when = `${esc(span)}, ${esc(typeName(S.t))}`;
+  const cell = `<p class="cell">H3 res ${S.r} · ${esc(h.cell)}</p>`;
+  const x = '<button class="x" type="button" aria-label="Close">&times;</button>';
+  if (!rec) return `${x}<p class="t1">No ${esc(S.t ? D.types[S.t].toLowerCase() + ' ' : '')}resales here<small>${esc(yearLong(S.y))}, ${esc(typeName(S.t))}</small></p><div class="bd"><p class="t3">${nf.format(h.all)} resales of any kind since ${D.years[0]}.</p><div>${spark(i)}${cell}</div></div>`;
+  const [st, tw] = place(rec.p);
+  const head = `${x}<p class="t1">Around ${esc(st)}<small>${esc(tw)}</small></p>`;
+  if (!rec.m) return `${head}<div class="bd"><p class="t3">Only <b>${rec.n}</b> resale${rec.n > 1 ? 's' : ''} ${when}: too few for a fair median (it takes ${D.meta.threshold}).</p><div>${spark(i)}${cell}</div></div>`;
+  return `${head}<div class="bd"><div class="l"><div class="t2"><b>${usd(rec.m)}</b><span>per sq ft<br>median</span></div>
+    <p class="t3"><b>${nf.format(rec.n)}</b> resales ${when}. Range <b>${usd(rec.lo)}</b> to <b>${usd(rec.hi)}</b>.</p></div>
+    <div class="r">${rangeBar(rec)}${spark(i)}${cell}</div></div>`;
+}
+const docked = () => tip.classList.contains('pinned') && matchMedia(DMC.COMPACT_Q).matches;
+function place2(x, y) {
+  if (docked()) return;   // phones: the pinned card docks along the bottom of the map
+  const W = innerWidth, H = innerHeight, w = tip.offsetWidth, h = tip.offsetHeight;
+  let px = x + 16, py = y + 16;
+  if (px + w > W - 8) px = x - w - 16;
+  if (py + h > H - 8) py = y - h - 16;
+  tip.style.left = `${Math.max(8, px)}px`; tip.style.top = `${Math.max(8, py)}px`;
+}
+function setHov(i) {
+  if (hoverId === i) return;
+  if (hoverId != null) map.setFeatureState({ source: `hex${S.r}`, id: hoverId }, { hov: false });
+  hoverId = i;
+  if (i != null) map.setFeatureState({ source: `hex${S.r}`, id: i }, { hov: true });
+}
+function clearHover() { setHov(null); if (pinned == null) tip.hidden = true; map.getCanvas().style.cursor = ''; }
+function showTip(i, pt, pin) {
+  tip.innerHTML = tipHtml(i);
+  tip.classList.toggle('pinned', !!pin);
+  tip.hidden = false;
+  const x = tip.querySelector('.x');
+  if (x) x.addEventListener('click', unpin);
+  if (!pt) { const p = map.project(RES[S.r].hex[i].c); pt = { x: p.x + map.getContainer().getBoundingClientRect().left, y: p.y }; }
+  place2(pt.x, pt.y);
+}
+function pin(i, pt) {
+  unpin(true);
+  pinned = i;
+  map.setFeatureState({ source: `hex${S.r}`, id: i }, { sel: true });
+  showTip(i, pt, true);
+  document.querySelectorAll('.rank button').forEach(b => b.classList.toggle('on', +b.dataset.i === i));
+  syncCallouts();
+  if (docked()) {   // keep the chosen hexagon in sight above the docked card
+    const top = tip.getBoundingClientRect().top - map.getContainer().getBoundingClientRect().top, p = map.project(RES[S.r].hex[i].c);
+    if (p.y > top - 40) map.panBy([0, p.y - top + 70], { duration: reduceMotion ? 0 : 400 });
+  }
+}
+function unpin(quiet) {
+  if (pinned != null && map.getSource(`hex${S.r}`)) map.setFeatureState({ source: `hex${S.r}`, id: pinned }, { sel: false });
+  pinned = null;
+  tip.classList.remove('pinned');
+  if (!quiet) tip.hidden = true;
+  document.querySelectorAll('.rank button.on').forEach(b => b.classList.remove('on'));
+  if (CALL.hi) syncCallouts();
+}
+function hexAt(point) {
+  const f = map.queryRenderedFeatures(point, { layers: [`fill${S.r}`] })[0];
+  return f ? f.id : null;
+}
+map.on('mousemove', e => {
+  if (!D || !canHover) return;
+  const i = hexAt(e.point);
+  if (i == null) { setHov(null); if (pinned == null) tip.hidden = true; map.getCanvas().style.cursor = ''; return; }
+  setHov(i);
+  map.getCanvas().style.cursor = 'crosshair';
+  if (pinned == null) { tip.innerHTML = tipHtml(i); tip.hidden = false; place2(e.originalEvent.clientX, e.originalEvent.clientY); }
+});
+map.getCanvas().addEventListener('mouseleave', () => { if (D) clearHover(); });
+map.on('click', e => {
+  if (!D) return;
+  const i = hexAt(e.point);
+  if (i == null) { unpin(); return; }
+  setHov(null);
+  pin(i, { x: e.originalEvent.clientX, y: e.originalEvent.clientY });
+});
+map.on('movestart', e => { if (e.originalEvent && pinned != null) unpin(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && pinned != null) unpin(); });
+
+function focusHex(i) {
+  stopPlay();
+  const h = RES[S.r].hex[i];
+  const z = S.r === '8' ? 12.6 : 14.1;
+  const pad = DMC.overlayPadding();
+  unpin(true); tip.hidden = true;
+  const done = () => pin(i, null);
+  if (reduceMotion) { map.jumpTo({ center: h.c, zoom: z, padding: pad }); requestAnimationFrame(done); }
+  else { map.flyTo({ center: h.c, zoom: z, padding: pad, speed: 1.3, curve: 1.3, maxDuration: 2600, essential: true }); map.once('moveend', done); }
+}
+
+/* ---------- town names, shown once the honeycomb is big enough ---------- */
+function addTowns() {
+  for (const [name, lng, lat] of D.towns) {
+    const el = document.createElement('div');
+    el.className = 'town dmc-chrome';
+    el.append(document.createElement('span'));
+    el.firstChild.textContent = name;
+    new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([lng, lat]).addTo(map);
+  }
+  const sync = () => map.getContainer().classList.toggle('show-towns', map.getZoom() >= 11.4 && map.getZoom() < 15.2);
+  map.on('zoom', sync); sync();
+}
+
+/* ---------- layout: the column starts under the stamp ---------- */
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open')) document.documentElement.style.setProperty('--side-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+}
+layout();
+if (document.fonts) document.fonts.ready.then(() => { layout(); if (D) drawTiles(); });
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { layout(); if (D) drawTiles(); }, 150); });
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day20/hex.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+dataP.then(d => {
+  prepare(d);
+  buildKey(); buildControls(); buildTiles();
+  const deck = document.querySelector('.dmc-deck');
+  if (deck) deck.textContent = `Every HDB resale flat sold from ${MONTHS[0]} ${d.years[0]} to ${MONTHS[D.lastMonth - 1]} ${D.lastYear}, ${nf.format(d.meta.placed)} of them, placed at its block and pooled into H3 hexagons. Each hexagon shows the median price per square foot; run the years to watch the honeycomb darken.`;
+  $('n-geo').textContent = `Each sale sits at the centre of its block's footprint (${nf.format(d.meta.geo.day06)} of ${nf.format(d.meta.geo.pairs)} blocks from HDB's building outlines, ${d.meta.geo.onemap} from OneMap). A hexagon pools every block inside it and is named after the street with the most resales.`;
+  $('n-hollow').textContent = `Hexagons with fewer than ${d.meta.threshold} resales in your selection are left hollow. ${D.lastYear} runs to ${MONTHS[D.lastMonth - 1]}.`;
+  syncControls();
+  requestAnimationFrame(() => { drawTiles(); showTile(false); });
+  return styleP;
+}).then(() => {
+  addLayers();
+  apply();
+  addTowns();
+  map.once('idle', () => {
+    $('loading').hidden = true;
+    // Run the years once on arrival, unless a year was asked for or motion is reduced.
+    if (!reduceMotion && !params.has('y')) setTimeout(() => { if (!touched) play(); }, 700);
+  });
+}).catch(err => {
+  $('loading').textContent = 'The resale data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
