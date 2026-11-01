@@ -1,0 +1,972 @@
+[
+ {
+  "name": "A Noodle Story",
+  "new2026": false,
+  "address": "Amoy Street Food Centre, #01-39, 7 Maxwell Road, Singapore 069111",
+  "postal": "069111",
+  "building": "Amoy Street Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/a-noodle-story",
+  "michelin_says": null,
+  "note": "Restaurant page gives 069111; an older Michelin feature gives postal 069891 for the same unit. Restaurant page summary referenced the 2025 guide; 2026 Bib status confirmed (retained across all 10 editions)."
+ },
+ {
+  "name": "Adam Road Noo Cheng Big Prawn Noodle",
+  "new2026": false,
+  "address": "Adam Food Centre, #01-27, 2 Adam Road, Singapore 289876",
+  "postal": "289876",
+  "building": "Adam Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/adam-rd-noo-cheng-big-prawn-noodle",
+  "michelin_says": "Prawn mee based on the owner's father's recipe.",
+  "note": "Michelin page title is 'Adam Rd Noo Cheng Big Prawn Noodle'."
+ },
+ {
+  "name": "Alliance Seafood",
+  "new2026": false,
+  "address": "Newton Food Centre, #01-27, 500 Clemenceau Avenue North, Singapore 229495",
+  "postal": "229495",
+  "building": "Newton Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/alliance-seafood",
+  "michelin_says": null,
+  "note": "An older Michelin article mentions other outlets (Esplanade, VivoCity, Clarke Quay, Geylang); the Bib listing is the Newton stall."
+ },
+ {
+  "name": "Anglo Indian (Shenton Way)",
+  "new2026": false,
+  "address": "#01-08, 1 Shenton Way, Singapore 068803",
+  "postal": "068803",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/anglo-indian-shenton-way",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Ar Er Soup",
+  "new2026": false,
+  "address": "ABC Brickworks Market & Food Centre, #01-141, Blk 6 Jalan Bukit Merah, Singapore 150006",
+  "postal": "150006",
+  "building": "ABC Brickworks Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/ar-er-soup",
+  "michelin_says": "Eight kinds of MSG-free slow-boiled soups with pumpkin rice or steamed rice.",
+  "note": null
+ },
+ {
+  "name": "Bahrakath Mutton Soup",
+  "new2026": false,
+  "address": "Adam Food Centre, #01-10, 2 Adam Road, 289876, Singapore",
+  "postal": "289876",
+  "building": "Adam Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/bahrakath-mutton-soup",
+  "michelin_says": "Operating since 1973; mutton soup with a rich, herbal broth.",
+  "note": "Restaurant page summary referenced the 2025 guide (Bib Gourmand); 2026 status not explicitly confirmed in results."
+ },
+ {
+  "name": "Beach Road Fish Head Bee Hoon",
+  "new2026": false,
+  "address": "Whampoa Makan Place, #01-46, 90/91 Whampoa Drive 91, Singapore 320091",
+  "postal": "320091",
+  "building": "Whampoa Makan Place",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/beach-road-fish-head-bee-hoon",
+  "michelin_says": "Queue starts early; stall usually closed by noon.",
+  "note": "Other Michelin pages call the venue Whampoa Food Centre."
+ },
+ {
+  "name": "Bismillah Biryani (Little India)",
+  "new2026": false,
+  "address": "50 Dunlop Street, Singapore 209379",
+  "postal": "209379",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/bismillah-biryani",
+  "michelin_says": null,
+  "note": "Older feature mentions a second outlet at #01-03 Nexus@one-north, 1 Fusionopolis Link, 138542, and an earlier address at 42 Dunlop Street."
+ },
+ {
+  "name": "Boon Keng Road Fish Head Bee Hoon",
+  "new2026": true,
+  "address": "Blk 416, #01-53, Bedok North Avenue 2, Singapore 460416",
+  "postal": "460416",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/boon-keng-road-fish-head-bee-hoon",
+  "michelin_says": "Fish head noodle soup with a choice of Spanish mackerel, red grouper or regular grouper; fresh fish and a rich, flavourful broth.",
+  "note": "Located in Bedok North, not on Boon Keng Road. Distinct from Beach Road Fish Head Bee Hoon (Whampoa)."
+ },
+ {
+  "name": "Boon Tong Kee (Balestier Road)",
+  "new2026": false,
+  "address": "399, 401, 403 Balestier Road, Singapore 329801",
+  "postal": "329801",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/boon-tong-kee-balestier-road",
+  "michelin_says": null,
+  "note": "Award inconsistent across Michelin pages (older ones say MICHELIN Plate / Selected 2024); restaurant page says Bib Gourmand 2026."
+ },
+ {
+  "name": "Chai Chuan Tou Yang Rou Tang",
+  "new2026": false,
+  "address": "115 Bukit Merah View Market & Hawker Centre, #01-51, Blk 115 Bukit Merah View, 151115, Singapore",
+  "postal": "151115",
+  "building": "115 Bukit Merah View Market & Hawker Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/chai-chuan-tou-yang-rou-tang",
+  "michelin_says": "Mutton soup; opens only about two and a half hours a day.",
+  "note": null
+ },
+ {
+  "name": "Chef Kang's Noodle House",
+  "new2026": false,
+  "address": "Blk C, #01-34, Jackson Square, 11 Lorong 3 Toa Payoh, Singapore 319579",
+  "postal": "319579",
+  "building": "Jackson Square",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/chef-kang-s-noodle-house",
+  "michelin_says": "Stall tucked away in an industrial area in Toa Payoh, run by the founder's apprentice.",
+  "note": "Older Michelin article lists Block A, Jackson Square; current page says Blk C. Restaurant page summary referenced the 2025 guide."
+ },
+ {
+  "name": "Cheok Kee",
+  "new2026": false,
+  "address": "Geylang Bahru Market & Food Centre, #01-35, 69 Geylang Bahru, 330069, Singapore",
+  "postal": "330069",
+  "building": "Geylang Bahru Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/cheok-kee",
+  "michelin_says": "Famous for its soy-marinated duck.",
+  "note": null
+ },
+ {
+  "name": "Chey Sua Carrot Cake",
+  "new2026": false,
+  "address": "127 Toa Payoh West Market & Food Centre, #02-30, Blk 127, Lorong 1 Toa Payoh, 310127, Singapore",
+  "postal": "310127",
+  "building": "127 Toa Payoh West Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/chey-sua-carrot-cake",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Chuan Kee Boneless Braised Duck",
+  "new2026": false,
+  "address": "20 Ghim Moh Road Market & Food Centre, #01-04, Blk 20, Ghim Moh Road, Singapore 270020",
+  "postal": "270020",
+  "building": "20 Ghim Moh Road Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/chuan-kee-boneless-braised-duck",
+  "michelin_says": "Braised duck with rice, congee, kway teow or noodles; extras like duck gizzard, liver or marinated egg; set comes with bak kut teh.",
+  "note": "Michelin page files it under the Taman Jurong area, though the address is Ghim Moh."
+ },
+ {
+  "name": "Cumi Bali",
+  "new2026": false,
+  "address": "50 Tras Street, Singapore 078989",
+  "postal": "078989",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/cumi-bali",
+  "michelin_says": "Indonesian restaurant.",
+  "note": "Restaurant page summary referenced the 2025 guide; 2026 status not explicitly confirmed. Relocated to Tras Street in 2021."
+ },
+ {
+  "name": "Da Shi Jia Big Prawn Mee",
+  "new2026": false,
+  "address": "89 Killiney Road, Singapore 239534",
+  "postal": "239534",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/da-shi-jia",
+  "michelin_says": "Prawn noodles and signature stir-fried prawn bee hoon; choice of noodles and sizes from regular to XXL.",
+  "note": null
+ },
+ {
+  "name": "Delhi Lahori",
+  "new2026": false,
+  "address": "Tekka Centre, #01-266, Buffalo Road, 210665, Singapore",
+  "postal": "210665",
+  "building": "Tekka Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/delhi-lahori",
+  "michelin_says": "Hawker stall anchored by a roaring charcoal tandoor; northern Indian and Pakistani food.",
+  "note": "Summary did not state the award year for the restaurant page."
+ },
+ {
+  "name": "Dudu Cooked Food",
+  "new2026": false,
+  "address": "Jurong West 505 Market & Food Centre, #01-19, Blk 505, Jurong West Street 52, Singapore 640505",
+  "postal": "640505",
+  "building": "Jurong West 505 Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/du-du-shou-shi",
+  "michelin_says": "Tu tu kueh, a steamed rice flour dessert with coconut or peanut filling.",
+  "note": null
+ },
+ {
+  "name": "Fei Fei Roasted Noodle",
+  "new2026": false,
+  "address": "Yuhua Village Market and Food Centre, #01-28, Blk 254, Jurong East Street 24, 600254, Singapore",
+  "postal": "600254",
+  "building": "Yuhua Village Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/fei-fei-roasted-%E2%80%A2-noodle",
+  "michelin_says": "Duck leg with shrimp wonton noodles; arrive early as food can sell out.",
+  "note": "Michelin page title is 'Fei Fei Roasted • Noodle'."
+ },
+ {
+  "name": "Fico",
+  "new2026": false,
+  "address": "1300 East Coast Parkway, Singapore 468964",
+  "postal": "468964",
+  "building": "East Coast Park",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/fico-1213088",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Fu Ming Cooked Food",
+  "new2026": false,
+  "address": "Redhill Market, #01-49, 85 Redhill Lane, Singapore 150085",
+  "postal": "150085",
+  "building": "Redhill Market (Redhill Food Centre)",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/fu-ming-cooked-food",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Hai Nan Xing Zhou Beef Noodle",
+  "new2026": false,
+  "address": "Kim Keat Palm Market & Food Centre, #01-06, 22 Lorong 7 Toa Payoh, Singapore 310022",
+  "postal": "310022",
+  "building": "Kim Keat Palm Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hai-nan-xing-zhou-beef-noodle",
+  "michelin_says": "blanched rice noodles tossed in a thick gravy, or soup noodles in a deeply flavourful ox bone broth",
+  "note": "Older 2022 Michelin page gave postal code 310019; current listing gives 310022."
+ },
+ {
+  "name": "Hai Nan Zai",
+  "new2026": false,
+  "address": "Chong Pang Market and Food Centre, #01-129, 105 Yishun Ring Road, Singapore 760105",
+  "postal": "760105",
+  "building": "Chong Pang Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hainan-zi",
+  "michelin_says": "Singaporean classics such as fried prawn mee, carrot cake and fried kway teow",
+  "note": "Page slug is 'hainan-zi'; some Michelin locales title it 'Hainan Zi' (same address)."
+ },
+ {
+  "name": "Han Kee",
+  "new2026": false,
+  "address": "Amoy Street Food Centre, #02-129, 7 Maxwell Road, Singapore 069111",
+  "postal": "069111",
+  "building": "Amoy Street Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/han-kee",
+  "michelin_says": "umami-laden broth with mackerel (fish soup)",
+  "note": null
+ },
+ {
+  "name": "Heng",
+  "new2026": false,
+  "address": "Newton Food Centre, #01-28, 500 Clemenceau Avenue North, Singapore 229495",
+  "postal": "229495",
+  "building": "Newton Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/heng",
+  "michelin_says": "50+ years serving sweet and savoury carrot cakes; fried oysters and oyster omelettes also worth a try.",
+  "note": null
+ },
+ {
+  "name": "Heng Heng Cooked Food",
+  "new2026": false,
+  "address": "Yuhua Village Market and Food Centre, #01-12, Blk 254 Jurong East Street 24, Singapore 600254",
+  "postal": "600254",
+  "building": "Yuhua Village Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/heng-heng-cooked-food",
+  "michelin_says": "cooked-to-order prawn noodles and laksa",
+  "note": null
+ },
+ {
+  "name": "Heng Kee",
+  "new2026": false,
+  "address": "Hong Lim Market and Food Centre, #01-58, Blk 531A Upper Cross Street, Singapore 051531",
+  "postal": "051531",
+  "building": "Hong Lim Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/heng-kee",
+  "michelin_says": "Mild, well-balanced curry broth, custom-made tofu puffs and fish cakes, velvety chicken (curry chicken bee hoon mee).",
+  "note": null
+ },
+ {
+  "name": "Hong Heng Fried Sotong Prawn Mee",
+  "new2026": false,
+  "address": "Tiong Bahru Market, #02-01, 30 Seng Poh Road, Singapore 168898",
+  "postal": "168898",
+  "building": "Tiong Bahru Market",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hong-heng-fried-sotong-prawn-mee",
+  "michelin_says": "cooked-to-order fried Hokkien mee, stir-fried with sliced fish, squid and prawn, served with homemade chilli sauce",
+  "note": null
+ },
+ {
+  "name": "Hong Kong Yummy Soup",
+  "new2026": false,
+  "address": "Alexandra Village Food Centre, #01-51, Blk 120 Bukit Merah Lane 1, Singapore 150120",
+  "postal": "150120",
+  "building": "Alexandra Village Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hong-kong-yummy-soup",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Hoo Kee Bak Chang",
+  "new2026": false,
+  "address": "Amoy Street Food Centre, #01-18, 7 Maxwell Road, Singapore 069111",
+  "postal": "069111",
+  "building": "Amoy Street Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hoo-kee-bak-chang",
+  "michelin_says": "Glutinous rice dumplings with salted duck egg yolk, pork and chestnut, wrapped in bamboo leaf.",
+  "note": null
+ },
+ {
+  "name": "Hui Wei Chilli Ban Mian",
+  "new2026": false,
+  "address": "Geylang Bahru Market & Food Centre, #01-58, 69 Geylang Bahru, Singapore 330069",
+  "postal": "330069",
+  "building": "Geylang Bahru Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hui-wei-chilli-ban-mian",
+  "michelin_says": "ribbon noodles in soup or dry style; tend to sell out early",
+  "note": null
+ },
+ {
+  "name": "Hup Kee Fried Oyster Omelette",
+  "new2026": true,
+  "address": "Newton Food Centre, #01-73, 500 Clemenceau Avenue North, 229495, Singapore",
+  "postal": "229495",
+  "building": "Newton Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/hup-kee-fried-oyster-omelette",
+  "michelin_says": "Has specialised in a single dish, fried oyster omelette, for about 50 years since starting as a street stall; dinner only, queues at peak hours.",
+  "note": null
+ },
+ {
+  "name": "Indocafé",
+  "new2026": false,
+  "address": "35 Scotts Road, Singapore 228227",
+  "postal": "228227",
+  "building": "The White House (colonial bungalow)",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/indocafe-the-white-house",
+  "michelin_says": "Peranakan food in an elegant colonial bungalow with dark wood furniture and antiques",
+  "note": "Some Michelin pages title it 'Indocafé - The White House'; phone differs between pages (+65 9430 7307 vs +65 6733 2656), address the same."
+ },
+ {
+  "name": "J2 Famous Crispy Curry Puff",
+  "new2026": false,
+  "address": "Amoy Street Food Centre, #01-21, 7 Maxwell Road, Singapore 069111",
+  "postal": "069111",
+  "building": "Amoy Street Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/j2-famous-crispy-curry-puff",
+  "michelin_says": "classic chicken and potato curry puffs, plus black pepper chicken, sweet taro and chilli sardine fillings",
+  "note": null
+ },
+ {
+  "name": "Jalan Sultan Prawn Mee",
+  "new2026": false,
+  "address": "2 Jalan Ayer, Lorong 1 Geylang, Singapore 389141",
+  "postal": "389141",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/jalan-sultan-prawn-mee",
+  "michelin_says": "prawn noodles, served in both soup and dry styles",
+  "note": null
+ },
+ {
+  "name": "Jason Penang Cuisine",
+  "new2026": false,
+  "address": "ABC Brickworks Market & Food Centre, #01-112, Blk 6 Jalan Bukit Merah, Singapore 150006",
+  "postal": "150006",
+  "building": "ABC Brickworks Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/jason-penang-cuisine",
+  "michelin_says": "Penang assam laksa, char kway teow and prawn mee",
+  "note": null
+ },
+ {
+  "name": "Ji De Lai Hainanese Chicken Rice",
+  "new2026": false,
+  "address": "Chong Pang Market and Food Centre, #01-152, 105 Yishun Ring Road, Singapore 760105",
+  "postal": "760105",
+  "building": "Chong Pang Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/ji-de-lai-hainanese-chicken-rice",
+  "michelin_says": "Hainanese chicken rice; set meals include soup and greens and offer good value",
+  "note": null
+ },
+ {
+  "name": "Ji Ji Noodle House",
+  "new2026": false,
+  "address": "Hong Lim Market and Food Centre, #02-48/49, Blk 531A Upper Cross Street, Singapore 051531",
+  "postal": "051531",
+  "building": "Hong Lim Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/ji-ji-noodle-house",
+  "michelin_says": null,
+  "note": "Address reported from Michelin's 'best noodles' roundup rather than explicitly from the restaurant page."
+ },
+ {
+  "name": "Jia Xiang",
+  "new2026": true,
+  "address": "Redhill Market, #01-35, 85 Redhill Lane, Singapore 150085",
+  "postal": "150085",
+  "building": "Redhill Market",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/jia-xiang",
+  "michelin_says": "Mee siam is a definite standout: bee hoon in a spicy, sweet and tangy gravy.",
+  "note": null
+ },
+ {
+  "name": "Jian Bo Tiong Bahru Shui Kueh",
+  "new2026": false,
+  "address": "Jurong West 505 Market & Food Centre, #01-27, Blk 505 Jurong West Street 52, Singapore 640505",
+  "postal": "640505",
+  "building": "Jurong West 505 Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/jian-bo-tiong-bahru-shui-kueh",
+  "michelin_says": "Shui kueh (chwee kueh); the brand began at Tiong Bahru Market.",
+  "note": null
+ },
+ {
+  "name": "Joo Siah Bak Koot Teh",
+  "new2026": false,
+  "address": "Blk 349, #01-1215 Jurong East Avenue 1, Singapore 600349",
+  "postal": "600349",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/joo-siah-bak-koot-teh",
+  "michelin_says": "pepper-flavoured bak kut teh",
+  "note": "2021 Bib list placed it at Kai Xiang Food Centre (Jurong East); current page gives no building name."
+ },
+ {
+  "name": "Jungle Thai",
+  "new2026": false,
+  "address": "10 Ann Siang Hill, Singapore 069789",
+  "postal": "069789",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/jungle",
+  "michelin_says": "small, regularly changing menu; signatures such as smoky chargrilled pork jowl and yellow crab curry",
+  "note": "Michelin page is titled 'Jungle' (Thai cuisine)."
+ },
+ {
+  "name": "Kelantan Kway Chap · Pig Organ Soup",
+  "new2026": false,
+  "address": "Berseh Food Centre, #02-39, 166 Jalan Besar, Singapore 208877",
+  "postal": "208877",
+  "building": "Berseh Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/kelantan-kway-chap-pig-organ-soup",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "King of Laksa",
+  "new2026": true,
+  "address": "Stall S3, #02-100, 118 Aljunied Avenue 2, Singapore 380118",
+  "postal": "380118",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/king-of-laksa",
+  "michelin_says": "Lighter laksa with prawns or blood cockles, low-carb noodles on request; coconut-rich, creamy broth without an oily layer, with shrimp paste chilli.",
+  "note": null
+ },
+ {
+  "name": "Kitchenman Nasi Lemak",
+  "new2026": false,
+  "address": "CT Hub, #01-08/13, 2 Kallang Avenue, Singapore 339407",
+  "postal": "339407",
+  "building": "CT Hub",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/kitchenman-nasi-lemak",
+  "michelin_says": "nasi lemak: pandan coconut rice with fried anchovies, peanuts, egg, cucumber and sambal; fried chicken leg the standout",
+  "note": null
+ },
+ {
+  "name": "Koh Brother Pig's Organ Soup",
+  "new2026": false,
+  "address": "Tiong Bahru Market, #02-29, 30 Seng Poh Road, Singapore 168898",
+  "postal": "168898",
+  "building": "Tiong Bahru Market",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/koh-brother-pig-s-organ-soup",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Kok Sen",
+  "new2026": false,
+  "address": "2/4 Keong Saik Road, Singapore 089112",
+  "postal": "089112",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/kok-sen",
+  "michelin_says": "Zi char (Singaporean cuisine), five decades in business; moved along Keong Saik Road in 2022.",
+  "note": null
+ },
+ {
+  "name": "Kotuwa",
+  "new2026": false,
+  "address": "New Bahru, #01-03, 46 Kim Yam Road, Singapore 239351",
+  "postal": "239351",
+  "building": "New Bahru",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/kotuwa",
+  "michelin_says": null,
+  "note": "Moved in 2024; older Michelin pages give Wanderlust Hotel, 2 Dickson Road, 209494 (outdated). Separate sister venue Station by Kotuwa is at 21 Boon Tat Street, 069620."
+ },
+ {
+  "name": "Kwang Kee Teochew Fish Porridge",
+  "new2026": false,
+  "address": "Newton Food Centre, #01-20, 500 Clemenceau Avenue North, Singapore 229495",
+  "postal": "229495",
+  "building": "Newton Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/kwang-kee-teochew-fish-porridge",
+  "michelin_says": "fish porridge; broth made mainly by slow-cooking fish bones, with no pork or lard",
+  "note": null
+ },
+ {
+  "name": "Kwee Heng",
+  "new2026": false,
+  "address": "Newton Food Centre, #01-13, 500 Clemenceau Avenue North, Singapore 229495",
+  "postal": "229495",
+  "building": "Newton Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/kwee-heng",
+  "michelin_says": "braised duck is the specialty; also Hainanese chicken and char siew",
+  "note": "Restaurant page summary cites the 2025 edition; 2026 status not confirmed by the results. Different stall 'Heng' (carrot cake) is at #01-28 in the same centre."
+ },
+ {
+  "name": "Lagnaa",
+  "new2026": false,
+  "address": "6 Upper Dickson Road, Singapore 207466",
+  "postal": "207466",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/lagnaa",
+  "michelin_says": "North and South Indian dishes in Little India",
+  "note": null
+ },
+ {
+  "name": "Lai Heng Handmade Teochew Kueh",
+  "new2026": false,
+  "address": "Yuhua Market & Hawker Centre, #01-218, Blk 347 Jurong East Avenue 1, Singapore 600347",
+  "postal": "600347",
+  "building": "Yuhua Market & Hawker Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/lai-heng-handmade-teochew-kueh",
+  "michelin_says": "handmade Teochew kueh in several flavours, steamed or pan-fried",
+  "note": null
+ },
+ {
+  "name": "Lao Fu Zi Fried Kway Teow",
+  "new2026": false,
+  "address": "Old Airport Road Food Centre, #01-12, 51 Old Airport Road, Singapore 390051",
+  "postal": "390051",
+  "building": "Old Airport Road Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/lao-fu-zi-fried-kway-teow",
+  "michelin_says": "specialises exclusively in fried kway teow, two portion sizes, black or white versions; sells out fast",
+  "note": "Restaurant page summary cites the 2025 edition; 2026 Bib status not confirmed by the results."
+ },
+ {
+  "name": "Lian He Ben Ji Claypot",
+  "new2026": false,
+  "address": "Chinatown Complex Market & Food Centre, #02-198/199, 335 Smith Street, Singapore 050335",
+  "postal": "050335",
+  "building": "Chinatown Complex Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/lian-he-ben-ji-claypot",
+  "michelin_says": "claypot rice; waits of 20 to 45 minutes at busy times",
+  "note": null
+ },
+ {
+  "name": "Lixin Teochew Fishball Noodles",
+  "new2026": false,
+  "address": "Kim Keat Palm Market & Food Centre, #01-20, Blk 19 Toa Payoh Lorong 7, Singapore 310019",
+  "postal": "310019",
+  "building": "Kim Keat Palm Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/lixin-teochew-fishball-noodles",
+  "michelin_says": "Teochew fishball noodles.",
+  "note": null
+ },
+ {
+  "name": "Margaret Drive Sin Kee Chicken Rice",
+  "new2026": false,
+  "address": "Block 40, Stall 5, #01-39, Holland Drive, Singapore 270040",
+  "postal": "270040",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/margaret-drive-sin-kee-chicken-rice",
+  "michelin_says": null,
+  "note": "Older 2019 Michelin listing (as Sin Kee Famous Cantonese Chicken Rice) gives Stall 7 at the same Block 40 Holland Drive; current page gives Stall 5, #01-39."
+ },
+ {
+  "name": "MP Thai (Vision Exchange)",
+  "new2026": false,
+  "address": "Vision Exchange, #02-41/42, 2 Venture Drive, Singapore 608526",
+  "postal": "608526",
+  "building": "Vision Exchange",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/mp-thai",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Muthu's Curry",
+  "new2026": false,
+  "address": "#01-01, 138 Race Course Road, Singapore 218591",
+  "postal": "218591",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/muthu-s-curry-little-india",
+  "michelin_says": null,
+  "note": "Little India flagship; Michelin notes three other branches (addresses not returned)."
+ },
+ {
+  "name": "Na Na Curry",
+  "new2026": false,
+  "address": "Bukit Merah View Market & Hawker Centre, #01-47, Blk 115 Bukit Merah View, Singapore 151115",
+  "postal": "151115",
+  "building": "Bukit Merah View Market & Hawker Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/na-na-curry",
+  "michelin_says": null,
+  "note": "Chain has several branches; the Bukit Merah View stall is the one listed."
+ },
+ {
+  "name": "Nam Sing Hokkien Fried Mee",
+  "new2026": false,
+  "address": "51 Old Airport Road Food Centre, #01-32, 51 Old Airport Road, Singapore 390051",
+  "postal": "390051",
+  "building": "Old Airport Road Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/nam-sing-hokkien-fried-mee",
+  "michelin_says": "One dish since 1960: Hokkien fried mee with prawns, broth made from prawn shells and tomalley.",
+  "note": null
+ },
+ {
+  "name": "New Lucky Claypot Rice",
+  "new2026": false,
+  "address": "Holland Drive Market & Food Centre, #02-19, 44 Holland Drive, Singapore 270044",
+  "postal": "270044",
+  "building": "Holland Drive Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/new-lucky-claypot-rice",
+  "michelin_says": "Claypot rice; call to pre-order to avoid a long wait.",
+  "note": null
+ },
+ {
+  "name": "No.18 Zion Road Fried Kway Teow",
+  "new2026": false,
+  "address": "Zion Riverside Food Centre, #017, 70 Zion Road, Singapore 247792",
+  "postal": "247792",
+  "building": "Zion Riverside Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/no-18-zion-road-fried-kway-teow",
+  "michelin_says": null,
+  "note": "Unit reported as '#017' (format as given; possibly #01-17)."
+ },
+ {
+  "name": "Outram Park Fried Kway Teow Mee",
+  "new2026": false,
+  "address": "Hong Lim Market and Food Centre, #02-17, Blk 531A Upper Cross Street, Singapore 051531",
+  "postal": "051531",
+  "building": "Hong Lim Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/outram-park-fried-kway-teow",
+  "michelin_says": "Char kway teow with egg and cockles; hugely popular stall operating since 1953.",
+  "note": null
+ },
+ {
+  "name": "Rajarani Thosai",
+  "new2026": true,
+  "address": "Tampines Round Market & Food Centre, #01-33, 137 Tampines Street 11, Singapore 521137",
+  "postal": "521137",
+  "building": "Tampines Round Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/rajarani-thosai",
+  "michelin_says": "Mother-and-son team making thosai and appam from scratch, with nearly 20 filling options.",
+  "note": "Restaurant page summary still referenced the 2025 guide; listed as a new entry in the 2026 Bib Gourmand article."
+ },
+ {
+  "name": "Ru Ji Kitchen",
+  "new2026": false,
+  "address": "Holland Drive Market & Food Centre, #02-28/29, 44 Holland Drive, Singapore 270044",
+  "postal": "270044",
+  "building": "Holland Drive Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/ru-ji-kitchen",
+  "michelin_says": "Two adjoining counters; fish balls made with yellowtail are popular.",
+  "note": null
+ },
+ {
+  "name": "Selamat Datang Warong Pak Sapari",
+  "new2026": false,
+  "address": "Adam Food Centre, #01-09, 2 Adam Road, Singapore 289876",
+  "postal": "289876",
+  "building": "Adam Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/selamat-datang-warong-pak-sapari",
+  "michelin_says": "Mee soto and mee rebus with authentic Malaysian flavours; run by third generation.",
+  "note": "Michelin feature mentions branches in the CBD; Adam Food Centre is the listed stall."
+ },
+ {
+  "name": "Seng Kee Black Chicken Herbal Soup",
+  "new2026": true,
+  "address": "Kaki Bukit 511 Market & Food Centre, #01-31/32, 511 Bedok North Street 3, Singapore 460511",
+  "postal": "460511",
+  "building": "Kaki Bukit 511 Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/seng-kee-black-chicken-herbal-soup",
+  "michelin_says": "Decades-old stall; herbal broth simmered for at least two hours; pork offal noodles also recommended.",
+  "note": null
+ },
+ {
+  "name": "Sik Bao Sin",
+  "new2026": false,
+  "address": "592 Geylang Road, Singapore 389531",
+  "postal": "389531",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/sik-bao-sin-desmond-s-creation",
+  "michelin_says": null,
+  "note": "Formerly listed as 'Sik Bao Sin (Desmond's Creation)' at the same address."
+ },
+ {
+  "name": "Sin Heng Claypot Bak Koot Teh",
+  "new2026": false,
+  "address": "#01-01, 439 Joo Chiat Road, Singapore 427652",
+  "postal": "427652",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/sin-heng-claypot-bak-koot-teh",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Sin Huat Seafood Restaurant",
+  "new2026": false,
+  "address": "659/661 Lorong 35 Geylang, Singapore 389589",
+  "postal": "389589",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/sin-huat-eating-house",
+  "michelin_says": null,
+  "note": "One Michelin list names it 'Sin Huat Seafood House'; URL slug is sin-huat-eating-house."
+ },
+ {
+  "name": "Singapore Fried Hokkien Mee",
+  "new2026": false,
+  "address": "Whampoa Makan Place, #01-32/33, 90/91 Whampoa Drive, Singapore 320091",
+  "postal": "320091",
+  "building": "Whampoa Makan Place",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/singapore-fried-hokkien-mee",
+  "michelin_says": "Hokkien mee of rice vermicelli and yellow egg noodles, topped with prawns and squid.",
+  "note": null
+ },
+ {
+  "name": "Soh Kee Cooked Food",
+  "new2026": false,
+  "address": "Jurong West 505 Market & Food Centre, #01-44, Blk 505 Jurong West Street 52, Singapore 640505",
+  "postal": "640505",
+  "building": "Jurong West 505 Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/soh-kee-cooked-food",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Song Fa Bak Kut Teh (New Bridge Road)",
+  "new2026": false,
+  "address": "#01-01, 11 New Bridge Road, Singapore 059386",
+  "postal": "059386",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/song-fa-bak-kut-teh-new-bridge-road",
+  "michelin_says": "Bak kut teh in a retro-style corner building; free soup top-ups.",
+  "note": null
+ },
+ {
+  "name": "Song Fish Soup",
+  "new2026": false,
+  "address": "Clementi 448 Food Centre, #01-38, 448 Clementi Ave 3, Singapore 120448",
+  "postal": "120448",
+  "building": "Clementi 448 Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/song-fish-soup",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Song Kee Teochew Fish Porridge",
+  "new2026": false,
+  "address": "Newton Food Centre, #01-37, 500 Clemenceau Avenue North, Singapore 229495",
+  "postal": "229495",
+  "building": "Newton Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/song-kee-teochew-fish-porridge",
+  "michelin_says": "Teochew fish porridge.",
+  "note": null
+ },
+ {
+  "name": "Spinach Soup",
+  "new2026": false,
+  "address": "Geylang Bahru Market & Food Centre, #01-12, 69 Geylang Bahru, Singapore 330069",
+  "postal": "330069",
+  "building": "Geylang Bahru Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/spinach-soup",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Tai Seng Fish Soup",
+  "new2026": false,
+  "address": "Taman Jurong Market & Food Centre, #03-145, 3 Yung Sheng Road, Singapore 618499",
+  "postal": "618499",
+  "building": "Taman Jurong Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/tai-seng-fish-soup",
+  "michelin_says": "Fish soup.",
+  "note": null
+ },
+ {
+  "name": "Tai Wah Pork Noodle",
+  "new2026": false,
+  "address": "Hong Lim Market and Food Centre, #02-16, Blk 531A Upper Cross Street, Singapore 051531",
+  "postal": "051531",
+  "building": "Hong Lim Market and Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/tai-wah-pork-noodle",
+  "michelin_says": "Pork noodles (bak chor mee); a separate stall from Hill Street Tai Hwa.",
+  "note": null
+ },
+ {
+  "name": "The Blue Ginger",
+  "new2026": false,
+  "address": "97 Tanjong Pagar Road, Singapore 088518",
+  "postal": "088518",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/the-blue-ginger-tanjong-pagar",
+  "michelin_says": null,
+  "note": "Michelin page (Tanjong Pagar) cites the 2023 guide; 2026 list names 'The Blue Ginger' without outlet. A Great World City outlet exists but no Michelin address was found for it."
+ },
+ {
+  "name": "The Coconut Club (Beach Road)",
+  "new2026": false,
+  "address": "269 Beach Road, Singapore 199546",
+  "postal": "199546",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/the-coconut-club-1195654",
+  "michelin_says": "Nasi lemak specialist in a whitewashed traditional shophouse.",
+  "note": "Originally at Ann Siang Hill; moved to Beach Road (2023)."
+ },
+ {
+  "name": "Tian Nan Xing Minced Pork Noodle",
+  "new2026": true,
+  "address": "Kaki Bukit 511 Market & Food Centre, #01-10, 511 Bedok North Street 3, 460511, Singapore",
+  "postal": "460511",
+  "building": "Kaki Bukit 511 Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/tian-nan-xing-minced-pork-noodle",
+  "michelin_says": "Century-old business; minced pork noodle in a pork-bone and garlic broth with handmade dumplings, noodles and pork meatballs.",
+  "note": null
+ },
+ {
+  "name": "Tian Tian Hainanese Chicken Rice",
+  "new2026": false,
+  "address": "Maxwell Food Centre, #01-10/11, 1 Kadayanallur Street, Singapore 069184",
+  "postal": "069184",
+  "building": "Maxwell Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/tian-tian-hainanese-chicken-rice",
+  "michelin_says": null,
+  "note": null
+ },
+ {
+  "name": "Tiong Bahru Hainanese Boneless Chicken Rice",
+  "new2026": false,
+  "address": "Tiong Bahru Market, #02-82, 30 Seng Poh Road, Singapore 168898",
+  "postal": "168898",
+  "building": "Tiong Bahru Market",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/tiong-bahru-hainanese-boneless-chicken-rice",
+  "michelin_says": "Hainanese boneless chicken rice, open since 1988.",
+  "note": null
+ },
+ {
+  "name": "To-Ricos Kway Chap",
+  "new2026": false,
+  "address": "51 Old Airport Road Food Centre, #01-135/136, 51 Old Airport Road, Singapore 390051",
+  "postal": "390051",
+  "building": "Old Airport Road Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/to-ricos-guo-shi",
+  "michelin_says": "Broad rice noodles with pork belly, trotters, intestine, tripe and dried tofu, braised in a spiced soy-based marinade.",
+  "note": "Michelin listing notes the stall is temporarily closed."
+ },
+ {
+  "name": "True Blue Cuisine",
+  "new2026": false,
+  "address": "47/49 Armenian Street, Singapore 179937",
+  "postal": "179937",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/true-blue-cuisine",
+  "michelin_says": "Peranakan restaurant in a conservation shophouse near the Peranakan Museum.",
+  "note": null
+ },
+ {
+  "name": "Un-Yang-Kor-Dai",
+  "new2026": false,
+  "address": "#01-02, 57 South Bridge Road, Singapore 058688",
+  "postal": "058688",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/un-yang-kor-dai",
+  "michelin_says": "Isan food from northeastern Thailand.",
+  "note": null
+ },
+ {
+  "name": "Whole Earth",
+  "new2026": false,
+  "address": "76 Peck Seah Street, Singapore 079331",
+  "postal": "079331",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/whole-earth",
+  "michelin_says": "Vegetarian Thai and Peranakan food; signature Penang Rendang.",
+  "note": null
+ },
+ {
+  "name": "Wok Hei Hor Fun",
+  "new2026": false,
+  "address": "Redhill Market, #01-94, 85 Redhill Lane, Singapore 150085",
+  "postal": "150085",
+  "building": "Redhill Market",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/wok-hei-hor-fun",
+  "michelin_says": "Fried hor fun for over 30 years; beef, fish or assorted toppings; don't miss the cracklings.",
+  "note": null
+ },
+ {
+  "name": "Xiangyee",
+  "new2026": true,
+  "address": "101 Killiney Road, Singapore 239544",
+  "postal": "239544",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/xiangyee",
+  "michelin_says": "Hunan restaurant.",
+  "note": "No dishes reported; summary only gave the cuisine (Hunan)."
+ },
+ {
+  "name": "Xiu Ji Ikan Bilis Yong Tau Fu",
+  "new2026": true,
+  "address": "Chinatown Complex Market & Food Centre, #02-87/88, 335 Smith Street, 050335, Singapore",
+  "postal": "050335",
+  "building": "Chinatown Complex Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/xiu-ji-ikan-bilis-yong-tau-fu",
+  "michelin_says": "Since the 1960s, Hakka-style tofu stuffed with minced fish, served in a clear broth with fried anchovies.",
+  "note": null
+ },
+ {
+  "name": "Yhingthai Palace",
+  "new2026": false,
+  "address": "#01-04, 36 Purvis Street, Singapore 188613",
+  "postal": "188613",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/yhingthai-palace",
+  "michelin_says": null,
+  "note": "Michelin page cites the 2025 guide; search did not confirm 2026 status."
+ },
+ {
+  "name": "Yi Pin Wei Braised Duck Kway Chap",
+  "new2026": true,
+  "address": "Tampines Round Market & Food Centre, #01-40, 137 Tampines Street 11, 521137, Singapore",
+  "postal": "521137",
+  "building": "Tampines Round Market & Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/yi-pin-wei-braised-duck%EF%BC%8Ekway-chap",
+  "michelin_says": "Braised duck, pork trotter, chitterlings; kway chap set to sample different cuts in a mild herbal broth; also rice and kway teow.",
+  "note": "Michelin page title is 'Yi Pin Wei Braised Duck．Kway Chap'."
+ },
+ {
+  "name": "Yong Chun Wan Ton Noodle",
+  "new2026": false,
+  "address": "Bukit Merah View Market & Hawker Centre, #01-56, Blk 115 Bukit Merah View, Singapore 151115",
+  "postal": "151115",
+  "building": "Bukit Merah View Market & Hawker Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/yong-chun-wan-ton-noodle",
+  "michelin_says": "Wonton noodles best eaten dry; minced pork wonton is fresh and firm.",
+  "note": null
+ },
+ {
+  "name": "Zai Shun Curry Fish Head",
+  "new2026": false,
+  "address": "#01-205, 253 Jurong East Street 24, Singapore 600253",
+  "postal": "600253",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/zai-shun-curry-fish-head",
+  "michelin_says": null,
+  "note": "Coffee shop at foot of Blk 253; Michelin page cites the 2025 guide (2026 not confirmed in summary)."
+ },
+ {
+  "name": "Zhi Wei Xian Zion Road Big Prawn Noodle",
+  "new2026": false,
+  "address": "Zion Riverside Food Centre, #04, 70 Zion Road, Singapore 247792",
+  "postal": "247792",
+  "building": "Zion Riverside Food Centre",
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/fresh-taste-big-prawn-noodle",
+  "michelin_says": null,
+  "note": "Unit reported as '#04' (format as given)."
+ },
+ {
+  "name": "Zhup Zhup Noodles",
+  "new2026": false,
+  "address": "#01-01, 458 MacPherson Road, Singapore 368176",
+  "postal": "368176",
+  "building": null,
+  "michelin_url": "https://guide.michelin.com/sg/en/singapore-region/singapore/restaurant/zhup-zhup",
+  "michelin_says": "Prawn noodle set: claypot of prawn soup with yellow noodles and thin bee hoon; broth from prawn heads and shells.",
+  "note": "Michelin page titled 'Zhup Zhup'; formerly One Prawn & Co."
+ }
+]
