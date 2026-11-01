@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B1220">
+<title>Day 08 · Car-free Singapore</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 8, Utopia: every road in Singapore turned into parkland. Swipe between today and utopia over satellite imagery, grow the green, and read the signboards of the new parks.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Fredoka:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 08: before/after swipe, the ledger, park signboards ===== */
+:root {
+  --sx: 50vw;                      /* swipe position, set from JS */
+  --sun: #FFD54F; --sun-rgb: 255, 213, 79;
+  --leaf: #A6E35F;
+  --board: #1D5C38; --board-2: #164A2C; --cream: #FFF6DC;
+  --round: "Fredoka", var(--font);
+}
+/* The "today" map, the tints and the handle sit inside #map, under the map buttons. */
+#before { position: absolute !important; inset: 0; pointer-events: none; clip-path: inset(0 calc(100% - var(--sx)) 0 0); }
+.ut-smog, .ut-sun { position: absolute; inset: 0; pointer-events: none; }
+.ut-smog { clip-path: inset(0 calc(100% - var(--sx)) 0 0); background: linear-gradient(180deg, rgba(120, 112, 104, .2), rgba(90, 92, 104, .1) 60%, rgba(70, 70, 80, .16)); }
+.ut-sun { clip-path: inset(0 0 0 var(--sx)); mix-blend-mode: screen;
+  background: radial-gradient(65% 55% at 88% -4%, rgba(255, 222, 120, .36), rgba(255, 222, 120, .08) 55%, transparent 75%),
+              radial-gradient(90% 70% at 50% 110%, rgba(150, 230, 110, .10), transparent 70%); }
+
+.ut-seam { position: absolute; top: 0; bottom: 0; left: var(--sx); width: 28px; margin-left: -14px; cursor: ew-resize; touch-action: none; z-index: 1; }
+.ut-seam::before { content: ""; position: absolute; top: 0; bottom: 0; left: 13px; width: 2px; background: #FFFDF2;
+  box-shadow: 0 0 0 1px rgba(30, 80, 20, .25), 0 0 14px 3px rgba(166, 227, 95, .75), 0 0 40px 8px rgba(166, 227, 95, .25); }
+.ut-seam.growing::before { box-shadow: 0 0 0 1px rgba(30, 80, 20, .25), 0 0 22px 6px rgba(190, 255, 110, .95), 0 0 70px 22px rgba(166, 227, 95, .45); }
+.ut-knob { position: absolute; top: var(--knob-y, 50%); left: 50%; transform: translate(-50%, -50%); width: 42px; height: 42px; border-radius: 50%;
+  display: grid; place-items: center; cursor: ew-resize; color: #18341A; background: #FFFDF2; border: 0; padding: 0;
+  box-shadow: 0 0 0 3px rgba(166, 227, 95, .65), 0 6px 18px rgba(0, 0, 0, .35); }
+.ut-knob svg { width: 22px; height: 22px; fill: none; stroke: currentColor; stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+.ut-knob:focus-visible { outline: 3px solid var(--sun); outline-offset: 3px; }
+.ut-tag { position: absolute; top: var(--knob-y, 50%); transform: translateY(-50%); white-space: nowrap; pointer-events: none;
+  font-family: var(--round); font-size: 11px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; padding: 3px 9px; border-radius: 999px; }
+.ut-tag.l { right: 38px; color: #E9ECEF; background: rgba(40, 42, 48, .78); }
+.ut-tag.r { left: 38px; color: #15361A; background: rgba(214, 245, 160, .92); }
+.ut-seam.edge-l .ut-tag.l, .ut-seam.edge-r .ut-tag.r { opacity: 0; }
+.ut-seam.edge-l .ut-tag.r { left: 60px; }
+.ut-seam.edge-r .ut-tag.l { right: 60px; }
+
+/* ---- the ledger ---- */
+.ut-ledger { bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  width: 356px; padding: 12px 14px 10px; display: grid; gap: 9px;
+  background: linear-gradient(160deg, rgba(14, 34, 22, .86), rgba(9, 18, 16, .84)); }
+.ut-kick { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--leaf); }
+.ut-hero { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.ut-hero b { font-family: var(--round); font-size: 32px; font-weight: 700; line-height: .95; color: #DFFFB0; text-shadow: 0 0 18px rgba(166, 227, 95, .5); font-variant-numeric: tabular-nums; }
+.ut-hero span { font-size: 12.5px; color: var(--text-2); }
+.ut-eq { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.ut-eq li { display: grid; gap: 1px; padding: 6px 8px; border-radius: 9px; background: rgba(255, 255, 255, .055); font-size: 11px; line-height: 1.25; color: var(--text-2); }
+.ut-eq b { font-family: var(--round); font-size: 17px; font-weight: 600; color: var(--sun); font-variant-numeric: tabular-nums; }
+.ut-bar { display: flex; height: 9px; border-radius: 5px; overflow: hidden; gap: 1px; background: rgba(255, 255, 255, .06); }
+.ut-bar i { display: block; height: 100%; }
+.ut-legend { list-style: none; margin: -3px 0 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10.5px; color: var(--text-2); }
+.ut-legend li { display: inline-flex; align-items: center; gap: 4px; }
+.ut-legend i { width: 8px; height: 8px; border-radius: 2px; }
+.ut-legend b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.ut-live { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 4px 10px; padding: 7px 9px; border-radius: 10px; background: rgba(166, 227, 95, .08); box-shadow: inset 0 0 0 1px rgba(166, 227, 95, .22); }
+.ut-live span { font-size: 11.5px; color: var(--text-2); }
+.ut-live b { font-family: var(--round); font-size: 17px; font-weight: 600; color: #DFFFB0; font-variant-numeric: tabular-nums; text-align: right; }
+.ut-live small { grid-column: 1 / -1; font-size: 10.5px; color: var(--text-2); }
+.ut-live i { height: 5px; border-radius: 3px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.ut-live em { display: block; height: 100%; width: 0; background: linear-gradient(90deg, #6DBA3C, var(--leaf), #E8FF9A); border-radius: inherit; }
+.ut-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.ut-grow { position: relative; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-family: var(--round); font-size: 13.5px; font-weight: 600; color: #2A2100;
+  background: linear-gradient(180deg, #FFE27A, var(--sun)); border: 0; border-radius: 999px; padding: 6px 14px 6px 11px; min-height: 32px; cursor: pointer;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .35) inset, 0 4px 14px rgba(var(--sun-rgb), .35); }
+.ut-grow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; stroke-linejoin: round; }
+.ut-grow:hover { filter: brightness(1.06); }
+.ut-grow::after { content: ""; position: absolute; inset: -6px -3px; }
+.ut-visit select { font: inherit; font-size: 12px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 999px;
+  padding: 5px 26px 5px 11px; min-height: 30px; max-width: 124px; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat; }
+.ut-visit select option { color: #111; background: #fff; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.ut-hint { font-size: 11px; color: var(--text-2); }
+
+/* ---- the park signboard ---- */
+.ut-sign { position: absolute; z-index: 3; right: calc(var(--gutter) + 52px + env(safe-area-inset-right, 0px)); bottom: calc(26px + env(safe-area-inset-bottom, 0px));
+  width: 300px; filter: drop-shadow(0 16px 26px rgba(0, 0, 0, .45)); }
+.ut-sign[hidden] { display: none; }
+.ut-board { position: relative; z-index: 1; padding: 13px 15px 12px; border-radius: 12px; color: var(--cream);
+  background: linear-gradient(170deg, #23704A, var(--board) 45%, var(--board-2));
+  box-shadow: inset 0 0 0 3px #164A2C, inset 0 0 0 5px rgba(255, 246, 220, .85), inset 0 1px 30px rgba(0, 0, 0, .25); display: grid; gap: 6px; }
+.ut-board::before { content: ""; position: absolute; top: 9px; left: 50%; width: 46px; height: 4px; margin-left: -23px; border-radius: 2px; background: rgba(255, 246, 220, .3); }
+.ut-welcome { margin: 4px 0 0; font-size: 10.5px; font-weight: 600; letter-spacing: .14em; text-transform: uppercase; color: rgba(255, 246, 220, .7); text-align: center; }
+.ut-board h2 { margin: 0; font-family: var(--round); font-size: 17px; font-weight: 700; line-height: 1.15; text-align: center; text-wrap: balance; color: #FFFBEA; }
+.ut-was { margin: 0; font-size: 11.5px; text-align: center; color: rgba(255, 246, 220, .75); }
+.ut-facts { margin: 2px 0 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
+.ut-facts div { padding: 5px 4px; border-radius: 8px; background: rgba(0, 0, 0, .18); text-align: center; }
+.ut-facts dt { font-size: 10px; color: rgba(255, 246, 220, .7); }
+.ut-facts dd { margin: 0; font-family: var(--round); font-size: 15px; font-weight: 600; color: var(--sun); font-variant-numeric: tabular-nums; }
+.ut-joke { margin: 2px 0 0; font-size: 12.5px; line-height: 1.45; color: #FFFBEA; text-align: center; }
+.ut-rules { margin: 0; padding-top: 6px; border-top: 1px dashed rgba(255, 246, 220, .3); font-size: 10.5px; text-align: center; color: rgba(255, 246, 220, .66); }
+.ut-close { position: absolute; top: 7px; right: 8px; width: 28px; height: 28px; border-radius: 50%; border: 0; font: inherit; font-size: 17px; line-height: 1; color: var(--cream); background: rgba(0, 0, 0, .2); cursor: pointer; }
+.ut-close:hover { background: rgba(0, 0, 0, .35); }
+.ut-close::after { content: ""; position: absolute; inset: -8px; }
+.ut-post { position: absolute; bottom: -18px; width: 9px; height: 30px; border-radius: 0 0 2px 2px; background: linear-gradient(90deg, #7A5534, #A07446 45%, #6A472A); }
+.ut-post.l { left: 46px; } .ut-post.r { right: 46px; }
+
+/* hover label */
+.ut-tip { position: absolute; z-index: 4; pointer-events: none; padding: 3px 9px; border-radius: 8px; background: rgba(20, 60, 34, .92); border: 1px solid rgba(166, 227, 95, .35);
+  font-family: var(--round); font-size: 12px; font-weight: 500; color: #F2FFE0; white-space: nowrap; transform: translate(-50%, calc(-100% - 12px)); }
+.ut-tip[hidden] { display: none; }
+
+@media (max-width: 640px), (max-height: 520px) {
+  .ut-ledger { padding: 10px 12px 9px; gap: 7px; }
+  .ut-hero b { font-size: 28px; }
+  .ut-eq b { font-size: 15px; }
+  .ut-knob { width: 38px; height: 38px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .ut-ledger { left: 0; right: 0; bottom: 0; width: auto; border-bottom: 0; border-radius: 16px 16px 0 0; padding-bottom: calc(9px + env(safe-area-inset-bottom, 0px)); }
+  .ut-legend, .ut-hint { display: none; }
+  .ut-bar { height: 6px; }
+  .ut-sign { left: 10px; right: 10px; width: auto; bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .ut-post { display: none; }
+  .picked .ut-ledger { visibility: hidden; opacity: 0; }
+  .ut-visit select { max-width: 128px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .ut-ledger { left: auto; right: calc(var(--gutter) + 48px + env(safe-area-inset-right, 0px)); width: min(330px, 48vw); max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; }
+  .ut-legend, .ut-hint, .ut-bar { display: none; }
+  .ut-sign { right: auto; left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); bottom: 10px; width: min(300px, 44vw); }
+  .ut-post { display: none; }
+  .picked .ut-ledger { visibility: hidden; opacity: 0; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Satellite map of Singapore with a before and after swipe: today's roads on the left, the same roads turned into parkland on the right"></div>
+
+<!-- moved inside the map at start-up -->
+<div id="smog" class="ut-smog" aria-hidden="true"></div>
+<div id="sun" class="ut-sun" aria-hidden="true"></div>
+<div id="seam" class="ut-seam">
+  <span class="ut-tag l dmc-chrome" aria-hidden="true">Today</span>
+  <span class="ut-tag r dmc-chrome" aria-hidden="true">Utopia</span>
+  <button id="knob" class="ut-knob dmc-chrome" type="button" role="slider" aria-label="Swipe between today and utopia" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="50% utopia">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l-5 6 5 6M15 6l5 6-5 6"/></svg>
+  </button>
+</div>
+<div id="tip" class="ut-tip" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="ledger" class="dmc-glass ut-ledger" data-dmc-overlay aria-label="Green space gained">
+  <p class="ut-kick">If every road became a park</p>
+  <div class="ut-hero"><b id="h-km">+&hellip;</b><span>km² of new parkland</span></div>
+  <ul class="ut-eq">
+    <li><b id="h-gbtb">&ndash;</b>Gardens by the Bays</li>
+    <li><b id="h-land">&ndash;</b>of the whole island</li>
+    <li><b id="h-parks">&ndash;</b>on today&rsquo;s parks &amp; reserves</li>
+  </ul>
+  <div id="bar" class="ut-bar" role="img"></div>
+  <ul id="legend" class="ut-legend"></ul>
+  <div class="ut-live" aria-live="off">
+    <span>Greened on screen</span><i><em id="live-bar"></em></i><b id="live">&ndash;</b>
+  </div>
+  <div class="ut-row">
+    <button id="grow" class="ut-grow" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 18V9M10 11c-4 0-6-2.5-6-6 4 0 6 2.5 6 6zM10 9c0-3.5 2-6 6-6 0 3.5-2 6-6 6z"/></svg>Grow</button>
+    <label class="ut-visit"><span class="sr">Visit a new park</span><select id="visit"><option value="">Visit a park&hellip;</option></select></label>
+    <button id="surprise" class="dmc-btn" type="button">Surprise me</button>
+  </div>
+  <p class="ut-hint">Drag the handle. Tap any green strip to read its signboard.</p>
+  <p id="credits" class="dmc-credits"></p>
+</section>
+
+<section id="sign" class="ut-sign" data-dmc-overlay hidden aria-label="Park signboard" aria-live="polite">
+  <div class="ut-board">
+    <button id="s-close" class="ut-close" type="button" aria-label="Close the signboard">&times;</button>
+    <p class="ut-welcome">Welcome to</p>
+    <h2 id="s-name"></h2>
+    <p id="s-was" class="ut-was"></p>
+    <dl class="ut-facts">
+      <div><dt>Length</dt><dd id="s-len"></dd></div>
+      <div><dt>Parkland</dt><dd id="s-area"></dd></div>
+      <div><dt>Trees (est.)</dt><dd id="s-trees"></dd></div>
+    </dl>
+    <p id="s-joke" class="ut-joke"></p>
+    <p class="ut-rules">Open 24 hours · Cars: never · Bicycles, prams &amp; otters welcome</p>
+  </div>
+  <i class="ut-post l" aria-hidden="true"></i><i class="ut-post r" aria-hidden="true"></i>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 8,
+  title: 'Car-free Singapore: every road becomes a park',
+  deck: 'What if Singapore gave its roads back? Every carriageway mapped in OpenStreetMap, from expressways down to car-park lanes, is drawn at its real width (lanes × 3.3 m) and turned into meadow. Drag the handle: left is today, right is utopia. Tunnels are left out because they take no land.',
+  accent: '#A6E35F',
+  basemap: 'Satellite', underlay: 'esri-imagery', basemapBg: '#0B1220',
+  basemapPaint: { 'raster-saturation': 0.2, 'raster-contrast': 0.05, 'raster-brightness-min': 0.03 }, underlayPaint: { 'raster-saturation': 0.05 },
+  bounds: [[103.838, 1.2825], [103.862, 1.3005]],
+  maxBounds: [[102.9, 0.8], [104.8, 1.9]], minZoom: 9.5,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 60 },
+  creditsEl: 'credits',
+  attribution: [
+    'Roads: ' + DMC.OSM_CREDIT + ' (ODbL), Nov 2026',
+    'Land area (SLA) and parks &amp; nature reserves (URA, 2020) via <a href="https://tablebuilder.singstat.gov.sg/" target="_blank" rel="noopener noreferrer">SingStat</a>',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const nf = new Intl.NumberFormat('en-SG');
+const nf1 = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 1, minimumFractionDigits: 1 });
+const $ = id => document.getElementById(id);
+
+/* ---------- the new parks: names for the famous roads ---------- */
+// key: the road's OpenStreetMap name. value: [park name, one-line joke]
+const FEATURED = {
+  'Pan-Island Expressway': ['PIE in the Sky Meadow', 'Singapore’s longest expressway is now its longest picnic. Bring your own curry puff.'],
+  'Central Expressway': ['CTE Canopy Walk', 'Rush hour now means hurrying to catch the sunset under the rain trees.'],
+  'Orchard Road': ['Orchard Orchard', 'Finally lives up to its name. The rambutans are seasonal; the sales are not.'],
+  'Ayer Rajah Expressway': ['Aiyoh! AYE Meadows', 'Formerly the jam to Tuas. Now the only jam is kaya.'],
+  'East Coast Parkway': ['ECP: Extra Chill Parkway', 'It was always called a parkway. We just took it literally.'],
+  'Bukit Timah Expressway': ['BKE: Bo Kereta Everywhere', 'Hokkien “bo” meets Malay “kereta”: no cars, anywhere. The long-tailed macaques approve.'],
+  'Tampines Expressway': ['TPE: Totally Pedestrian Eden', 'The only merging now is two families sharing one picnic mat.'],
+  'Seletar Expressway': ['SLE: Sleepy Lazy Esplanade', 'Hammocks strung between the old lamp posts. Nap responsibly.'],
+  'Kranji Expressway': ['KJE: Kranji Jungle Escape', 'Runs straight to the farms. Pick your own kailan on the way home.'],
+  'Kallang-Paya Lebar Expressway': ['KPE Mushroom Meadow', 'Most of it was already underground, so we’re growing oyster mushrooms down there.'],
+  'Marina Coastal Expressway': ['MCE: Mostly Coral Esplanade', 'The rest of it runs under the sea. The fish have asked for a footpath too.'],
+  'Bukit Timah Road': ['Bukit Timber Road', '“Timah” means tin. We swapped the tin for timber, and a great deal of shade.'],
+  'Nicoll Highway': ['Nicoll Hideaway', 'The Kallang Wave, now performed nightly by the lalang.'],
+  'Upper Thomson Road': ['Upper Blossom Road', 'Prata shops, a reservoir and eight kilometres of wildflowers. Peak Thomson.'],
+  'Holland Road': ['Holland Tulip Fields', 'The Dutch would be proud. The tulips would like more aircon.'],
+  'Jalan Bukit Merah': ['Jalan-Jalan Bukit Merah', '“Jalan-jalan” is Malay for a stroll. Now it’s a jalan you can actually jalan-jalan on.'],
+  'Ang Mo Kio Avenue 3': ['Ang Mo Kio Ave-Tree', 'Avenue 3 is now Avenue Tree. Avenue 6 is still deciding.'],
+  'Clementi Road': ['Clementine Grove', 'Citrus trees from end to end. Students may pick one each before exams.'],
+  'Paya Lebar Road': ['Paya Lebar Wetland', '“Paya lebar” means “wide swamp”. We simply put it back.'],
+  'Balestier Road': ['Balestier Sugarcane Fields', 'Joseph Balestier grew sugarcane here in the 1830s. It’s back by popular demand, with ice.'],
+  'Pioneer Road': ['Pioneer Generation Garden', 'A shaded bench every fifty metres, and a kopi stall at every one.'],
+  'Lim Chu Kang Road': ['Lim Chu Kampong Road', 'Goat farms, frogs and quail eggs: the countryside, minus the lorries.'],
+  'Mandai Road': ['Mandai Monkey Bridge', 'The macaques were crossing anyway. Now they don’t have to look both ways.'],
+  'Airport Boulevard': ['Airport Boule-Verde', 'One last stroll under the rain trees before your flight. Boarding by bicycle.'],
+  'Geylang Road': ['Geylang Durian Grove', 'The durians still arrive at 2 a.m. Now they fall from the trees.'],
+  'Serangoon Road': ['Serangoon Spice Garden', 'Curry leaves, jasmine garlands and pandan, all within sniffing distance.'],
+  'East Coast Road': ['East Coast Laksa Lane', 'Coconut palms from Katong to Siglap. Spoons only, no chopsticks.'],
+  'Shenton Way': ['Shenton Sway', 'Hammocks between the towers. Quarterly targets now go in the compost.'],
+  'Tanah Merah Coast Road': ['Tanah Merah Plane-Spotting Prairie', 'Watch the jets land from a deckchair. Only one of you needs a seatbelt.'],
+  'Yio Chu Kang Road': ['Yio Chu Kang Kampong Trail', 'Eleven kilometres of shade. Pack water, sunscreen and a sense of adventure.'],
+  'Woodlands Road': ['Woodlands, Finally Accurate', 'It said woodlands on the label. Now it’s true.'],
+  'Jurong Island Highway': ['Jurong Island Hideaway', 'Petrochemicals, meet petunias.'],
+  'Sims Avenue': ['The Sims: Garden Edition', 'Build mode unlocked. Plumbob not included.'],
+  'River Valley Road': ['River Valley Valley', 'It had a river. Now it has a valley too. The naming committee is thrilled.'],
+  'Hougang Avenue 3': ['Hou-Garden Avenue', 'Hougang is now officially a garden. Upgrading complete.'],
+  'Lorong 6 Toa Payoh': ['Dragon Playground Promenade', 'The terrazzo dragon finally has room to stretch its tail.'],
+  'Commonwealth Avenue': ['Common-Wealth Commons', 'Shared by everyone, owned by the dragonflies.'],
+  'Marine Parade Road': ['Marine Parade Promenade', 'An actual parade every Sunday: otters, from the beach to the bakery.'],
+  'Bartley Road': ['Bartley Barley Fields', 'Golden barley, swaying gently. Barley drink sold at the end, obviously.'],
+  'West Coast Highway': ['West Coast Wildway', 'Container cranes on one side, kingfishers on the other.'],
+};
+const CAT_LABEL = { x: 'an expressway', a: 'a major road', c: 'a busy road', l: 'a local street', s: 'a service road' };
+const SUFFIX = ['Meadow', 'Linear Park', 'Butterfly Trail', 'Rain-tree Walk', 'Hammock Lawn', 'Kampong Green', 'Fern Walk',
+  'Wildflower Strip', 'Birdsong Trail', 'Picnic Lawn', 'Bamboo Walk', 'Frangipani Promenade', 'Orchid Walk', 'Firefly Glade', 'Otter Run', 'Hibiscus Hedge Walk'];
+const NAMELESS = {
+  s: ['Secret Pocket Garden', 'Ex-Car-Park Herb Garden', 'Back-Lane Bamboo Grove', 'Former Drop-Off Point Fernery', 'Loading Bay Lily Pond',
+    'Driveway Daisy Patch', 'Multi-Storey Memory Lawn', 'The Lot Formerly Known as Parking', 'Service Road Sunflower Strip', 'Ex-Ramp Rockery'],
+  x: ['Slip-Road Wildflower Loop', 'Former On-Ramp Butterfly Spiral', 'Exit 404 Fern Gully', 'Flyover Fern Gully', 'Interchange Meadow (good luck finding the exit)', 'Cloverleaf Clover Field'],
+  o: ['Junction Jungle', 'Slip-Road Sunflower Patch', 'U-Turn Butterfly Garden', 'Left-Turn-Only Lawn', 'Filter Lane Fern Bed'],
+};
+const JOKES = [
+  'Speed limit: one leisurely stroll per hour.',
+  'The ERP gantry is now a trellis for bougainvillea. Charges: $0.00, forever.',
+  'Zebra crossing kept, for zebras on loan from Mandai.',
+  'Road humps have been promoted to official hills.',
+  'Lane markings repainted as the island’s longest hopscotch court.',
+  'The traffic light stays. Red now means “stop and smell the frangipani”.',
+  'Honking replaced by koel calls. Yes, at 5 a.m. Sorry.',
+  'Former double yellow lines: now a very long bed of sunflowers.',
+  'Otters have right of way. They always did, honestly.',
+  'Parking available for bicycles, prams and one very confident monitor lizard.',
+  'No more “eh, where to park ah?” Just park yourself on the grass.',
+  'The taxi stand is now a shelter for napping uncles.',
+  'Season parking is now sold as season picnicking.',
+  'COE for a picnic mat: $0. Bidding closed forever.',
+  'The old bus stop is a bird hide now. Same queue, more hornbills.',
+  'Formerly “jam-packed”. Now jam is something you put on toast.',
+  'Traffic news at 8 a.m.: two snails, slight congestion near the hibiscus.',
+  'The grass is mowed in stripes, for old times’ sake.',
+  'All the car horns were melted down into wind chimes.',
+  'Rain-tree shade: free. Aircon: also free, it’s called a breeze.',
+  'Puddle-stomping permitted after every 4 p.m. thunderstorm.',
+  'Expect delays only from the hawker queue.',
+  'Every lamp post now wears a bird’s-nest fern.',
+  'There are now more swings here than speed cameras.',
+  'Shortcuts through the shrubs strictly encouraged.',
+  'The yellow box junction is a sandpit. Do not enter unless your castle is clear.',
+  'Kids may chalk the whole width of the road. It is a lot of road.',
+  'Durian season: helmets recommended under the trees.',
+];
+const hash = s => { let h = 2166136261; for (let i = 0; i < s.length; i++) h = Math.imul(h ^ s.charCodeAt(i), 16777619); return h >>> 0; };
+const pick = (arr, seed) => arr[seed % arr.length];
+
+/* ---------- data ---------- */
+function decode(str) {   // Google polyline, precision 5 -> [[lng, lat]]
+  const out = [];
+  let i = 0, lat = 0, lng = 0;
+  while (i < str.length) {
+    for (let k = 0; k < 2; k++) {
+      let shift = 0, res = 0, b;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (k === 0) lat += d; else lng += d;
+    }
+    out.push([lng / 1e5, lat / 1e5]);
+  }
+  return out;
+}
+let D = null, MAJ = null, MIN = null, CELLS = null;
+const featById = new Map();
+const dataReady = fetch('data/day08/utopia.json').then(r => r.json()).then(d => {
+  D = d;
+  MAJ = { type: 'FeatureCollection', features: d.P.map(([n, c, parts], i) => ({ type: 'Feature', properties: { i, n, c },
+    geometry: { type: 'MultiPolygon', coordinates: parts.map(rings => rings.map(decode)) } })) };
+  const lines = [];
+  for (const [c, w, arr] of d.L) for (let k = 0; k < arr.length; k += 2)
+    lines.push({ type: 'Feature', properties: { i: 1e6 + lines.length, n: arr[k], c, w }, geometry: { type: 'LineString', coordinates: decode(arr[k + 1]) } });
+  MIN = { type: 'FeatureCollection', features: lines };
+  for (const f of MAJ.features) featById.set(f.properties.i, f);
+  for (const f of MIN.features) featById.set(f.properties.i, f);
+  CELLS = new Float64Array(d.cells);
+  fillLedger();
+  return d;
+});
+
+/* ---------- textures: meadow and trees, drawn once ---------- */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
+function meadow(seed, base, blades, flowers) {
+  const S = 128, [c, g] = canvas(S, S), r = rng(seed);
+  g.fillStyle = base; g.fillRect(0, 0, S, S);
+  const wrap = fn => { for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) fn(dx, dy); };
+  for (let k = 0; k < 16; k++) {
+    const x = r() * S, y = r() * S, rad = 12 + r() * 26, col = r() < .5 ? 'rgba(160,215,90,.42)' : 'rgba(40,110,40,.38)';
+    wrap((dx, dy) => { const gr = g.createRadialGradient(x + dx, y + dy, 0, x + dx, y + dy, rad); gr.addColorStop(0, col); gr.addColorStop(1, 'rgba(0,0,0,0)'); g.fillStyle = gr; g.fillRect(x + dx - rad, y + dy - rad, 2 * rad, 2 * rad); });
+  }
+  g.lineCap = 'round';
+  for (let k = 0; k < 900; k++) {
+    const x = r() * S, y = r() * S, a = -Math.PI / 2 + (r() - .5) * 1.1, len = 2.5 + r() * 5, col = blades[Math.floor(r() * blades.length)], lw = .8 + r() * .9;
+    wrap((dx, dy) => { g.strokeStyle = col; g.lineWidth = lw; g.beginPath(); g.moveTo(x + dx, y + dy); g.lineTo(x + dx + Math.cos(a) * len, y + dy + Math.sin(a) * len); g.stroke(); });
+  }
+  for (let k = 0; k < flowers.n; k++) {
+    const x = r() * S, y = r() * S, col = flowers.c[Math.floor(r() * flowers.c.length)], rad = 1.1 + r() * 1.1;
+    wrap((dx, dy) => { g.fillStyle = col; g.beginPath(); g.arc(x + dx, y + dy, rad, 0, 7); g.fill(); g.fillStyle = 'rgba(255,240,150,.9)'; g.beginPath(); g.arc(x + dx, y + dy, rad * .4, 0, 7); g.fill(); });
+  }
+  return g.getImageData(0, 0, S, S);
+}
+// A storybook tree seen from the side: it reads top-down and stands up when the map tilts.
+function tree(canopy, dark, light, shape) {
+  const W = 56, H = 68, [c, g] = canvas(W, H), cx = W / 2, by = H - 6;
+  g.fillStyle = 'rgba(10,40,10,.35)'; g.beginPath(); g.ellipse(cx, by, 17, 4.5, 0, 0, 7); g.fill();
+  g.fillStyle = '#6E4B2C'; g.beginPath(); g.moveTo(cx - 3, by); g.lineTo(cx - 2, by - 26); g.lineTo(cx + 2, by - 26); g.lineTo(cx + 3, by); g.fill();
+  const blobs = shape === 'tall' ? [[0, -46, 11], [-6, -36, 10], [6, -36, 10], [0, -28, 11]]
+    : shape === 'round' ? [[0, -40, 13], [-9, -32, 10], [9, -32, 10], [0, -30, 11]]
+    : [[-14, -33, 10], [14, -33, 10], [-6, -39, 11], [7, -39, 11], [0, -30, 11]];
+  for (const [x, y, rr] of blobs) { g.fillStyle = dark; g.beginPath(); g.arc(cx + x + 1.5, by + y + 2, rr, 0, 7); g.fill(); }
+  for (const [x, y, rr] of blobs) { g.fillStyle = canopy; g.beginPath(); g.arc(cx + x, by + y, rr - 1, 0, 7); g.fill(); }
+  for (const [x, y, rr] of blobs) { g.fillStyle = light; g.beginPath(); g.arc(cx + x - rr * .35, by + y - rr * .35, rr * .38, 0, 7); g.fill(); }
+  return g.getImageData(0, 0, W, H);
+}
+function addImages(m) {
+  const add = (id, img) => { if (!m.hasImage(id)) m.addImage(id, img, { pixelRatio: 2 }); };
+  add('meadow', meadow(8, '#5CA83F', ['#7FCB4F', '#4E9A33', '#9EDB67', '#3F8A2E', '#B4E57A'], { n: 26, c: ['#FFE45C', '#FFFFFF', '#FF9AD5', '#FFB347'] }));
+  add('lawn', meadow(21, '#69B746', ['#86D457', '#5AA83C', '#A9E26F'], { n: 8, c: ['#FFFFFF', '#FFE45C'] }));
+  add('tree-rain', tree('#3E9D3A', '#226B26', 'rgba(170,230,110,.75)', 'umbrella'));
+  add('tree-round', tree('#4CAF50', '#2B7A30', 'rgba(190,240,130,.7)', 'round'));
+  add('tree-tall', tree('#2F8340', '#1B5A2A', 'rgba(150,215,110,.7)', 'tall'));
+  add('tree-flame', tree('#F0552E', '#B23A1C', 'rgba(255,190,120,.8)', 'umbrella'));
+  add('tree-pink', tree('#F58BC4', '#C55A94', 'rgba(255,220,240,.85)', 'round'));
+  add('tree-gold', tree('#F6C624', '#C39212', 'rgba(255,240,170,.85)', 'round'));
+}
+
+/* ---------- the "today" map, under a clip, following the main camera ---------- */
+const mapEl = map.getContainer();
+const ctrlEl = mapEl.querySelector('.maplibregl-control-container');
+const beforeEl = document.createElement('div');
+beforeEl.id = 'before';
+for (const e of [beforeEl, $('smog'), $('sun'), $('seam')]) mapEl.insertBefore(e, ctrlEl);
+const todayPaint = { 'raster-saturation': -0.35, 'raster-contrast': -0.04, 'raster-brightness-max': 0.94, 'raster-fade-duration': 0 };
+const S = DMC.BASEMAPS.Satellite, U = DMC.BASEMAPS['esri-imagery'];
+const before = new maplibregl.Map({
+  container: beforeEl, interactive: false, attributionControl: false, fadeDuration: 0, maxPitch: 78, minZoom: 0, maxZoom: 19,
+  center: map.getCenter(), zoom: map.getZoom(), pitch: map.getPitch(), bearing: map.getBearing(),
+  style: { version: 8,
+    sources: {
+      u: { type: 'raster', tiles: U.tiles, tileSize: 256, maxzoom: U.maxzoom },
+      s: { type: 'raster', tiles: S.tiles, tileSize: 256, minzoom: 11, maxzoom: S.maxzoom },
+    },
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': DAY.basemapBg } },
+      { id: 'u', type: 'raster', source: 'u', paint: todayPaint },
+      { id: 's', type: 'raster', source: 's', minzoom: 12.5, paint: todayPaint },
+    ] },
+});
+before.__dmcBuildingOpts = {};
+// OneMap's outermost tiles carry black no-data edges; below z12.5 the Esri underlay alone looks better.
+map.once('styledata', () => { if (map.getLayer('basemap-Satellite')) map.setLayerZoomRange('basemap-Satellite', 12.5, 24); if (map.getLayer('basemap-Satellite-lo')) map.setLayoutProperty('basemap-Satellite-lo', 'visibility', 'none'); });
+const sync = () => before.jumpTo({ center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch(), padding: map.getPadding() });
+map.on('move', sync);
+sync();
+// Mirror the kit's 3D-buildings toggle onto the "today" map.
+let bOn = false;
+const syncBuildings = () => {
+  const on = !!map.getLayer('dmc-buildings') && map.getLayoutProperty('dmc-buildings', 'visibility') !== 'none';
+  if (on === bOn) return;
+  bOn = on;
+  const go = () => DMC.setBuildings(before, on);
+  before.loaded() ? go() : before.once('load', go);
+};
+map.on('styledata', syncBuildings);
+map.on('idle', syncBuildings);
+
+/* ---------- swipe ---------- */
+const seam = $('seam'), knob = $('knob');
+let sx = 0, frac = params.has('swipe') ? Number(params.get('swipe')) : 0.5;
+if (!(frac >= 0 && frac <= 1)) frac = 0.5;
+// phones held sideways: the ledger takes the right half, so start the handle in the open part
+if (!params.has('swipe')) { const r = $('ledger').getBoundingClientRect(); if (r.width && r.left > innerWidth / 2) frac = Math.max(.2, r.left / 2 / innerWidth); }
+const W = () => mapEl.clientWidth;
+function setSwipe(px, keepFrac) {
+  const w = W();
+  sx = Math.max(0, Math.min(w, px));
+  if (!keepFrac) frac = w ? sx / w : .5;
+  mapEl.style.setProperty('--sx', `${sx}px`);
+  const pct = Math.round((1 - sx / (w || 1)) * 100);
+  knob.setAttribute('aria-valuenow', String(100 - pct));
+  knob.setAttribute('aria-valuetext', `${pct}% of the screen is utopia`);
+  seam.classList.toggle('edge-l', sx < 90);
+  seam.classList.toggle('edge-r', sx > w - 90);
+  // the knob never leaves the screen, even with the handle at an edge
+  knob.style.marginLeft = `${Math.max(0, 24 - sx) - Math.max(0, sx - (w - 24))}px`;
+  queueCount();
+}
+addEventListener('resize', () => setSwipe(frac * W(), true));
+// keep the knob clear of the ledger / bottom sheet
+function placeKnob() {
+  const r = $('ledger').getBoundingClientRect();
+  const mid = innerHeight / 2;
+  const y = r.width > innerWidth * .8 ? (r.top < mid + 40 ? Math.max(90, r.top / 2 + 20) : mid)
+    : r.left < 60 && r.top < mid + 30 ? Math.max(130, r.top - 40) : mid;
+  mapEl.style.setProperty('--knob-y', `${y}px`);
+}
+addEventListener('resize', placeKnob);
+let dragging = false;
+seam.addEventListener('pointerdown', e => {
+  stopGrow();
+  dragging = true; seam.setPointerCapture(e.pointerId);
+  setSwipe(e.clientX - mapEl.getBoundingClientRect().left);
+  e.preventDefault(); e.stopPropagation();
+});
+seam.addEventListener('pointermove', e => { if (dragging) setSwipe(e.clientX - mapEl.getBoundingClientRect().left); });
+const endDrag = () => { dragging = false; };
+seam.addEventListener('pointerup', endDrag);
+seam.addEventListener('pointercancel', endDrag);
+knob.addEventListener('keydown', e => {
+  const step = (e.shiftKey ? .2 : .05) * W();
+  const k = { ArrowLeft: -step, ArrowDown: -step, ArrowRight: step, ArrowUp: step }[e.key];
+  if (k != null) { stopGrow(); setSwipe(sx + k); e.preventDefault(); }
+  else if (e.key === 'Home') { setSwipe(0); e.preventDefault(); }
+  else if (e.key === 'End') { setSwipe(W()); e.preventDefault(); }
+});
+
+/* ---------- Grow: the green sweeps across the view ---------- */
+let growRaf = 0;
+function stopGrow() { if (growRaf) { cancelAnimationFrame(growRaf); growRaf = 0; seam.classList.remove('growing'); } }
+function grow() {
+  stopGrow();
+  closeSign();
+  if (reduceMotion) { setSwipe(0); return; }
+  const w = W(), t0 = performance.now(), dur = 5200;
+  seam.classList.add('growing');
+  setSwipe(w);
+  const step = t => {
+    const k = Math.min(1, (t - t0) / dur), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
+    setSwipe(w * (1 - e));
+    if (k < 1) growRaf = requestAnimationFrame(step); else { growRaf = 0; seam.classList.remove('growing'); }
+  };
+  growRaf = requestAnimationFrame(step);
+}
+$('grow').addEventListener('click', grow);
+
+/* ---------- the ledger ---------- */
+const CATS = [['x', 'Expressways', '#2F8A3B'], ['a', 'Major roads', '#55A743'], ['c', 'Busy roads', '#86C44F'], ['l', 'Local streets', '#B7DE6E'], ['s', 'Service & car-park lanes', '#E6EE9A']];
+const ha = m2 => m2 / 1e4;
+function fillLedger() {
+  const t = D.totals, km2 = t.area / 1e6;
+  $('h-km').textContent = '+' + nf1.format(km2);
+  $('h-gbtb').textContent = nf.format(Math.round(t.area / t.gbtb)) + '×';
+  $('h-land').textContent = nf1.format(100 * t.area / t.land) + '%';
+  $('h-parks').textContent = '+' + nf.format(Math.round(100 * t.area / t.parksURA)) + '%';
+  const bar = $('bar'), leg = $('legend');
+  bar.setAttribute('aria-label', 'New parkland by former road type: ' + CATS.map(([c, l]) => `${l} ${nf.format(Math.round(ha(t.cat[c])))} ha`).join(', '));
+  for (const [c, label, col] of CATS) {
+    const i = document.createElement('i');
+    i.style.cssText = `flex:${t.cat[c]};background:${col}`;
+    i.title = `${label}: ${nf.format(Math.round(ha(t.cat[c])))} ha`;
+    bar.append(i);
+    const li = document.createElement('li');
+    li.innerHTML = `<i style="background:${col}"></i>${label} <b>${nf.format(Math.round(ha(t.cat[c])))}</b>`;
+    leg.append(li);
+  }
+  leg.insertAdjacentHTML('beforeend', '<li>hectares</li>');
+  // the "visit" list
+  const sel = $('visit');
+  const og = document.createElement('optgroup'); og.label = 'Whole island';
+  og.append(new Option('All of Singapore', '*'));
+  sel.append(og);
+  const og2 = document.createElement('optgroup'); og2.label = 'New parks';
+  for (const [road, [park]] of Object.entries(FEATURED)) if (D.names.includes(road)) og2.append(new Option(park, road));
+  sel.append(og2);
+  queueCount();
+}
+
+/* ---------- running counter: road hectares on the green side of the handle ---------- */
+let countQueued = false;
+function queueCount() { if (!countQueued && CELLS) { countQueued = true; requestAnimationFrame(count); } }
+function count() {
+  countQueued = false;
+  const w = W(), h = mapEl.clientHeight;
+  let green = 0, all = 0;
+  for (let k = 0; k < CELLS.length; k += 3) {
+    const p = map.project([CELLS[k], CELLS[k + 1]]);
+    if (p.x < 0 || p.x > w || p.y < 0 || p.y > h) continue;
+    all += CELLS[k + 2];
+    if (p.x >= sx) green += CELLS[k + 2];
+  }
+  $('live').textContent = nf.format(Math.round(green / 100)) + ' ha';
+  $('live-bar').style.width = (all ? 100 * green / all : 0) + '%';
+}
+map.on('move', queueCount);
+
+/* ---------- map layers ---------- */
+// width in metres -> pixels (512 px tiles at 1.3° N), with a floor so streets stay visible from afar
+const K = z => 2 ** z / 78251;
+const metres = (m, floor = 0.5) => ['interpolate', ['exponential', 2], ['zoom'],
+  10, ['max', floor, ['*', m, K(10)]], 13, ['max', floor + .4, ['*', m, K(13)]], 15, ['max', 1.2, ['*', m, K(15)]], 20, ['*', m, K(20)]];
+const treeLayout = (img, spacing, size = 1) => ({
+  'symbol-placement': 'line', 'symbol-spacing': spacing, 'icon-image': img,
+  'icon-size': ['interpolate', ['exponential', 1.6], ['zoom'], 14, .34 * size, 16, .7 * size, 18, 1.25 * size, 20, 1.9 * size],
+  'icon-allow-overlap': true, 'icon-ignore-placement': true, 'icon-anchor': 'bottom',
+  'icon-rotation-alignment': 'viewport', 'icon-pitch-alignment': 'viewport',
+});
+const NONE = ['==', ['get', 'i'], -9];
+map.on('load', async () => {
+  await dataReady;
+  addImages(map);
+  map.addSource('maj', { type: 'geojson', data: MAJ, tolerance: 0.25 });
+  map.addSource('min', { type: 'geojson', data: MIN, tolerance: 0.25 });
+  // soft green glow first, so the city looks lit from inside its streets
+  map.addLayer({ id: 'min-glow', type: 'line', source: 'min', layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#C2F07A', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.4, 14, 7, 18, 24], 'line-blur': ['interpolate', ['linear'], ['zoom'], 10, 1.2, 14, 6, 18, 16],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, ['match', ['get', 'c'], 's', .14, .34], 14, ['match', ['get', 'c'], 's', .18, .32], 17, .2] } });
+  map.addLayer({ id: 'maj-glow', type: 'line', source: 'maj', layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#C9F27A', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3, 13, 9, 17, 24], 'line-blur': ['interpolate', ['linear'], ['zoom'], 10, 2.5, 13, 8, 17, 18],
+      'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, .6, 14, .45, 17, .3] } });
+  map.addLayer({ id: 'min', type: 'line', source: 'min', layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': ['match', ['get', 'c'], 's', '#5E9F3C', '#4F9636'], 'line-width': metres(['get', 'w'], 0.5), 'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, .75, 13, 1] } });
+  map.addLayer({ id: 'min-lawn', type: 'line', source: 'min', minzoom: 13, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': ['match', ['get', 'c'], 's', '#86C459', '#77BE4E'], 'line-width': metres(['*', ['get', 'w'], .62], 0.3), 'line-blur': ['interpolate', ['linear'], ['zoom'], 14, .5, 18, 4] } });
+  map.addLayer({ id: 'maj', type: 'fill', source: 'maj', paint: { 'fill-pattern': 'meadow' } });
+  map.addLayer({ id: 'maj-line', type: 'line', source: 'maj', maxzoom: 15.5, layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#5FAA41', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 13, 2, 15, 1.4], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 14, 1, 15.5, 0] } });
+  map.addLayer({ id: 'maj-hedge', type: 'line', source: 'maj', minzoom: 13, layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#2C6B2A', 'line-width': ['interpolate', ['linear'], ['zoom'], 13, .4, 16, 2.2, 19, 5], 'line-opacity': .85 } });
+  map.addLayer({ id: 'min-path', type: 'line', source: 'min', minzoom: 16, filter: ['>=', ['get', 'w'], 5], layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#F3E2B3', 'line-width': ['interpolate', ['exponential', 2], ['zoom'], 16, 1, 20, 9], 'line-dasharray': [2, 1.6], 'line-opacity': .8 } });
+  // trees: an avenue along every edge of the big parks, flowering trees mixed in
+  map.addLayer({ id: 'trees-min', type: 'symbol', source: 'min', minzoom: 15.2, filter: ['!=', ['get', 'c'], 's'],
+    layout: treeLayout(['match', ['%', ['get', 'i'], 11], 0, 'tree-pink', 1, 'tree-gold', 2, 'tree-tall', 3, 'tree-rain', 'tree-round'], 52, .8) });
+  map.addLayer({ id: 'trees-maj', type: 'symbol', source: 'maj', minzoom: 14.4,
+    layout: treeLayout(['match', ['%', ['max', ['get', 'n'], ['get', 'i']], 3], 0, 'tree-round', 'tree-rain'], 32) });
+  map.addLayer({ id: 'trees-maj2', type: 'symbol', source: 'maj', minzoom: 14.8,
+    layout: treeLayout(['match', ['%', ['max', ['get', 'n'], ['get', 'i']], 5], 0, 'tree-flame', 1, 'tree-pink', 2, 'tree-gold', 'tree-tall'], 170, 1.1) });
+  // the selected park
+  map.addLayer({ id: 'sel-glow', type: 'line', source: 'maj', filter: NONE, layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#FFE27A', 'line-width': 12, 'line-blur': 9, 'line-opacity': .85 } }, 'trees-min');
+  map.addLayer({ id: 'sel-line', type: 'line', source: 'maj', filter: NONE, layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#FFF3B0', 'line-width': 2 } }, 'trees-min');
+  map.addLayer({ id: 'sel-min', type: 'line', source: 'min', filter: NONE, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#FFE27A', 'line-width': metres(['get', 'w'], 3), 'line-blur': 3, 'line-opacity': .9 } }, 'min-path');
+  placeKnob();
+  setSwipe(frac * W(), true);
+  const q = params.get('park');
+  if (q) { const road = D.names.find(n => n.toLowerCase() === q.toLowerCase()) || D.names.find(n => n.toLowerCase().includes(q.toLowerCase())); if (road) visit(road, true); }
+});
+setSwipe(frac * W(), true);
+placeKnob();
+
+/* ---------- signboards ---------- */
+const fmtLen = m => m >= 1000 ? `${nf1.format(m / 1000)} km` : `${nf.format(Math.round(m / 10) * 10)} m`;
+const fmtArea = m2 => m2 >= 1e5 ? `${nf1.format(m2 / 1e4)} ha` : m2 >= 1e4 ? `${(m2 / 1e4).toFixed(2)} ha` : `${nf.format(Math.round(m2 / 10) * 10)} m²`;
+function geomStats(f) {   // for nameless pieces: length and area from the geometry itself
+  const kx = 111320 * Math.cos(1.33 * Math.PI / 180), ky = 110574;
+  if (f.geometry.type === 'LineString') {
+    let L = 0; const c = f.geometry.coordinates;
+    for (let k = 1; k < c.length; k++) L += Math.hypot((c[k][0] - c[k - 1][0]) * kx, (c[k][1] - c[k - 1][1]) * ky);
+    return [L, L * f.properties.w];
+  }
+  let A = 0, P = 0;
+  for (const poly of f.geometry.coordinates) poly.forEach((ring, r) => {
+    let a = 0;
+    for (let k = 1; k < ring.length; k++) {
+      a += (ring[k - 1][0] * kx) * (ring[k][1] * ky) - (ring[k][0] * kx) * (ring[k - 1][1] * ky);
+      P += Math.hypot((ring[k][0] - ring[k - 1][0]) * kx, (ring[k][1] - ring[k - 1][1]) * ky);
+    }
+    A += (r ? -1 : 1) * Math.abs(a / 2);
+  });
+  return [P / 2, A];
+}
+function parkName(road, c, seed) {
+  if (road && FEATURED[road]) return FEATURED[road][0];
+  if (!road) return pick(NAMELESS[c === 's' || c === 'l' ? 's' : c === 'x' ? 'x' : 'o'], seed);
+  const base = road.split(' ').length > 2 ? road.replace(/ (Road|Street|Drive|Lane)$/, '') : road;
+  return `${base} ${pick(SUFFIX, seed)}`;
+}
+function openSign(f) {
+  const { n, c, i } = f.properties;
+  const road = n >= 0 ? D.names[n] : '';
+  const seed = hash(road || String(i));
+  let len, area, cat = c, ref = '';
+  if (road) [len, area, cat, ref] = D.st[n]; else [len, area] = geomStats(featById.get(i) || f);
+  $('s-name').textContent = parkName(road, cat, seed);
+  $('s-was').textContent = road ? `Formerly ${road}${ref ? ` (${ref.replace(/;/g, ' / ')})` : ''}, ${CAT_LABEL[cat]}` : `Formerly a nameless ${CAT_LABEL[cat].replace(/^an? /, '')}`;
+  $('s-len').textContent = fmtLen(len);
+  $('s-area').textContent = fmtArea(area);
+  $('s-trees').textContent = '~' + nf.format(Math.max(2, Math.round(len / 12) * 2));
+  $('s-joke').textContent = road && FEATURED[road] ? FEATURED[road][1] : pick(JOKES, seed >>> 3);
+  const filt = road ? ['==', ['get', 'n'], n] : ['==', ['get', 'i'], i];
+  for (const id of ['sel-glow', 'sel-line', 'sel-min']) map.setFilter(id, filt);
+  $('sign').hidden = false;
+  document.body.classList.add('picked');
+}
+function closeSign() {
+  if ($('sign').hidden) return;
+  $('sign').hidden = true;
+  document.body.classList.remove('picked');
+  for (const id of ['sel-glow', 'sel-line', 'sel-min']) if (map.getLayer(id)) map.setFilter(id, NONE);
+}
+$('s-close').addEventListener('click', closeSign);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSign(); });
+
+const HIT = ['maj', 'maj-glow', 'min'];
+function hitAt(pt, r = 6) {
+  if (!map.getLayer('maj')) return null;
+  const fs = map.queryRenderedFeatures([[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]], { layers: HIT });
+  return fs.find(f => f.layer.id === 'maj') || fs.find(f => f.layer.id === 'min' && f.properties.c !== 's') || fs[0] || null;
+}
+map.on('click', e => { const f = hitAt(e.point, matchMedia('(pointer: coarse)').matches ? 12 : 6); f ? openSign(f) : closeSign(); });
+const tip = $('tip');
+map.on('mousemove', e => {
+  const f = hitAt(e.point, 4);
+  map.getCanvas().style.cursor = f ? 'pointer' : '';
+  if (!f) { tip.hidden = true; return; }
+  const n = f.properties.n, road = n >= 0 ? D.names[n] : '';
+  tip.textContent = parkName(road, road ? D.st[n][2] : f.properties.c, hash(road || String(f.properties.i)));
+  tip.style.left = e.point.x + 'px'; tip.style.top = e.point.y + 'px';
+  tip.hidden = false;
+});
+mapEl.addEventListener('mouseleave', () => { tip.hidden = true; });
+
+/* ---------- visiting a park ---------- */
+function bboxOf(n) {
+  let w = 180, s = 90, e = -180, nn = -90;
+  const eat = c => { if (c[0] < w) w = c[0]; if (c[0] > e) e = c[0]; if (c[1] < s) s = c[1]; if (c[1] > nn) nn = c[1]; };
+  for (const f of MAJ.features) if (f.properties.n === n) for (const p of f.geometry.coordinates) p[0].forEach(eat);
+  for (const f of MIN.features) if (f.properties.n === n) f.geometry.coordinates.forEach(eat);
+  return w < e ? [[w, s], [e, nn]] : null;
+}
+function visit(road, instant) {
+  const n = D.names.indexOf(road);
+  if (n < 0) return;
+  const f = MAJ.features.find(f => f.properties.n === n) || MIN.features.find(f => f.properties.n === n);
+  openSign(f);
+  const bb = bboxOf(n);
+  if (!bb) return;
+  requestAnimationFrame(() => {
+    const padding = DMC.overlayPadding();
+    const opts = { padding, maxZoom: 16.2, bearing: map.getBearing(), duration: instant || reduceMotion ? 0 : 2600, essential: true };
+    map.fitBounds(bb, opts);
+  });
+}
+$('visit').addEventListener('change', e => {
+  const v = e.target.value;
+  e.target.value = '';
+  if (v === '*') { closeSign(); map.fitBounds(DMC.SG_BOUNDS, { padding: DMC.overlayPadding(), bearing: map.getBearing(), duration: reduceMotion ? 0 : 2400 }); }
+  else if (v) visit(v);
+});
+$('surprise').addEventListener('click', () => {
+  if (!D) return;
+  const feat = Object.keys(FEATURED).filter(r => D.names.includes(r));
+  const r = Math.random();
+  visit(r < .6 ? feat[Math.floor(Math.random() * feat.length)] : D.names[Math.floor(Math.random() * Math.min(600, D.names.length))]);
+});
+</script>
+</body>
+</html>
