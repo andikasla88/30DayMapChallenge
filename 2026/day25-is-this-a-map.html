@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F4F1E8">
+<title>Day 25 · When does the MRT diagram become a map?</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 25, Is this a map?: Singapore's MRT and LRT network drawn as an octilinear diagram generated from the network itself, morphing into its true geography, with live distortion measures and a vote you pass on by link.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F4F1E8'/%3E%3Cg fill='none' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 24h7l7-7V7' stroke='%23DF2518'/%3E%3Cpath d='M6 14h6l4 4h10' stroke='%23009D57'/%3E%3C/g%3E%3Ccircle cx='15.5' cy='18' r='3.2' fill='%23fff' stroke='%2315171C' stroke-width='1.8'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 25: a transit-poster diagram that morphs into geography ===== */
+:root {
+  --paper: #F4F1E8; --ink: #15171C; --ink-2: rgba(21, 23, 28, .64); --ink-3: rgba(21, 23, 28, .42);
+  --glass: rgba(255, 254, 250, .95); --line: rgba(21, 23, 28, .13);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --dash-h: 0px;
+  color-scheme: light;
+}
+body { background: var(--paper); }
+.dmc-map { background: var(--paper); }
+.dmc-glass { box-shadow: 0 1px 0 rgba(255, 255, 255, .8) inset, 0 10px 30px rgba(60, 50, 30, .13); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); }
+.dmc-num { text-shadow: none; }
+.dmc-more, .dmc-btn { background: rgba(21, 23, 28, .05); color: var(--ink); border-color: rgba(21, 23, 28, .16); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(21, 23, 28, .1); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(21, 23, 28, .16); }
+.dmc-index li.done { background: rgba(21, 23, 28, .09); }
+.dmc-index li.today { color: #fff; box-shadow: none; }
+.dmc-focus-credit { background: rgba(255, 254, 250, .85); }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; opacity: .8; }
+/* the diagram is flat and faces north: no tilt, no turn */
+.maplibregl-ctrl-compass, .dmc-ctrl button[aria-label^="Tilt"] { display: none !important; }
+.maplibregl-ctrl-bottom-left { bottom: var(--dash-h); transition: opacity .3s; }
+.maplibregl-ctrl-scale { background: rgba(255, 254, 250, .8); border-color: var(--ink); color: var(--ink); font: 600 10px var(--font); }
+
+/* ---- the drawing ---- */
+#art { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; overflow: hidden; }
+#art .ln { fill: none; stroke-linejoin: round; stroke-linecap: round; }
+#art .case { fill: none; stroke: var(--paper); stroke-linejoin: round; stroke-linecap: round; }
+#art .st { fill: #fff; }
+#art .x { fill: #fff; stroke: var(--ink); }
+#art .hit { fill: transparent; pointer-events: auto; cursor: pointer; }
+#art .lab { font: 500 10.5px var(--font); fill: var(--ink); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+#art .lab.big { font-weight: 700; font-size: 11px; }
+#art .badge rect { rx: 3px; }
+#art .badge text { font: 800 9px var(--font); fill: #fff; letter-spacing: .02em; text-anchor: middle; dominant-baseline: central; }
+#art .ghost { stroke: var(--ink); stroke-width: .9; stroke-opacity: .55; }
+#art .true { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+#art .hl { fill: none; stroke: var(--day-accent); stroke-width: 2.5; }
+
+/* ---- the dashboard ---- */
+.dash { left: 50%; transform: translateX(-50%); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: min(780px, calc(100% - 2 * var(--gutter))); padding: 11px 14px 9px; display: grid; gap: 9px; border-radius: 12px; }
+.ms { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.m { display: grid; grid-template-rows: auto auto auto 1fr; gap: 1px; padding: 0 12px; min-width: 0; }
+.m + .m { border-left: 1px solid var(--line); }
+.m:first-child { padding-left: 0; } .m:last-child { padding-right: 0; }
+.m h2 { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.m b { font-family: var(--display); font-size: 27px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; letter-spacing: .005em; }
+.m b small { font-size: 15px; font-weight: 700; margin-left: 2px; }
+.m p { margin: 0; font-size: 10.5px; line-height: 1.35; color: var(--ink-2); min-height: 2.7em; }
+.m svg { display: block; width: 100%; height: 24px; margin-top: 3px; overflow: visible; }
+.m svg .cv { fill: none; stroke: var(--ink); stroke-width: 1.4; }
+.m svg .ar { fill: rgba(21, 23, 28, .07); }
+.m svg .cur { stroke: var(--day-accent); stroke-width: 1.6; }
+.m svg .me { stroke: var(--day-accent); stroke-width: 1; stroke-dasharray: 2 2; }
+
+.rail { display: grid; grid-template-columns: auto 1fr auto; align-items: end; gap: 12px; padding-top: 2px; }
+.end { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding-bottom: 23px; }
+.end.l { color: var(--ink); } .end.r { color: var(--ink); }
+.trk { position: relative; height: 50px; margin-bottom: 16px; }
+.votes { position: absolute; left: 11px; right: 11px; top: 0; height: 26px; }
+.votes i { position: absolute; width: 5px; height: 5px; margin-left: -2.5px; border-radius: 50%; background: var(--ink); opacity: .7; }
+.votes .me { width: 9px; height: 9px; margin-left: -4.5px; background: var(--day-accent); opacity: 1; box-shadow: 0 0 0 1.5px #fff; }
+.votes .med { position: absolute; bottom: -6px; width: 0; border-left: 1.5px dashed var(--ink-3); height: 30px; }
+.votes .med span { position: absolute; top: -2px; left: 4px; font-size: 9.5px; font-weight: 600; color: var(--ink-2); white-space: nowrap; }
+.votes .med.flip span { left: auto; right: 4px; }
+.bar { position: absolute; left: 11px; right: 11px; bottom: 11px; height: 6px; border-radius: 3px; background: rgba(21, 23, 28, .16); }
+.bar .fill { position: absolute; left: 0; top: 0; bottom: 0; width: 0; border-radius: 3px; background: var(--ink); }
+.bar .tk { position: absolute; top: 50%; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: #fff; border: 2px solid var(--ink); }
+#t { position: absolute; left: 0; right: 0; bottom: 0; width: 100%; height: 28px; margin: 0; background: transparent; -webkit-appearance: none; appearance: none; cursor: pointer; }
+#t::-webkit-slider-runnable-track { height: 28px; background: transparent; }
+#t::-moz-range-track { height: 28px; background: transparent; }
+#t::-webkit-slider-thumb { -webkit-appearance: none; width: 22px; height: 22px; margin-top: 3px; border-radius: 50%; background: #fff; border: 3.5px solid var(--ink); box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+#t::-moz-range-thumb { width: 15px; height: 15px; border-radius: 50%; background: #fff; border: 3.5px solid var(--ink); box-shadow: 0 2px 6px rgba(0, 0, 0, .2); }
+#t:focus-visible { outline: none; }
+#t:focus-visible::-webkit-slider-thumb { box-shadow: 0 0 0 3px var(--day-accent); }
+#t:focus-visible::-moz-range-thumb { box-shadow: 0 0 0 3px var(--day-accent); }
+.pct { position: absolute; top: calc(100% - 1px); transform: translateX(-50%); font: 800 12px var(--display); letter-spacing: .03em; color: #fff; background: var(--ink); padding: 1px 5px; border-radius: 4px; pointer-events: none; white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+.acts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 7px; }
+.acts .dmc-btn { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; min-height: 28px; padding: 4px 10px; }
+.acts svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.sm-only { display: none; }
+.acts .vote { background: var(--day-accent); border-color: var(--day-accent); color: #08262A; }
+.acts .vote:hover { background: #0FB4C4; }
+.acts .dmc-btn[aria-pressed="true"] { background: var(--ink); color: #fff; border-color: var(--ink); }
+.say { flex: 1 1 220px; margin: 0; font-size: 11px; line-height: 1.4; color: var(--ink-2); min-width: 0; }
+.say b { color: var(--ink); font-weight: 600; }
+.foot { display: grid; gap: 3px; border-top: 1px solid var(--line); padding-top: 6px; }
+.foot summary { cursor: pointer; font-size: 10.5px; font-weight: 600; color: var(--ink-2); list-style: none; }
+.foot summary::-webkit-details-marker { display: none; }
+.foot summary::before { content: "+ "; }
+.foot[open] summary::before { content: "– "; }
+.foot p { margin: 3px 0 0; font-size: 10px; line-height: 1.45; color: var(--ink-2); }
+.foot a { color: inherit; text-underline-offset: 2px; text-decoration-color: rgba(21, 23, 28, .3); }
+.dmc-credits img { filter: none; }
+
+.tip { position: fixed; z-index: 5; left: 0; top: 0; pointer-events: none; padding: 7px 10px 7px; max-width: 240px;
+  background: #fff; border: 1.5px solid var(--ink); border-radius: 8px; box-shadow: 0 8px 20px rgba(0, 0, 0, .15); display: grid; gap: 2px; }
+.tip[hidden] { display: none; }
+.tip b { font-size: 12.5px; }
+.tip .codes { display: flex; gap: 3px; flex-wrap: wrap; }
+.tip .codes i { font: 800 9.5px var(--font); font-style: normal; color: #fff; padding: 1px 4px; border-radius: 3px; }
+.tip span { font-size: 11px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 40%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.loading[hidden] { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .m b { font-size: 21px; } .m b small { font-size: 12px; }
+  .m h2 { font-size: 9.5px; letter-spacing: .04em; }
+  .m p { font-size: 9.5px; min-height: 0; }
+  .m svg { height: 16px; }
+  #art .lab { font-size: 9.5px; } #art .lab.big { font-size: 10px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .dash { left: 0; right: 0; transform: none; width: auto; bottom: 0; max-height: 72vh; overflow-y: auto; border-radius: 14px 14px 0 0; border-bottom: 0; padding: 9px 11px calc(8px + env(safe-area-inset-bottom, 0px)); gap: 7px; }
+  .m { padding: 0 7px; }
+  .m p .lg { display: none; }
+  .end { font-size: 9.5px; letter-spacing: .02em; }
+  .rail { gap: 7px; }
+  .say { flex-basis: 100%; font-size: 10.5px; }
+  .acts .dmc-btn { font-size: 11px; padding: 4px 9px; }
+  .lg-only { display: none; } .sm-only { display: inline; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .dash { left: auto; right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); transform: none; top: var(--gutter); bottom: var(--gutter);
+    width: min(352px, 46vw); align-content: start; overflow-y: auto; padding: 9px 11px 8px; gap: 7px; }
+  .m { padding: 0 6px; }
+  .m p .lg { display: none; }
+  .end { font-size: 9.5px; }
+  .rail { gap: 6px; }
+  .say { flex-basis: 100%; }
+  .lg-only { display: none; } .sm-only { display: inline; }
+  .maplibregl-ctrl-bottom-left { bottom: 0; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Singapore's MRT and LRT network, drawn as a diagram that a slider morphs into true geography"></div>
+<svg id="art" aria-hidden="true">
+  <g id="g-ghost"></g><g id="g-case"></g><g id="g-lines"></g><g id="g-badges"></g><g id="g-st"></g><g id="g-lab"></g><g id="g-hl"></g><g id="g-hit"></g>
+</svg>
+<p id="loading" class="loading dmc-chrome">Laying out 184 stations&hellip;</p>
+<div id="tip" class="tip dmc-chrome" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="dash" class="dmc-glass dash" data-dmc-overlay aria-label="Diagram to geography">
+  <div class="ms">
+    <div class="m">
+      <h2>Off its true spot</h2>
+      <b id="v-disp">&ndash;</b>
+      <p id="s-disp">mean distance per station</p>
+      <svg id="c-disp" viewBox="0 0 200 24" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+    <div class="m">
+      <h2>Direction kept</h2>
+      <b id="v-dir">&ndash;</b>
+      <p id="s-dir">of neighbour links</p>
+      <svg id="c-dir" viewBox="0 0 200 24" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+    <div class="m">
+      <h2>Distance order kept</h2>
+      <b id="v-rho">&ndash;</b>
+      <p id="s-rho">rank correlation</p>
+      <svg id="c-rho" viewBox="0 0 200 24" preserveAspectRatio="none" aria-hidden="true"></svg>
+    </div>
+  </div>
+
+  <div class="rail">
+    <span class="end l" aria-hidden="true">Diagram</span>
+    <div class="trk">
+      <div id="votes" class="votes" aria-hidden="true"></div>
+      <div class="bar" aria-hidden="true"><i id="fill" class="fill"></i><i class="tk" style="left:0"></i><i class="tk" style="left:25%"></i><i class="tk" style="left:50%"></i><i class="tk" style="left:75%"></i><i class="tk" style="left:100%"></i></div>
+      <span id="pct" class="pct" aria-hidden="true">0%</span>
+      <input id="t" type="range" min="0" max="1000" step="1" value="0" aria-label="From diagram (0%) to geography (100%)">
+    </div>
+    <span class="end r" aria-hidden="true">Geography</span>
+  </div>
+
+  <div class="acts">
+    <button id="play" class="dmc-btn" type="button"><svg viewBox="0 0 12 12" aria-hidden="true"><path id="play-ico" d="M3 2l7 4-7 4z"/></svg><span id="play-lbl">Play</span></button>
+    <button id="vote" class="dmc-btn vote" type="button"><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 11V1.5M2.5 2h7l-1.6 2.3L9.5 6.6h-7"/></svg><span class="lg-only">It&rsquo;s a map from here</span><span class="sm-only">Map from here</span></button>
+    <button id="share" class="dmc-btn" type="button" disabled><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M5 7l2-2M4.2 5.4 2.9 6.7a1.8 1.8 0 0 0 2.5 2.5l1.3-1.3M7.8 6.6l1.3-1.3a1.8 1.8 0 0 0-2.5-2.5L5.3 4.1"/></svg><span>Copy<span class="lg-only"> link</span></span></button>
+    <button id="ghost" class="dmc-btn" type="button" aria-pressed="false"><svg viewBox="0 0 12 12" aria-hidden="true"><circle cx="6" cy="6" r="3.5"/><path d="M6 1v2M6 9v2M1 6h2M9 6h2"/></svg>True spots</button>
+    <p id="say" class="say" aria-live="polite"></p>
+  </div>
+
+  <details id="foot" class="foot">
+    <summary>Sources and method</summary>
+    <p>The diagram is <b>not</b> LTA&rsquo;s map. It is generated here from the network alone, by multicriteria hill climbing on a grid after <a href="https://doi.org/10.1109/TVCG.2010.24" target="_blank" rel="noopener noreferrer">Stott and others (2011)</a>, simplified: every stretch runs at a multiple of 45&deg;, stations are spaced as evenly as the network allows, bends are few, lines keep clear of each other and cross only where they really cross, and each stretch leans as little as it can from its true compass direction. The finished diagram is scaled and centred onto the true positions by least squares, without turning it. Between the two ends every station moves in a straight line. Track lines are sgraildata&rsquo;s simplified, smoothed paths.</p>
+    <p>Measures: <b>off its true spot</b> is the mean straight-line distance from each station to its real position. <b>Direction kept</b> is the share of the <span id="n-links">211</span> links between neighbouring stations that point within 22.5&deg; of their true bearing. <b>Distance order kept</b> is Spearman&rsquo;s rank correlation between all <span id="n-pairs">16,836</span> station-to-station distances on screen and on the ground. All are computed in your browser from SVY21 metres.</p>
+    <p>Votes are not sent anywhere. Yours stays on this device, and a copied link carries everyone&rsquo;s marks that it already held, plus yours.</p>
+    <p id="credits" class="dmc-credits"></p>
+  </details>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const PAPER = '#F4F1E8';
+const a = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+// A minimal basemap that only appears at the geography end: sea, parks, big roads and the border.
+const BASE = [
+  ['wood', 'fill', 'fill-opacity', .55, { 'source-layer': 'landcover', filter: ['in', ['get', 'class'], ['literal', ['wood', 'forest']]], paint: { 'fill-color': '#D9E3CC' } }],
+  ['park', 'fill', 'fill-opacity', .7, { 'source-layer': 'park', paint: { 'fill-color': '#D9E3CC' } }],
+  ['water', 'fill', 'fill-opacity', 1, { 'source-layer': 'water', paint: { 'fill-color': '#C5D9E0' } }],
+  ['roads', 'line', 'line-opacity', .9, { 'source-layer': 'transportation', filter: ['in', ['get', 'class'], ['literal', ['motorway', 'trunk', 'primary']]],
+    layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#E2DACB', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, .5, 12, 1.2, 15, 3.5] } }],
+  ['border', 'line', 'line-opacity', .6, { 'source-layer': 'boundary', filter: ['==', ['get', 'admin_level'], 2],
+    paint: { 'line-color': '#7D848C', 'line-width': 1, 'line-dasharray': [3, 2] } }],
+];
+const STYLE = { version: 8, sources: { ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+  layers: [{ id: 'paper', type: 'background', paint: { 'background-color': PAPER } },
+    ...BASE.map(([id, type, prop, , o]) => ({ id: `b-${id}`, type, source: 'ofm', ...o, paint: { ...o.paint, [prop]: 0, [`${prop}-transition`]: { duration: 0 } } }))] };
+
+const DAY = {
+  n: 25,
+  title: 'When does the MRT diagram become a map?',
+  deck: 'Every metro map bends the truth. Slide Singapore\'s MRT and LRT from a diagram generated here (straight lines, 45° turns, near-even gaps) to the ground they really cover, watch three honest measures of distortion, and mark the moment you think it becomes a map.',
+  accent: '#00A0B0',
+  style: STYLE,
+  styleCredit: 'Basemap: ' + a('https://openfreemap.org/', 'OpenFreeMap') + ', ' + a('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', ' + DMC.OSM_CREDIT,
+  basemapBg: PAPER,
+  bounds: [[103.626, 1.252], [104.0, 1.458]],   // both ends: the diagram and the true network
+  maxBounds: [[102.6, 0.3], [105.0, 2.4]], minZoom: 8.6, maxZoom: 15.5,
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Stations, track and line order: ' + a('https://github.com/cheeaun/sgraildata/tree/d64f9408ef', 'cheeaun/sgraildata') + ' (commit d64f940, 12 Jul 2026): station points from ' + a('https://datamall.lta.gov.sg/content/datamall/en/static-data.html', 'LTA DataMall') + ', running order and line colours from ' + a('https://citymapper.com/singapore/', 'Citymapper') + ', track lines simplified and smoothed by sgraildata (some from ' + DMC.OSM_CREDIT + ')',
+    'Diagram generated here, after ' + a('https://doi.org/10.1109/TVCG.2010.24', 'Stott, Rodgers, Martínez-Ovando &amp; Walker, IEEE TVCG 17(1), 2011'),
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const keys = document.querySelector('.dmc-keys');
+if (keys) keys.innerHTML = 'Drag to pan · scroll or pinch to zoom · <kbd>F</kbd> focus mode';
+const map = DMC.createMap(DAY, { dragRotate: false, pitchWithRotate: false, touchPitch: false, maxPitch: 0 });
+map.touchZoomRotate.disableRotation();
+map.keyboard.disableRotation();
+const scale = new maplibregl.ScaleControl({ maxWidth: 110, unit: 'metric' });
+map.addControl(scale, 'bottom-left');
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const compact = () => matchMedia(DMC.COMPACT_Q).matches;
+const SVGNS = 'http://www.w3.org/2000/svg';
+const svgEl = (tag, cls, parent) => { const e = document.createElementNS(SVGNS, tag); if (cls) e.setAttribute('class', cls); if (parent) parent.append(e); return e; };
+
+// The drawing lives inside the map, under the map buttons.
+const art = $('art');
+map.getContainer().insertBefore(art, map.getContainer().querySelector('.maplibregl-control-container'));
+
+/* ---------- data ---------- */
+let N = 0, NAME, CODES, INTER, G, D, P, LINKS, LINES, AFF, PAIRS = 0, RG = null, DEG;
+let tNow = params.has('t') ? Math.max(0, Math.min(1, Number(params.get('t')) / 100 || 0)) : 0;
+
+function prep(d) {
+  AFF = d.aff;
+  N = d.S.length;
+  NAME = d.S.map(s => s[0]);
+  CODES = d.S.map(s => s[1].split('-'));
+  G = new Float64Array(2 * N); D = new Float64Array(2 * N); P = new Float64Array(2 * N);
+  d.S.forEach((s, i) => { G[2 * i] = s[2]; G[2 * i + 1] = s[3]; D[2 * i] = s[4]; D[2 * i + 1] = s[5]; });
+  LINES = d.L.map(([code, name, color, polys]) => ({ code, name, color, polys }));
+  DEG = new Uint8Array(N);
+  const linkOf = new Map();
+  // each link: the same fractions of its length sampled on the ground (track) and on the diagram
+  LINKS = d.E.map(([a, b, li, geo, dia], k) => {
+    DEG[a]++; DEG[b]++;
+    linkOf.set(a * 1000 + b, k); linkOf.set(b * 1000 + a, k);
+    return { a, b, lines: li, geo: Float64Array.from(geo), dia: Float64Array.from(dia), n: geo.length / 2 + 2 };
+  });
+  INTER = CODES.map(c => c.length > 1);
+  // each line's polylines as a list of [link, forward] steps
+  for (const L of LINES) L.runs = L.polys.map(seq => seq.slice(1).map((s, i) => { const k = linkOf.get(seq[i] * 1000 + s); return [k, LINKS[k].a === seq[i]]; }));
+  for (const L of LINES) L.idx = LINES.indexOf(L);
+  TERM = new Set();
+  for (const L of LINES) for (const seq of L.polys) if (seq[0] !== seq[seq.length - 1]) { TERM.add(seq[0]); TERM.add(seq[seq.length - 1]); }
+  // true ranks of every station-to-station distance
+  PAIRS = N * (N - 1) / 2;
+  RG = ranks(pairDist(G));
+  $('n-links').textContent = nf.format(LINKS.length);
+  $('n-pairs').textContent = nf.format(PAIRS);
+}
+let TERM = new Set();
+
+/* ---------- the three measures, computed honestly at any t ---------- */
+const DIST = () => new Float64Array(PAIRS);
+let distBuf = null, idxBuf = null, rankBuf = null;
+function pairDist(Q) {
+  const out = DIST();
+  let k = 0;
+  for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) out[k++] = Math.hypot(Q[2 * i] - Q[2 * j], Q[2 * i + 1] - Q[2 * j + 1]);
+  return out;
+}
+function ranks(v, idx, out) {
+  idx = idx || new Uint32Array(v.length); out = out || new Float64Array(v.length);
+  for (let i = 0; i < v.length; i++) idx[i] = i;
+  idx.sort((x, y) => v[x] - v[y]);
+  // equal distances share their average rank (a diagram on a grid has many)
+  for (let i = 0; i < v.length;) {
+    let j = i;
+    while (j + 1 < v.length && v[idx[j + 1]] === v[idx[i]]) j++;
+    const r = (i + j) / 2;
+    for (let k = i; k <= j; k++) out[idx[k]] = r;
+    i = j + 1;
+  }
+  return out;
+}
+// Spearman's rho: Pearson's correlation of the two rank lists (both average (n - 1) / 2)
+function rankCorr(r, q) {
+  const m = (r.length - 1) / 2;
+  let sxy = 0, sxx = 0, syy = 0;
+  for (let i = 0; i < r.length; i++) { const x = r[i] - m, y = q[i] - m; sxy += x * y; sxx += x * x; syy += y * y; }
+  return sxy / Math.sqrt(sxx * syy);
+}
+function posAt(t, out = P) {
+  for (let i = 0; i < 2 * N; i++) out[i] = D[i] + t * (G[i] - D[i]);
+  return out;
+}
+const wrap180 = x => { x = (x + 180) % 360; if (x < 0) x += 360; return x - 180; };
+function measure(t, withRank = true) {
+  const Q = posAt(t, new Float64Array(2 * N));
+  let sum = 0, mx = -1, mi = 0;
+  for (let i = 0; i < N; i++) {
+    const d = Math.hypot(Q[2 * i] - G[2 * i], Q[2 * i + 1] - G[2 * i + 1]);
+    sum += d; if (d > mx) { mx = d; mi = i; }
+  }
+  let within = 0, errSum = 0;
+  for (const L of LINKS) {
+    const u = Math.atan2(Q[2 * L.b + 1] - Q[2 * L.a + 1], Q[2 * L.b] - Q[2 * L.a]);
+    const v = Math.atan2(G[2 * L.b + 1] - G[2 * L.a + 1], G[2 * L.b] - G[2 * L.a]);
+    const e = Math.abs(wrap180((u - v) * 180 / Math.PI));
+    errSum += e; if (e <= 22.5) within++;
+  }
+  let rho = null;
+  if (withRank) {
+    distBuf = distBuf || DIST(); idxBuf = idxBuf || new Uint32Array(PAIRS); rankBuf = rankBuf || new Float64Array(PAIRS);
+    let k = 0;
+    for (let i = 0; i < N; i++) for (let j = i + 1; j < N; j++) distBuf[k++] = Math.hypot(Q[2 * i] - Q[2 * j], Q[2 * i + 1] - Q[2 * j + 1]);
+    rho = rankCorr(ranks(distBuf, idxBuf, rankBuf), RG);
+  }
+  return { mean: sum / N / 1000, max: mx / 1000, maxName: NAME[mi], within: within / LINKS.length, err: errSum / LINKS.length, rho };
+}
+
+/* ---------- SVY21 metres -> screen pixels ---------- */
+const mercX = lng => (lng + 180) / 360;
+const mercY = lat => (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))) / 360;
+let SX = { kx: 1, ox: 0, ky: 1, oy: 0 };
+function updateScreen() {
+  // with no tilt and no turn, Web Mercator -> screen is a scale and a shift; fit it from two points
+  const A = [103.6, 1.2], B = [104.05, 1.5];
+  const pa = map.project(A), pb = map.project(B);
+  const ax = mercX(A[0]), bx = mercX(B[0]), ay = mercY(A[1]), by = mercY(B[1]);
+  SX.kx = (pb.x - pa.x) / (bx - ax); SX.ox = pa.x - SX.kx * ax;
+  SX.ky = (pb.y - pa.y) / (by - ay); SX.oy = pa.y - SX.ky * ay;
+}
+function scr(x, y, out, k) {
+  const lng = AFF[0] * x + AFF[1] * y + AFF[2], lat = AFF[3] * x + AFF[4] * y + AFF[5];
+  out[k] = SX.ox + SX.kx * mercX(lng);
+  out[k + 1] = SX.oy + SX.ky * mercY(lat);
+}
+
+/* ---------- drawing ---------- */
+const gGhost = $('g-ghost'), gCase = $('g-case'), gLines = $('g-lines'), gBadges = $('g-badges'), gSt = $('g-st'), gLab = $('g-lab'), gHl = $('g-hl'), gHit = $('g-hit');
+let EL = null, showGhost = false, hoverI = -1;
+const lw = () => compact() ? 4 : 5.2;
+function buildDom() {
+  EL = { cases: [], lines: [], st: [], hit: [], lab: [], ghostL: [], ghostC: [], badges: [] };
+  for (const L of LINES) {
+    const c = svgEl('path', 'case', gCase), p = svgEl('path', 'ln', gLines);
+    p.setAttribute('stroke', L.color);
+    EL.cases.push(c); EL.lines.push(p);
+  }
+  for (let i = 0; i < N; i++) {
+    EL.ghostL.push(svgEl('line', 'ghost', gGhost));
+    EL.ghostC.push(svgEl('circle', 'true', gGhost));
+    const c = svgEl('circle', INTER[i] ? 'x' : 'st', gSt);
+    if (!INTER[i]) c.setAttribute('stroke', stationColor(i));
+    EL.st.push(c);
+    const h = svgEl('circle', 'hit', gHit);
+    h.dataset.i = i;
+    EL.hit.push(h);
+    const t = svgEl('text', `lab${INTER[i] || TERM.has(i) ? ' big' : ''}`, gLab);
+    t.textContent = NAME[i];
+    EL.lab.push(t);
+  }
+  // line badges at the ends of each line
+  for (const L of LINES) for (const seq of L.polys) {
+    if (seq[0] === seq[seq.length - 1]) continue;
+    for (const [end, next] of [[seq[0], seq[1]], [seq[seq.length - 1], seq[seq.length - 2]]]) {
+      if (L.code === 'EW' && NAME[end] === 'Tanah Merah') continue;
+      if (EL.badges.some(b => b.end === end && b.L === L)) continue;
+      const g = svgEl('g', 'badge', gBadges), r = svgEl('rect', null, g), tx = svgEl('text', null, g);
+      r.setAttribute('fill', L.color); r.setAttribute('width', 20); r.setAttribute('height', 13); r.setAttribute('x', -10); r.setAttribute('y', -6.5);
+      tx.textContent = L.code;
+      EL.badges.push({ g, end, next, L });
+    }
+  }
+  gHit.addEventListener('pointerover', e => { const i = e.target.dataset && e.target.dataset.i; if (i != null) showTip(+i, e); });
+  gHit.addEventListener('pointermove', e => { if (hoverI >= 0) placeTip(e.clientX, e.clientY); });
+  gHit.addEventListener('pointerout', e => { if (e.pointerType === 'mouse') hideTip(); });
+  gHit.addEventListener('click', e => { const i = e.target.dataset && e.target.dataset.i; if (i != null) { showTip(+i, e); e.stopPropagation(); } });
+}
+function stationColor(i) {
+  for (const L of LINKS) if (L.a === i || L.b === i) return LINES[L.lines[0]].color;
+  return '#15171C';
+}
+
+let SCR = null, LSCR = null;   // screen coords of stations, and of every track point
+function render() {
+  if (!EL) return;
+  updateScreen();
+  const t = tNow;
+  posAt(t);
+  SCR = SCR || new Float64Array(2 * N);
+  for (let i = 0; i < N; i++) scr(P[2 * i], P[2 * i + 1], SCR, 2 * i);
+  // every link: points from the straight diagram segment to the true track
+  LSCR = LSCR || LINKS.map(L => new Float64Array(2 * L.n));
+  LINKS.forEach((L, k) => {
+    const o = LSCR[k], n = L.n;
+    o[0] = SCR[2 * L.a]; o[1] = SCR[2 * L.a + 1]; o[2 * n - 2] = SCR[2 * L.b]; o[2 * n - 1] = SCR[2 * L.b + 1];
+    for (let j = 1; j < n - 1; j++) {
+      const gx = L.geo[2 * j - 2], gy = L.geo[2 * j - 1], dx = L.dia[2 * j - 2], dy = L.dia[2 * j - 1];
+      scr(dx + t * (gx - dx), dy + t * (gy - dy), o, 2 * j);
+    }
+  });
+  const w = lw();
+  // lines, offset side by side where two share a link
+  LINES.forEach((Ln, li) => {
+    let dStr = '';
+    for (const run of Ln.runs) {
+      const pts = [], offs = [];
+      run.forEach(([k, fwd], r) => {
+        const L = LINKS[k], o = LSCR[k], n = L.n;
+        const slot = (L.lines.indexOf(li) - (L.lines.length - 1) / 2) * w * (fwd ? 1 : -1);
+        if (r) offs[offs.length - 1] = (offs[offs.length - 1] + slot) / 2;   // the station between two links: halfway
+        for (let j = r ? 1 : 0; j < n; j++) {
+          const jj = fwd ? j : n - 1 - j;
+          pts.push(o[2 * jj], o[2 * jj + 1]); offs.push(slot);
+        }
+      });
+      const m = pts.length / 2;
+      let s = '';
+      for (let j = 0; j < m; j++) {
+        let x = pts[2 * j], y = pts[2 * j + 1];
+        if (offs[j]) {
+          const j0 = Math.max(0, j - 1), j1 = Math.min(m - 1, j + 1);
+          let nx = -(pts[2 * j1 + 1] - pts[2 * j0 + 1]), ny = pts[2 * j1] - pts[2 * j0];
+          const l = Math.hypot(nx, ny) || 1;
+          x += nx / l * offs[j]; y += ny / l * offs[j];
+        }
+        s += (j ? 'L' : 'M') + x.toFixed(1) + ' ' + y.toFixed(1);
+      }
+      dStr += s;
+    }
+    EL.lines[li].setAttribute('d', dStr);
+    EL.lines[li].setAttribute('stroke-width', w);
+    EL.cases[li].setAttribute('d', dStr);
+    EL.cases[li].setAttribute('stroke-width', w + 2.6);
+  });
+  // stations
+  const rs = compact() ? 2.3 : 2.7, rx = compact() ? 4 : 4.8;
+  for (let i = 0; i < N; i++) {
+    const c = EL.st[i], x = SCR[2 * i], y = SCR[2 * i + 1];
+    c.setAttribute('cx', x.toFixed(1)); c.setAttribute('cy', y.toFixed(1));
+    c.setAttribute('r', INTER[i] ? rx : rs);
+    c.setAttribute('stroke-width', INTER[i] ? 1.9 : 1.7);
+    const h = EL.hit[i];
+    h.setAttribute('cx', x.toFixed(1)); h.setAttribute('cy', y.toFixed(1)); h.setAttribute('r', 9);
+  }
+  // line badges, just past the end of each line
+  for (const b of EL.badges) {
+    const x = SCR[2 * b.end], y = SCR[2 * b.end + 1], dx = x - SCR[2 * b.next], dy = y - SCR[2 * b.next + 1], l = Math.hypot(dx, dy) || 1;
+    b.x = x + dx / l * 17; b.y = y + dy / l * 17;
+    b.g.setAttribute('transform', `translate(${b.x.toFixed(1)} ${b.y.toFixed(1)})`);
+  }
+  // where the stations really are
+  gGhost.style.display = showGhost ? '' : 'none';
+  if (showGhost) {
+    const T = new Float64Array(2);
+    for (let i = 0; i < N; i++) {
+      scr(G[2 * i], G[2 * i + 1], T, 0);
+      const l = EL.ghostL[i], c = EL.ghostC[i];
+      l.setAttribute('x1', SCR[2 * i].toFixed(1)); l.setAttribute('y1', SCR[2 * i + 1].toFixed(1));
+      l.setAttribute('x2', T[0].toFixed(1)); l.setAttribute('y2', T[1].toFixed(1));
+      c.setAttribute('cx', T[0].toFixed(1)); c.setAttribute('cy', T[1].toFixed(1)); c.setAttribute('r', 2.4);
+    }
+  }
+  placeLabels();
+  if (hoverI >= 0) highlight(hoverI);
+}
+
+/* ---------- labels: greedy, interchanges and ends first, never over a line or another label ---------- */
+const measureCtx = document.createElement('canvas').getContext('2d');
+const textW = new Map();
+function widthOf(i) {
+  const big = INTER[i] || TERM.has(i), fs = compact() ? (big ? 10 : 9.5) : (big ? 11 : 10.5);
+  const key = i + ':' + fs;
+  if (!textW.has(key)) { measureCtx.font = `${big ? 700 : 500} ${fs}px "Instrument Sans", sans-serif`; textW.set(key, measureCtx.measureText(NAME[i]).width); }
+  return [textW.get(key), fs];
+}
+let ORDER = null;
+function placeLabels() {
+  const W = innerWidth, H = innerHeight, C = 4, cols = Math.ceil(W / C) + 1, rows = Math.ceil(H / C) + 1;
+  const grid = new Uint8Array(cols * rows);
+  const mark = (x, y) => { const cx = Math.floor(x / C), cy = Math.floor(y / C); if (cx >= 0 && cy >= 0 && cx < cols && cy < rows) grid[cy * cols + cx] = 1; };
+  const w = lw();
+  // the lines
+  LSCR.forEach((o, k) => {
+    for (let j = 0; j < LINKS[k].n - 1; j++) {
+      const x0 = o[2 * j], y0 = o[2 * j + 1], x1 = o[2 * j + 2], y1 = o[2 * j + 3], l = Math.hypot(x1 - x0, y1 - y0), steps = Math.max(1, Math.ceil(l / 2.5));
+      for (let s = 0; s <= steps; s++) mark(x0 + (x1 - x0) * s / steps, y0 + (y1 - y0) * s / steps);
+    }
+  });
+  for (let i = 0; i < N; i++) for (const dx of [-3, 3]) for (const dy of [-3, 3]) mark(SCR[2 * i] + dx, SCR[2 * i + 1] + dy);
+  for (const bd of EL.badges) for (let dx = -11; dx <= 11; dx += 3) for (let dy = -7; dy <= 7; dy += 3) mark(bd.x + dx, bd.y + dy);
+  // keep the dashboard and stamp clear
+  const blocked = [...document.querySelectorAll('[data-dmc-overlay]')].map(e => e.getBoundingClientRect()).filter(r => r.width);
+  const free = (x0, y0, x1, y1) => {
+    if (x0 < 2 || y0 < 2 || x1 > W - 2 || y1 > H - 2) return false;
+    for (const r of blocked) if (x1 > r.left && x0 < r.right && y1 > r.top && y0 < r.bottom) return false;
+    for (let cy = Math.floor(y0 / C); cy <= Math.floor(y1 / C); cy++) for (let cx = Math.floor(x0 / C); cx <= Math.floor(x1 / C); cx++) if (grid[cy * cols + cx]) return false;
+    return true;
+  };
+  const take = (x0, y0, x1, y1) => { for (let cy = Math.floor(y0 / C); cy <= Math.floor(y1 / C); cy++) for (let cx = Math.floor(x0 / C); cx <= Math.floor(x1 / C); cx++) if (cy >= 0 && cx >= 0 && cx < cols && cy < rows) grid[cy * cols + cx] = 1; };
+  if (!ORDER) ORDER = [...Array(N).keys()].sort((p, q) => (INTER[q] + TERM.has(q)) - (INTER[p] + TERM.has(p)) || DEG[q] - DEG[p]);
+  for (const i of ORDER) {
+    const el = EL.lab[i], x = SCR[2 * i], y = SCR[2 * i + 1];
+    const [tw, fs] = widthOf(i), th = fs + 1, g = INTER[i] ? 7 : 5.5;
+    const cands = [[x + g, y - th / 2, 'start'], [x - g - tw, y - th / 2, 'end'], [x - tw / 2, y - g - th, 'middle'], [x - tw / 2, y + g, 'middle'],
+      [x + g * .75, y - g * .75 - th, 'start'], [x + g * .75, y + g * .75, 'start'], [x - g * .75 - tw, y - g * .75 - th, 'end'], [x - g * .75 - tw, y + g * .75, 'end']];
+    let ok = null;
+    for (const c of cands) if (free(c[0], c[1], c[0] + tw, c[1] + th)) { ok = c; break; }
+    if (!ok) { el.setAttribute('visibility', 'hidden'); continue; }
+    take(ok[0] - 2, ok[1] - 1, ok[0] + tw + 2, ok[1] + th + 1);
+    el.setAttribute('visibility', 'visible');
+    el.setAttribute('x', (ok[2] === 'start' ? ok[0] : ok[2] === 'end' ? ok[0] + tw : ok[0] + tw / 2).toFixed(1));
+    el.setAttribute('y', (ok[1] + th - 2.5).toFixed(1));
+    el.setAttribute('text-anchor', ok[2]);
+  }
+}
+
+/* ---------- hover a station ---------- */
+const tip = $('tip');
+function lineColorOf(code) {
+  const p = code.replace(/\d+$/, '');
+  const m = { NS: 'NS', EW: 'EW', CG: 'EW', NE: 'NE', CC: 'CC', CE: 'CC', DT: 'DT', TE: 'TE', BP: 'BP', STC: 'SK', SE: 'SK', SW: 'SK', PTC: 'PG', PE: 'PG', PW: 'PG' }[p];
+  const L = LINES.find(L => L.code === m);
+  return L ? L.color : '#15171C';
+}
+function showTip(i, e) {
+  hoverI = i;
+  const gx = G[2 * i], gy = G[2 * i + 1], px = D[2 * i] + tNow * (gx - D[2 * i]), py = D[2 * i + 1] + tNow * (gy - D[2 * i + 1]);
+  const now = Math.hypot(px - gx, py - gy) / 1000, dia = Math.hypot(D[2 * i] - gx, D[2 * i + 1] - gy) / 1000;
+  tip.innerHTML = `<b>${NAME[i]}</b><div class="codes">${CODES[i].map(c => `<i style="background:${lineColorOf(c)}">${c}</i>`).join('')}</div>
+    <span>${tNow >= 1 ? 'At its true spot' : `${fmtKm(now)} from its true spot here`}</span><span>${fmtKm(dia)} off in the diagram</span>`;
+  tip.hidden = false;
+  placeTip(e.clientX, e.clientY);
+  highlight(i);
+}
+function placeTip(x, y) {
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let l = x + 14, t = y + 14;
+  if (l + w > innerWidth - 8) l = x - w - 14;
+  if (t + h > innerHeight - 8) t = y - h - 14;
+  tip.style.left = `${Math.max(8, l)}px`; tip.style.top = `${Math.max(8, t)}px`;
+}
+function hideTip() { hoverI = -1; tip.hidden = true; gHl.replaceChildren(); }
+function highlight(i) {
+  gHl.replaceChildren();
+  const c = svgEl('circle', 'hl', gHl);
+  c.setAttribute('cx', SCR[2 * i]); c.setAttribute('cy', SCR[2 * i + 1]); c.setAttribute('r', 9);
+  const T = new Float64Array(2); scr(G[2 * i], G[2 * i + 1], T, 0);
+  if (Math.hypot(T[0] - SCR[2 * i], T[1] - SCR[2 * i + 1]) > 3) {
+    const l = svgEl('line', 'hl', gHl); l.setAttribute('x1', SCR[2 * i]); l.setAttribute('y1', SCR[2 * i + 1]); l.setAttribute('x2', T[0]); l.setAttribute('y2', T[1]); l.setAttribute('stroke-dasharray', '3 3'); l.setAttribute('stroke-width', 1.5);
+    const d = svgEl('circle', 'hl', gHl); d.setAttribute('cx', T[0]); d.setAttribute('cy', T[1]); d.setAttribute('r', 3.5);
+  }
+}
+map.on('click', () => hideTip());
+map.on('movestart', e => { if (e.originalEvent) hideTip(); });
+
+/* ---------- read-outs ---------- */
+const fmtKm = km => km >= 10 ? `${km.toFixed(1)} km` : km >= 1 ? `${km.toFixed(2)} km` : `${Math.round(km * 1000)} m`;
+const pctTxt = t => `${Math.round(t * 100)}%`;
+function readout() {
+  const m = measure(tNow);
+  $('v-disp').innerHTML = m.mean >= 0.0005 ? `${m.mean.toFixed(2)}<small>km</small>` : '0<small>km</small>';
+  $('s-disp').innerHTML = tNow < 1 ? `mean per station<span class="lg">; furthest: ${m.maxName}, ${fmtKm(m.max)}</span>` : 'every station where it really is';
+  $('v-dir').innerHTML = `${(m.within * 100).toFixed(0)}<small>%</small>`;
+  $('s-dir').innerHTML = `of neighbour links point the true way<span class="lg">; mean error ${m.err.toFixed(1)}&deg;</span>`;
+  $('v-rho').innerHTML = `${m.rho.toFixed(3)}`;
+  $('s-rho').innerHTML = `Spearman &rho;<span class="lg">, near and far kept in order (1 = perfectly)</span>`;
+  $('t').setAttribute('aria-valuetext', `${pctTxt(tNow)} of the way to geography. Stations ${m.mean.toFixed(2)} km off on average, ${(m.within * 100).toFixed(0)}% of links point the true way, rank correlation ${m.rho.toFixed(3)}.`);
+  drawCursor();
+  return m;
+}
+
+/* ---------- curves: the three measures across the whole slider, computed in slices ---------- */
+const CURVE = [];
+const STEPS = 100;
+function buildCurve(done) {
+  let k = 0;
+  const slice = () => {
+    const t0 = performance.now();
+    while (k <= STEPS && performance.now() - t0 < 24) { CURVE[k] = measure(k / STEPS); k++; }
+    if (k <= STEPS) setTimeout(slice, 0); else done();
+  };
+  slice();
+}
+function drawCurves() {
+  if (CURVE.length < STEPS + 1) return;
+  const maxDisp = Math.max(...CURVE.map(c => c.mean)), minRho = Math.min(...CURVE.map(c => c.rho));
+  const lo = Math.floor(minRho * 20) / 20;
+  const spec = [['c-disp', c => c.mean / maxDisp], ['c-dir', c => c.within], ['c-rho', c => (c.rho - lo) / (1 - lo)]];
+  for (const [id, f] of spec) {
+    const pts = CURVE.map((c, k) => `${(k / STEPS * 200).toFixed(1)},${(22 - f(c) * 20).toFixed(1)}`);
+    $(id).innerHTML = `<path class="ar" d="M0,22L${pts.join('L')}L200,22Z"/><path class="cv" d="M${pts.join('L')}"/><line class="me" x1="-9" x2="-9" y1="0" y2="24"/><line class="cur" x1="0" x2="0" y1="0" y2="24"/>`;
+  }
+  drawCursor();
+}
+function drawCursor() {
+  for (const id of ['c-disp', 'c-dir', 'c-rho']) {
+    const c = $(id).querySelector('.cur'), me = $(id).querySelector('.me');
+    if (c) { c.setAttribute('x1', tNow * 200); c.setAttribute('x2', tNow * 200); }
+    if (me) { const x = myVote == null ? -9 : myVote * 2; me.setAttribute('x1', x); me.setAttribute('x2', x); }
+  }
+}
+
+/* ---------- the slider ---------- */
+const slider = $('t');
+function setT(t, from) {
+  tNow = Math.max(0, Math.min(1, t));
+  if (from !== 'slider') slider.value = String(Math.round(tNow * 1000));
+  $('fill').style.width = `${tNow * 100}%`;
+  const pct = $('pct'), r = slider.getBoundingClientRect();
+  pct.textContent = pctTxt(tNow);
+  // the thumb's centre runs from 11 px to width - 11 px
+  pct.style.left = `${11 + tNow * (r.width - 22)}px`;
+  basemap();
+  queue();
+}
+slider.addEventListener('input', () => { stopPlay(); setT(Number(slider.value) / 1000, 'slider'); });
+// the basemap fades in over the last part of the slide; so does the scale bar
+function basemap() {
+  if (!map.getLayer('b-water')) return;
+  const k = Math.max(0, Math.min(1, (tNow - .55) / .45)), e = k * k * (3 - 2 * k);
+  for (const [id, type, prop, max] of BASE) if (map.getLayer(`b-${id}`)) map.setPaintProperty(`b-${id}`, prop, max * e);
+  const sc = map.getContainer().querySelector('.maplibregl-ctrl-scale');
+  if (sc) { sc.style.opacity = e; sc.parentElement.style.opacity = e; }
+}
+
+let raf = 0, lastT = -1;
+function queue() { if (!raf) raf = requestAnimationFrame(frame); }
+function frame() {
+  raf = 0;
+  render();
+  if (lastT !== tNow && N) { lastT = tNow; readout(); say(); }
+}
+map.on('move', queue);
+map.on('resize', queue);
+map.on('styledata', basemap);
+
+/* ---------- play ---------- */
+let playRaf = 0;
+function stopPlay() {
+  if (!playRaf) return;
+  cancelAnimationFrame(playRaf); playRaf = 0;
+  $('play-lbl').textContent = 'Play'; $('play-ico').setAttribute('d', 'M3 2l7 4-7 4z');
+}
+$('play').addEventListener('click', () => {
+  if (playRaf) { stopPlay(); return; }
+  const from = tNow >= .999 ? 0 : tNow, to = 1;
+  if (reduceMotion) { setT(tNow >= .999 ? 0 : Math.min(1, Math.floor(tNow * 4 + 1e-6) / 4 + .25)); return; }
+  const dur = 7000 * (to - from), t0 = performance.now();
+  if (from === 0) setT(0);
+  $('play-lbl').textContent = 'Pause'; $('play-ico').setAttribute('d', 'M3.5 2v8M8.5 2v8');
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    setT(from + (to - from) * e);
+    if (k < 1) playRaf = requestAnimationFrame(step); else stopPlay();
+  };
+  playRaf = requestAnimationFrame(step);
+});
+
+/* ---------- true spots ---------- */
+$('ghost').addEventListener('click', () => {
+  showGhost = !showGhost;
+  $('ghost').setAttribute('aria-pressed', String(showGhost));
+  queue();
+});
+
+/* ---------- the vote: kept on this device, passed on by link ---------- */
+const STORE = 'dmc25-vote';
+let myVote = null;
+try { const v = localStorage.getItem(STORE); if (v != null && v !== '' && isFinite(+v)) myVote = Math.max(0, Math.min(100, Math.round(+v))); } catch (e) { /* storage blocked */ }
+let others = (params.get('votes') || '').split('.').filter(s => /^\d{1,3}$/.test(s)).map(Number).filter(v => v <= 100).slice(-80);
+// if the link ends with the vote this device already holds, it is ours
+if (myVote != null && others.length && others[others.length - 1] === myVote) others.pop();
+function allVotes() { return myVote == null ? others.slice() : others.concat(myVote); }
+function median(v) { const s = v.slice().sort((p, q) => p - q), n = s.length; return n ? (n % 2 ? s[(n - 1) / 2] : (s[n / 2 - 1] + s[n / 2]) / 2) : null; }
+function shareURL() {
+  const u = new URL(location.href);
+  u.search = '';
+  const v = allVotes().slice(-80);
+  if (v.length) u.searchParams.set('votes', v.join('.'));
+  return u.toString();
+}
+function drawVotes() {
+  const box = $('votes');
+  box.replaceChildren();
+  const bins = new Map();
+  for (const v of others) {
+    const b = Math.round(v / 2) * 2, n = bins.get(b) || 0;
+    bins.set(b, n + 1);
+    const i = document.createElement('i');
+    i.style.left = `${b}%`; i.style.bottom = `${2 + Math.min(n, 3) * 6}px`;
+    if (n < 4) box.append(i);
+  }
+  const all = allVotes(), med = median(all);
+  if (all.length >= 2) {
+    const m = document.createElement('div');
+    m.className = `med${med > 70 ? ' flip' : ''}`; m.style.left = `${med}%`;
+    m.innerHTML = `<span>median ${Math.round(med)}%</span>`;
+    box.append(m);
+  }
+  if (myVote != null) {
+    const i = document.createElement('i');
+    i.className = 'me'; i.style.left = `${myVote}%`;
+    const b = Math.round(myVote / 2) * 2;
+    i.style.bottom = `${Math.min(bins.get(b) || 0, 3) * 6}px`;
+    box.append(i);
+  }
+  $('share').disabled = !all.length;
+  drawCursor();
+}
+function votePhrase() {
+  const all = allVotes(), n = all.length;
+  if (!n) return '';
+  if (myVote != null && !others.length) return ` You marked <b>${myVote}%</b>. Copy the link to ask a friend.`;
+  return ` ${myVote != null ? `You marked <b>${myVote}%</b>. ` : ''}This link holds <b>${n}</b> mark${n > 1 ? 's' : ''}${n > 1 ? `, median <b>${Math.round(median(all))}%</b>` : ''}.`;
+}
+$('vote').addEventListener('click', () => {
+  myVote = Math.round(tNow * 100);
+  try { localStorage.setItem(STORE, String(myVote)); } catch (e) { /* storage blocked */ }
+  history.replaceState(null, '', shareURL());
+  drawVotes();
+  say(true);
+});
+$('share').addEventListener('click', async () => {
+  const url = shareURL();
+  history.replaceState(null, '', url);
+  let ok = false;
+  try { await navigator.clipboard.writeText(url); ok = true; } catch (e) { /* clipboard blocked */ }
+  $('say').innerHTML = ok ? `Link copied. Whoever opens it sees ${allVotes().length > 1 ? 'these marks' : 'your mark'} and can add their own.` : `Copy this link: <b>${url}</b>`;
+});
+
+/* ---------- the plain-English line under the slider ---------- */
+let sayTimer = 0;
+function say(now) {
+  clearTimeout(sayTimer);
+  sayTimer = setTimeout(() => {
+    if (!N) return;
+    const m = measure(tNow, false);
+    let s;
+    if (tNow <= 0) s = `<b>The diagram.</b> Every line runs at multiples of 45&deg;, stations as evenly spaced as the network allows, ${m.mean.toFixed(1)} km from their true spots on average.`;
+    else if (tNow >= 1) s = '<b>Geography.</b> Every station where it really is, every line on its track. Is it a better map?';
+    else s = `<b>${pctTxt(tNow)} of the way.</b> Is it a map yet?`;
+    $('say').innerHTML = s + votePhrase();
+  }, now ? 0 : 160);
+}
+
+/* ---------- start ---------- */
+const dataP = fetch('data/day25/diagram.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+dataP.then(d => {
+  prep(d);
+  buildDom();
+  drawVotes();
+  if (!compact()) $('foot').open = false;
+  setT(tNow);
+  frame();
+  $('loading').hidden = true;
+  buildCurve(drawCurves);
+}).catch(err => {
+  $('loading').textContent = 'The network could not be loaded. Please reload.';
+  console.error(err);
+});
+map.on('load', () => { basemap(); queue(); });
+addEventListener('resize', () => { setT(tNow); });
+if (document.fonts) document.fonts.ready.then(() => { textW.clear(); queue(); });
+</script>
+</body>
+</html>
