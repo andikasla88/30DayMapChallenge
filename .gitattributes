@@ -1,0 +1,2 @@
+# Day 10 checks this file's SHA-256 in the browser: keep its bytes exactly as committed.
+2026/data/day10/build/answer.json -text
