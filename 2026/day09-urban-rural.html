@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B1220">
+<title>Day 09 · Is anywhere in Singapore still rural?</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 9, Urban-rural: a scrolling field trip from Singapore's population spikes to its last farms, islands and kampong, with the island's densest and emptiest subzones set against Mong Kok, Dhaka, Manhattan, rural Johor and Mongolia.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230B1220'/%3E%3Cg stroke-linecap='round' stroke-width='3'%3E%3Cpath d='M8 26v-4' stroke='%238FD694'/%3E%3Cpath d='M13 26v-7' stroke='%23E8D36A'/%3E%3Cpath d='M18 26V9' stroke='%23FF7E5F'/%3E%3Cpath d='M23 26V14' stroke='%23FF7E5F'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Instrument+Serif:ital@0;1&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 09: a scrolling field trip over the population spikes ===== */
+:root {
+  --serif: "Instrument Serif", Georgia, "Times New Roman", serif;
+  --rural: #8FD694; --rural-rgb: 143, 214, 148;
+  --world: #8C9BB4;
+  --story-w: 324px;
+  --story-top: 104px;
+}
+.dmc-map { background: #070B14; }
+
+/* ---- the story column: cards scroll over the map ---- */
+.story {
+  position: absolute; z-index: 2;
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); top: var(--story-top); bottom: 60px;
+  width: var(--story-w); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: none;
+  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 26px, #000 calc(100% - 30px), transparent);
+  mask-image: linear-gradient(to bottom, transparent 0, #000 26px, #000 calc(100% - 30px), transparent);
+}
+.story::-webkit-scrollbar { display: none; }
+.step { min-height: 78%; display: flex; align-items: center; padding: 22px 0; }
+.step:first-child { align-items: flex-start; padding-top: 20px; }
+.step:last-child { min-height: 92%; }
+.card {
+  position: relative; width: 100%; padding: 13px 15px 12px;
+  background: var(--glass); border: 1px solid var(--line); border-radius: var(--radius);
+  -webkit-backdrop-filter: blur(14px) saturate(150%); backdrop-filter: blur(14px) saturate(150%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 14px 36px rgba(0, 0, 0, .34);
+  display: grid; gap: 8px;
+  opacity: .3; transform: translateX(-4px); transition: opacity .45s, transform .45s, border-color .45s;
+}
+.step.on .card { opacity: 1; transform: none; border-color: rgba(var(--day-accent-rgb), .38); }
+.step.sat.on .card { background: rgba(9, 14, 24, .84); }
+.kick { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--day-accent); display: flex; justify-content: space-between; gap: 8px; }
+.kick span { color: var(--text-2); letter-spacing: .04em; }
+.card h2 { margin: 0; font-family: var(--serif); font-weight: 400; font-size: 17px; line-height: 1.15; letter-spacing: .005em; }
+.step:first-child h2 { font-size: 17px; }
+.card p { margin: 0; font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.card p b, .card p strong { color: var(--text); font-weight: 600; }
+.card .hint { font-size: 11px; color: var(--text-2); }
+.card kbd { font: inherit; font-size: 10.5px; font-weight: 600; color: var(--text); padding: 0 4px; border: 1px solid var(--line); border-radius: 4px; }
+.hero { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hero b { font-family: var(--display); font-size: 30px; font-weight: 800; line-height: .95; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: .01em; }
+.hero.rural b { color: var(--rural); }
+.hero.urban b { color: var(--day-accent); }
+.hero span { font-size: 11.5px; color: var(--text-2); line-height: 1.3; }
+.nums { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; padding: 7px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.nums div { display: grid; gap: 1px; }
+.nums b { font-family: var(--display); font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.nums span { font-size: 10.5px; color: var(--text-2); line-height: 1.25; }
+.legend { display: grid; gap: 3px; }
+.legend .bar { height: 7px; border-radius: 4px; background: linear-gradient(90deg, #2F6B58 0%, #7FC98B 22%, #E8D36A 36%, #FFA65C 56%, #FF6B5E 78%, #FFD3DC 100%); }
+.legend .ticks { position: relative; height: 12px; font-size: 10px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.legend .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.legend .ticks span:first-child { transform: none; }
+.legend .ticks span:last-child { transform: translateX(-100%); }
+.legend .cap { font-size: 10.5px; color: var(--text-2); }
+.swatch { display: inline-block; width: 9px; height: 9px; border-radius: 2px; vertical-align: -1px; margin-right: 3px; }
+.btns { display: flex; gap: 8px; flex-wrap: wrap; }
+.src { font-size: 10px !important; line-height: 1.45 !important; color: var(--text-2); }
+.src a, .card p a { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.card p a:hover { color: var(--text); }
+
+/* ---- comparison chart ---- */
+.cmp { display: grid; gap: 4px; }
+.cmp svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cmp .lbl { font: 600 11px var(--font); fill: var(--text); }
+.cmp .sub { font: 400 10.5px var(--font); fill: rgba(238, 242, 247, .6); }
+.cmp .val { font: 600 11px var(--font); fill: var(--text); font-variant-numeric: tabular-nums; }
+.cmp .axis { font: 400 10px var(--font); fill: rgba(238, 242, 247, .55); }
+.cmp .thr { font: 600 10px var(--font); letter-spacing: .02em; }
+.cmp g.row { cursor: default; }
+.cmp g.row:hover .hit, .cmp g.row:focus .hit { fill: rgba(255, 255, 255, .06); }
+.cmp g.row:focus { outline: none; }
+.cmp .key { display: flex; gap: 12px; font-size: 10.5px; color: var(--text-2); }
+.cmp-tip { min-height: 1.45em; font-size: 11px !important; }
+
+/* ---- step nav ---- */
+.snav {
+  position: absolute; z-index: 3; left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--story-w); display: flex; align-items: center; gap: 8px; padding: 4px;
+  background: var(--glass); border: 1px solid var(--line); border-radius: 999px;
+  -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px);
+}
+.snav button { position: relative; flex: none; width: 28px; height: 28px; display: grid; place-items: center; border-radius: 50%; border: 0; background: rgba(255, 255, 255, .07); color: var(--text); cursor: pointer; }
+.snav button:hover { background: rgba(255, 255, 255, .15); }
+.snav button:disabled { opacity: .35; cursor: default; }
+.snav button::after { content: ""; position: absolute; inset: -8px -4px; }
+.snav svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.dots { flex: 1; display: flex; justify-content: center; gap: 5px; }
+.dots button { width: 18px; height: 18px; background: transparent; }
+.dots button::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 255, 255, .28); transition: background .3s, transform .3s; }
+.dots button[aria-current="step"]::before { background: var(--day-accent); transform: scale(1.35); box-shadow: 0 0 8px rgba(var(--day-accent-rgb), .7); }
+.dots button.sat::before { border-radius: 1px; }
+.snav .count { font-size: 10.5px; font-weight: 600; color: var(--text-2); font-variant-numeric: tabular-nums; min-width: 30px; text-align: center; }
+.replay { display: none; }
+.story-off .story, .story-off .snav { display: none; }
+.story-off .replay { display: inline-flex; position: absolute; z-index: 3; left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); background: var(--glass); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+
+/* ---- pins and tooltip ---- */
+.pin { display: grid; justify-items: center; pointer-events: none; }
+.pin .tag { padding: 3px 8px 4px; border-radius: 7px; background: rgba(9, 14, 24, .86); border: 1px solid rgba(255, 255, 255, .2); box-shadow: 0 4px 12px rgba(0, 0, 0, .4); text-align: center; white-space: nowrap; }
+.pin .tag b { display: block; font-size: 11.5px; font-weight: 600; color: var(--text); line-height: 1.2; }
+.pin .tag i { display: block; font-style: normal; font-size: 10px; color: var(--text-2); line-height: 1.2; }
+.pin .stem { width: 1.5px; height: 22px; background: linear-gradient(rgba(255, 255, 255, .85), rgba(255, 255, 255, .3)); }
+.pin .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--pin, var(--day-accent)); box-shadow: 0 0 0 2px rgba(9, 14, 24, .8), 0 0 10px var(--pin, var(--day-accent)); margin-top: -1px; }
+.pin.rural { --pin: var(--rural); }
+.pin.left { justify-items: start; }
+.pin.left .stem { margin-left: 4px; }
+.pin.left .tag { text-align: left; }
+.pin { opacity: 0; transition: opacity .6s .4s; }
+.pin.show { opacity: 1; }
+.tip {
+  position: fixed; z-index: 5; left: 0; top: 0; width: 214px; pointer-events: none; padding: 9px 11px 9px;
+  background: rgba(9, 14, 24, .9); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 26px rgba(0, 0, 0, .45);
+  display: grid; gap: 5px;
+}
+.tip[hidden] { display: none; }
+.tip .t1 { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.tip .t1 small { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-2); }
+.tip .t2 { display: flex; align-items: baseline; gap: 6px; }
+.tip .t2 b { font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.tip .t2 span { font-size: 10.5px; color: var(--text-2); }
+.tip .t3 { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.tip .mix { display: flex; height: 6px; border-radius: 3px; overflow: hidden; gap: 1px; background: rgba(255, 255, 255, .06); }
+.tip .mixk { display: flex; flex-wrap: wrap; gap: 2px 8px; font-size: 10px; color: var(--text-2); }
+.tip .flag { font-size: 10.5px; font-weight: 600; color: var(--rural); }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.loading[hidden] { display: none; }
+
+/* ---- phones held upright: the cards become a bottom sheet ---- */
+@media (max-width: 640px) and (orientation: portrait) {
+  :root { --sheet-h: 45vh; }
+  .story { left: 0; right: 0; width: auto; top: auto; bottom: 0; height: var(--sheet-h); padding: 0 10px env(safe-area-inset-bottom, 0px); scroll-snap-type: y proximity;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 12px); mask-image: linear-gradient(to bottom, transparent 0, #000 12px); }
+  .step, .step:first-child, .step:last-child { min-height: 100%; align-items: flex-start; padding: 12px 0 46px; scroll-snap-align: start; }
+  .card { padding: 11px 13px 10px; gap: 7px; transform: none; }
+  .hero b { font-size: 26px; }
+  .snav { left: auto; right: 10px; bottom: calc(var(--sheet-h) + 6px); width: auto; padding: 3px; }
+  .dots { display: none; }
+  .story-off .replay { bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+/* ---- phones held sideways ---- */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --story-w: 290px; }
+  .story { bottom: 46px; }
+  .step { min-height: 92%; }
+  .hero b { font-size: 24px; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore: resident population density as 3D spikes, with satellite field trips to Lim Chu Kang, Sungei Tengah, Pulau Ubin and Kampong Lorong Buangkok"></div>
+<div id="tip" class="tip dmc-chrome" hidden aria-live="polite"></div>
+<p id="loading" class="loading dmc-chrome">Counting 4.2 million residents&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<main id="story" class="story" data-dmc-overlay aria-label="Story: is anywhere in Singapore still rural?" tabindex="-1">
+  <section class="step" data-step="0">
+    <div class="card">
+      <p class="kick">Urban&ndash;rural <span>June 2026</span></p>
+      <h2>Is anywhere in Singapore still rural?</h2>
+      <p>Every spike is a 250&nbsp;m square of the island, as tall as the number of residents per km&sup2; who live in it. The HDB towns rise like reefs. Now look west and north: whole districts lie flat.</p>
+      <div class="nums">
+        <div><b id="n-res">4.23M</b><span>residents</span></div>
+        <div><b>332</b><span>subzones</span></div>
+        <div><b id="n-zero">51</b><span>with nobody at all</span></div>
+      </div>
+      <div class="legend" aria-label="Spike colour and height: residents per square kilometre">
+        <div class="bar"></div>
+        <div class="ticks"><span style="left:0">0</span><span style="left:22%">300</span><span style="left:36%">1.5k</span><span style="left:56%">10k</span><span style="left:78%">30k</span><span style="left:100%">60k+</span></div>
+        <p class="cap">Residents per km&sup2; (colour and height)</p>
+      </div>
+      <p class="hint">Scroll the cards, or step with <kbd>&darr;</kbd> <kbd>&uarr;</kbd>. Drag the map any time.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="1">
+    <div class="card">
+      <p class="kick">The densest <span>Yishun East</span></p>
+      <div class="hero urban"><b>44,000</b><span>residents per km&sup2;<br>77,840 people on 1.77 km&sup2;</span></div>
+      <p>Singapore's most crowded subzone is denser than <b>Manhattan</b> (28,870) and <b>Dhaka South</b> (39,400), and level with Mong Kok's district, <b>Yau Tsim Mong</b> (44,460).</p>
+      <p>It is not alone. <b>36 subzones</b> are denser than Manhattan, and <b>a third of all residents</b> live in them.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="2">
+    <div class="card">
+      <p class="kick">The empty half <span>under 300 per km&sup2;</span></p>
+      <div class="hero rural"><b>63%</b><span>of the land, home to<br>0.18% of residents</span></div>
+      <p>The UN-endorsed <a href="https://ec.europa.eu/eurostat/web/products-manuals-and-guidelines/-/ks-02-20-499" target="_blank" rel="noopener noreferrer">Degree of Urbanisation</a> calls land rural below <b>300 people per km&sup2;</b>. By that line <b>100 subzones</b> (<span class="swatch" style="background:var(--rural)"></span>green) are rural: 497 km&sup2; holding just <b>7,590 residents</b>.</p>
+      <p>Most of it is not farmland. It is reservoir catchment, army training ground, airbase, port and factory.</p>
+    </div>
+  </section>
+
+  <section class="step sat" data-step="3">
+    <div class="card">
+      <p class="kick">Field trip 1 <span>Lim Chu Kang</span></p>
+      <div class="hero rural"><b>20</b><span>residents on 17.5 km&sup2;<br>1.1 per km&sup2;</span></div>
+      <p>Singapore's farm belt: vegetable plots, goat sheds, frog ponds and fish farms on the Kranji countryside. It looks rural and counts as rural, but hardly anyone lives here. Most of the people who work these farms go home to the HDB towns.</p>
+      <p>Even this is temporary. The Singapore Food Agency plans to rebuild Lim Chu Kang as a high-tech agri-food zone.</p>
+    </div>
+  </section>
+
+  <section class="step sat" data-step="4">
+    <div class="card">
+      <p class="kick">Field trip 2 <span>Sungei Tengah</span></p>
+      <div class="hero rural"><b>8.6</b><span>residents per km&sup2;<br>590 people in Murai subzone</span></div>
+      <p>Farm plots of the Sungei Tengah agrotechnology park, at the edge of the forested Western Water Catchment. On paper, Murai subzone is deep countryside.</p>
+      <p>But the resident count covers only <b>citizens and PRs</b>. Migrant workers in the dormitories out here, such as Sungei Tengah Lodge, do not appear in it. Rural by the table, not by the bus queue.</p>
+    </div>
+  </section>
+
+  <section class="step sat" data-step="5">
+    <div class="card">
+      <p class="kick">Field trip 3 <span>Pulau Ubin</span></p>
+      <div class="hero rural"><b>30</b><span>residents on 67 km&sup2;<br>0.45 per km&sup2;</span></div>
+      <p>The North-Eastern Islands subzone (Pulau Ubin, plus the army island of Pulau Tekong) is home to 30 residents: sparser than <b>Mongolia</b>. Ubin's last villagers live in zinc-roofed kampong houses among the old quarry ponds. Everyone else arrives by bumboat from Changi Point.</p>
+    </div>
+  </section>
+
+  <section class="step sat" data-step="6">
+    <div class="card">
+      <p class="kick">Field trip 4 <span>Lorong Buangkok</span></p>
+      <div class="hero urban"><b>27,400</b><span>residents per km&sup2; in<br>Trafalgar, the subzone around it</span></div>
+      <p>The last kampong on the mainland: about two dozen timber-and-zinc homes on roughly a hectare, hemmed in by landed estates, condominiums and HDB blocks. In the statistics it disappears. Its subzone, Trafalgar, holds <b>47,780</b> residents.</p>
+      <p>The most village-like place in Singapore sits inside one of its denser subzones.</p>
+    </div>
+  </section>
+
+  <section class="step" data-step="7">
+    <div class="card">
+      <p class="kick">By world standards <span>people per km&sup2;</span></p>
+      <h2>Both ends of the scale, and no middle</h2>
+      <div class="cmp">
+        <div class="key"><span><span class="swatch" style="background:var(--day-accent)"></span>Singapore</span><span><span class="swatch" style="background:var(--world)"></span>Elsewhere</span><span>Log scale</span></div>
+        <div id="chart"></div>
+        <p id="cmp-tip" class="cmp-tip" aria-live="polite">Hover or tab through a bar for its source.</p>
+      </div>
+      <p>Singapore's towns are as packed as Mong Kok and its empty corners are emptier than Mongolia. What it lacks is the village: rural Johor's 30 to 300 people per km&sup2;. The few subzones at that density are <b>Raffles Place, the Istana, NUS and Changi airport</b>: offices, campuses and runways.</p>
+      <p><b>So: yes, Singapore is still rural, if rural means empty. It is a countryside without country folk.</b></p>
+    </div>
+  </section>
+
+  <section class="step" data-step="8">
+    <div class="card">
+      <p class="kick">Your turn <span>explore</span></p>
+      <h2>The map is yours</h2>
+      <p>Drag to pan, right-drag to tilt and turn, and hover (or tap) any subzone for its residents, density and homes. The buildings button, top right, raises the city in 3D.</p>
+      <div class="btns">
+        <button id="restart" class="dmc-btn" type="button">Back to the start</button>
+        <button id="hide" class="dmc-btn" type="button">Hide the story</button>
+      </div>
+      <p class="src">Residents: <a href="https://www.singstat.gov.sg/find-data/explore-data-themes/population/geographic-distribution/latest-news-data" target="_blank" rel="noopener noreferrer">SingStat, Singapore Residents by Planning Area/Subzone, June 2026</a> (citizens and PRs; rounded to 10). Areas: <a href="https://data.gov.sg/datasets/d_8594ae9ff96d0c708bc2af633048edfb/view" target="_blank" rel="noopener noreferrer">URA MP2019 Subzone Boundary</a> (no MP2025 subzone layer is published; the 2026 table uses the same 332 subzones). Spikes spread each subzone's residents over its homes in the <a href="https://data.gov.sg/datasets/d_90d86daa5bfaa371668b84fa5f01424f/view" target="_blank" rel="noopener noreferrer">MP2019 land-use layer</a>, weighted by plot ratio. Elsewhere: <a href="https://gia.info.gov.hk/general/202202/28/P2022022800462_388301_1_1646036905239.pdf" target="_blank" rel="noopener noreferrer">HK C&amp;SD 2021 Census</a>; <a href="https://www.bssnews.net/news-flash/160510" target="_blank" rel="noopener noreferrer">BBS 2022 Census via BSS</a>; <a href="https://www.census.gov/quickfacts/newyorkcountynewyork" target="_blank" rel="noopener noreferrer">US Census 2020</a>; <a href="https://batamkota.bps.go.id/en/pressrelease/2021/03/02/388/hasil-sensus-penduduk-2020--penduduk-kota-batam-2020-1-196-396-jiwa.html" target="_blank" rel="noopener noreferrer">BPS Batam SP2020</a> &divide; 1,038.84 km&sup2; land; <a href="https://open.dosm.gov.my/dashboard/kawasanku/Johor/parlimen/P.154%20Mersing" target="_blank" rel="noopener noreferrer">DOSM MyCensus 2020</a> &divide; 2,838 km&sup2;; <a href="https://data.worldbank.org/indicator/EN.POP.DNST?locations=MN" target="_blank" rel="noopener noreferrer">World Bank 2024</a>; Singapore total: <a href="https://tablebuilder.singstat.gov.sg/table/TS/M810001" target="_blank" rel="noopener noreferrer">SingStat M810001</a>.</p>
+    </div>
+  </section>
+</main>
+
+<nav id="snav" class="snav" data-dmc-overlay aria-label="Story steps">
+  <button id="prev" type="button" aria-label="Previous step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+  <div id="dots" class="dots"></div>
+  <span id="count" class="count" aria-live="polite">1 / 9</span>
+  <button id="next" type="button" aria-label="Next step"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+</nav>
+<button id="replay" class="dmc-btn replay dmc-chrome" type="button">Show the story</button>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 9,
+  title: 'Is anywhere in Singapore still rural?',
+  deck: 'Singapore\'s 4.2 million residents drawn as spikes, one per 250 m square, as tall as the density of the people living there. Scroll the cards for a field trip: down to the densest subzone, then by satellite to the farms of Lim Chu Kang, Sungei Tengah, Pulau Ubin and the last mainland kampong, and finally a check against Mong Kok, Dhaka, Manhattan, rural Johor and Mongolia.',
+  accent: '#FF7E5F',
+  basemap: 'esri-imagery',
+  basemapPaint: { 'raster-brightness-max': .2, 'raster-saturation': -.65, 'raster-contrast': .1 },
+  basemapBg: '#070B14',
+  bounds: [[103.6, 1.21], [104.09, 1.475]],
+  minZoom: 8.5, maxZoom: 18.5,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 60 },
+  buildingsColor: ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 8], 0, '#9AA6BC', 60, '#C9D2E2', 160, '#F1F4F9'],
+  buildingsOpacity: .92,
+  author: '', nav: null,
+  attribution: [
+    'Residents: <a href="https://www.singstat.gov.sg/find-data/explore-data-themes/population/geographic-distribution/latest-news-data" target="_blank" rel="noopener noreferrer">SingStat</a>, June 2026',
+    'Subzones &amp; land use: <a href="https://data.gov.sg/datasets/d_8594ae9ff96d0c708bc2af633048edfb/view" target="_blank" rel="noopener noreferrer">URA MP2019 via data.gov.sg</a>, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>',
+    'Place markers: ' + '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+  ],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const story = $('story');
+const steps = [...story.querySelectorAll('.step')];
+const ACCENT = DAY.accent, RURAL = '#8FD694';
+
+/* ---------- the story's steps ---------- */
+const STEPS = [
+  { base: 'dark', cam: { fit: true, at: [103.818, 1.342], pitch: 62, bearing: -18, dz: .55 }, spikes: 1, fill: .14 },
+  { base: 'dark', cam: { center: [103.8468, 1.4282], zoom: 14.75, pitch: 62, bearing: 34 }, spikes: 0, fill: .1, focus: 'Yishun East', bld: true,
+    pins: [{ at: [103.8456, 1.4300], t: 'Yishun East', s: '44,000 per km²' }] },
+  { base: 'dark', cam: { center: [103.735, 1.372], zoom: 11.25, pitch: 54, bearing: 16 }, spikes: 1, fill: .06, rural: true,
+    pins: [{ at: [103.7192, 1.431], t: 'Lim Chu Kang', s: '20 residents', r: 1 }, { at: [103.672, 1.375], t: 'Western Water Catchment', s: 'reservoirs, forest, army', r: 1 },
+      { at: [103.632, 1.272], t: 'Tuas', s: 'port and industry', r: 1, left: 1 }] },
+  { base: 'sat', cam: { center: [103.7135, 1.4325], zoom: 14.1, pitch: 52, bearing: -14 }, spikes: 0, fill: 0, focus: 'Lim Chu Kang', bld: false,
+    pins: [{ at: [103.7095, 1.43205], t: 'Hay Dairies', s: 'goat farm', r: 1 }, { at: [103.71709, 1.43586], t: 'Jurong Frog Farm', s: 'frogs and fish', r: 1 },
+      { at: [103.71749, 1.41844], t: 'Bollywood Veggies', s: 'farm and bistro', r: 1 }] },
+  { base: 'sat', cam: { center: [103.7215, 1.3915], zoom: 14.5, pitch: 54, bearing: 22 }, spikes: 0, fill: 0, focus: 'Murai', bld: false,
+    pins: [{ at: [103.72143, 1.3908], t: 'Sungei Tengah', s: 'farms and dormitories', r: 1 }] },
+  { base: 'sat', cam: { center: [103.968, 1.4085], zoom: 13.15, pitch: 50, bearing: -8 }, spikes: 0, fill: 0, focus: 'North-Eastern Islands', bld: false,
+    pins: [{ at: [103.9525, 1.4043], t: 'Ubin village', s: 'jetty and kampong', r: 1 }, { at: [103.9908, 1.4087], t: 'Chek Jawa', s: 'wetlands', r: 1 }] },
+  { base: 'sat', cam: { center: [103.8789, 1.3838], zoom: 17.2, pitch: 58, bearing: 30 }, spikes: 0, fill: 0, focus: 'Trafalgar', bld: false,
+    pins: [{ at: [103.87861, 1.38413], t: 'Kampong Lorong Buangkok', s: 'the last mainland kampong', r: 1 }] },
+  { base: 'dark', cam: { fit: true, pitch: 40, bearing: -8, dz: .05 }, spikes: 1, fill: .14,
+    pins: [{ at: [103.8456, 1.4300], t: 'Yishun East', s: '44,000 per km²' }, { at: [103.6135, 1.2579], t: 'Tuas View Extension', s: '0.36 per km²', r: 1, left: 1 }] },
+  { base: 'dark', cam: null, spikes: 1, fill: .14 },
+];
+steps.forEach((s, i) => s.classList.toggle('sat', STEPS[i].base === 'sat'));
+
+/* ---------- data ---------- */
+const COLOR = ['interpolate', ['linear'], ['get', 'd'], 0, '#2F6B58', 300, '#7FC98B', 1500, '#E8D36A', 10000, '#FFA65C', 30000, '#FF6B5E', 60000, '#FFD3DC'];
+const CELL_KM2 = .0625, SPIKE_M = 150, K = .08;   // spike height: K metres per resident per km²
+let D = null, growth = 0;
+
+function decodeRing(a) {
+  const out = []; let x = 0, y = 0;
+  for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / 1e5, y / 1e5]); }
+  return out;
+}
+function buildData(d) {
+  const F = d.fields, ix = Object.fromEntries(F.map((f, i) => [f, i]));
+  const subzones = { type: 'FeatureCollection', features: d.sz.map((r, i) => {
+    const polys = d.geo[i].map(p => p.map(decodeRing));
+    return { type: 'Feature', id: i, properties: { name: r[ix.name], pa: r[ix.pa], pop: r[ix.pop], km2: r[ix.km2], d: r[ix.pop] / r[ix.km2],
+      hdb: r[ix.hdb], condo: r[ix.condo], landed: r[ix.landed], other: r[ix.other] },
+      geometry: polys.length === 1 ? { type: 'Polygon', coordinates: polys[0] } : { type: 'MultiPolygon', coordinates: polys } };
+  }) };
+  const hy = SPIKE_M / 2 / 110574;
+  const spikes = { type: 'FeatureCollection', features: d.spikes.map(([x, y, p]) => {
+    const hx = SPIKE_M / 2 / (111320 * Math.cos(y * Math.PI / 180));
+    return { type: 'Feature', properties: { d: p / CELL_KM2 }, geometry: { type: 'Polygon', coordinates: [[[x - hx, y - hy], [x + hx, y - hy], [x + hx, y + hy], [x - hx, y + hy], [x - hx, y - hy]]] } };
+  }) };
+  return { subzones, spikes, total: d.sz.reduce((s, r) => s + r[ix.pop], 0), zero: d.sz.filter(r => !r[ix.pop]).length };
+}
+
+// Spike heights shrink as you zoom in, so the island view is dramatic and a street view is not a wall.
+function spikeHeight(g) {
+  const k = K * g;
+  return ['interpolate', ['linear'], ['zoom'], 10, ['*', k, ['get', 'd']], 13, ['*', k * .3, ['get', 'd']], 16, ['*', k * .05, ['get', 'd']]];
+}
+
+function addLayers() {
+  map.addSource('sz', { type: 'geojson', data: D.subzones, tolerance: .3 });
+  map.addSource('spikes', { type: 'geojson', data: D.spikes, tolerance: 0 });
+  map.setLight({ anchor: 'map', color: '#FFFFFF', intensity: .32, position: [1.4, 210, 38] });
+  const before = map.getLayer('dmc-buildings') ? 'dmc-buildings' : undefined;
+  map.addLayer({ id: 'sz-fill', type: 'fill', source: 'sz', paint: { 'fill-color': COLOR, 'fill-opacity': 0, 'fill-opacity-transition': { duration: 900 } } }, before);
+  map.addLayer({ id: 'sz-rural', type: 'fill', source: 'sz', filter: ['<', ['get', 'd'], 300], paint: { 'fill-color': RURAL, 'fill-opacity': 0, 'fill-opacity-transition': { duration: 900 } } }, before);
+  map.addLayer({ id: 'sz-line', type: 'line', source: 'sz', paint: { 'line-color': '#C9D4E8', 'line-opacity': .14, 'line-width': .6, 'line-opacity-transition': { duration: 900 } } }, before);
+  map.addLayer({ id: 'sz-rural-line', type: 'line', source: 'sz', filter: ['<', ['get', 'd'], 300], paint: { 'line-color': RURAL, 'line-opacity': 0, 'line-width': 1, 'line-opacity-transition': { duration: 900 } } }, before);
+  map.addLayer({ id: 'sz-focus-glow', type: 'line', source: 'sz', filter: ['==', ['get', 'name'], ''], layout: { 'line-join': 'round' }, paint: { 'line-color': ACCENT, 'line-width': 9, 'line-blur': 7, 'line-opacity': .55 } }, before);
+  map.addLayer({ id: 'sz-focus', type: 'line', source: 'sz', filter: ['==', ['get', 'name'], ''], layout: { 'line-join': 'round' }, paint: { 'line-color': '#FFE3D8', 'line-width': 2, 'line-dasharray': [3, 2] } }, before);
+  map.addLayer({ id: 'sz-hover', type: 'line', source: 'sz', paint: { 'line-color': '#FFFFFF', 'line-width': 1.8, 'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], .9, 0] } }, before);
+  map.addLayer({ id: 'spikes', type: 'fill-extrusion', source: 'spikes', paint: {
+    'fill-extrusion-color': COLOR, 'fill-extrusion-height': spikeHeight(0), 'fill-extrusion-base': 0,
+    'fill-extrusion-opacity': ['interpolate', ['linear'], ['zoom'], 13, .96, 15.5, .4], 'fill-extrusion-vertical-gradient': true } }, before);
+  for (const p of ['raster-brightness-max', 'raster-saturation', 'raster-contrast']) map.setPaintProperty('basemap-esri-imagery', `${p}-transition`, { duration: reduceMotion ? 0 : 1400 });
+}
+
+// Spikes grow out of the ground (or vanish into it) over about 1.6 s.
+let growTo = 0, growRaf = 0;
+function setSpikes(on) {
+  growTo = on ? 1 : 0;
+  if (!map.getLayer('spikes')) return;
+  if (on) map.setLayoutProperty('spikes', 'visibility', 'visible');
+  cancelAnimationFrame(growRaf);
+  if (reduceMotion) { growth = growTo; apply(); return; }
+  const from = growth, t0 = performance.now(), dur = on ? 1700 : 700;
+  const tick = now => {
+    const t = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - t, 3);
+    growth = from + (growTo - from) * e; apply();
+    if (t < 1) growRaf = requestAnimationFrame(tick);
+  };
+  growRaf = requestAnimationFrame(tick);
+  function apply() {
+    map.setPaintProperty('spikes', 'fill-extrusion-height', spikeHeight(growth));
+    if (growth === 0) map.setLayoutProperty('spikes', 'visibility', 'none');
+  }
+}
+
+/* ---------- pins ---------- */
+let pins = [];
+function setPins(list = []) {
+  pins.forEach(m => m.remove());
+  pins = list.map(p => {
+    const el = document.createElement('div');
+    el.className = `pin dmc-chrome${p.r ? ' rural' : ''}${p.left ? ' left' : ''}`;
+    el.innerHTML = `<div class="tag"><b>${p.t}</b><i>${p.s}</i></div><div class="stem"></div><div class="dot"></div>`;
+    const m = new maplibregl.Marker({ element: el, anchor: p.left ? 'bottom-left' : 'bottom', offset: p.left ? [-5, 0] : [0, 0] }).setLngLat(p.at).addTo(map);
+    requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show')));
+    return m;
+  });
+}
+
+/* ---------- 3D buildings: drive the kit's button so it stays in sync ---------- */
+const bldBtn = () => document.querySelector('.dmc-ctrl button[aria-label="3D buildings"]');
+let wantBld = null;
+function syncBuildings() {
+  const b = bldBtn();
+  if (wantBld == null || !b) return;
+  const on = b.getAttribute('aria-pressed') === 'true';
+  if (on === wantBld) return;
+  if (!wantBld) b.click();
+  // Only switch on once the camera is low and tilted, so the kit does not fly anywhere itself.
+  else if (map.getZoom() >= 13.5 && map.getPitch() >= 20) b.click();
+}
+map.on('moveend', syncBuildings);
+
+/* ---------- camera ---------- */
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+function storyPadding() {
+  const r = story.getBoundingClientRect(), off = document.documentElement.classList.contains('story-off') || document.documentElement.classList.contains('dmc-focus');
+  if (off) return { top: 40, right: 40, bottom: 40, left: 40 };
+  if (isSheet()) return { top: 70, right: 10, bottom: Math.max(10, innerHeight - r.top + 6), left: 10 };
+  return { top: 30, right: 56, bottom: 30, left: Math.min(innerWidth * .5, r.right + 12) };
+}
+function cameraFor(c) {
+  const padding = storyPadding();
+  if (c.fit) {
+    const cam = map.cameraForBounds(DAY.bounds, { padding, bearing: c.bearing });
+    return { center: c.at || cam.center, zoom: cam.zoom + (c.dz || 0), pitch: c.pitch, bearing: c.bearing, padding };
+  }
+  let zoom = c.zoom;
+  if (isSheet()) zoom -= .55;   // a phone's upper map is narrow: pull back a little
+  return { center: c.center, zoom, pitch: c.pitch, bearing: c.bearing, padding };
+}
+function go(cam, instant) {
+  if (instant || reduceMotion) map.jumpTo(cam);
+  else map.flyTo({ ...cam, speed: .9, curve: 1.35, maxDuration: 5200, essential: true });
+}
+
+/* ---------- activating a step ---------- */
+let active = -1, booted = false, skipCam = params.has('view');
+function activate(i, instant) {
+  if (i === active || !D) return;
+  const prev = active;
+  active = i;
+  const s = STEPS[i];
+  steps.forEach((el, k) => el.classList.toggle('on', k === i));
+  dots.forEach((b, k) => { if (k === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  $('count').textContent = `${i + 1} / ${STEPS.length}`;
+  $('prev').disabled = i === 0; $('next').disabled = i === STEPS.length - 1;
+
+  // One satellite layer for the whole trip: dimmed to night for the density views, full daylight for the field trips.
+  const sat = s.base === 'sat';
+  map.setPaintProperty('basemap-esri-imagery', 'raster-brightness-max', sat ? 1 : .2);
+  map.setPaintProperty('basemap-esri-imagery', 'raster-saturation', sat ? 0 : -.65);
+  map.setPaintProperty('basemap-esri-imagery', 'raster-contrast', sat ? 0 : .1);
+  map.setPaintProperty('sz-fill', 'fill-opacity', s.fill);
+  map.setPaintProperty('sz-line', 'line-opacity', s.base === 'sat' ? 0 : .14);
+  map.setPaintProperty('sz-rural', 'fill-opacity', s.rural ? .28 : 0);
+  map.setPaintProperty('sz-rural-line', 'line-opacity', s.rural ? .75 : 0);
+  const f = ['==', ['get', 'name'], s.focus || ''];
+  map.setFilter('sz-focus', f); map.setFilter('sz-focus-glow', f);
+  setSpikes(!!s.spikes);
+  setPins(s.pins);
+  hideTip();
+  wantBld = s.bld ?? null;
+  if (wantBld === false) syncBuildings();
+
+  let cam = s.cam;
+  if (!cam && prev !== 7) cam = STEPS[7].cam;   // jumped straight to "explore"
+  if (cam && !skipCam) go(cameraFor(cam), instant);
+  skipCam = false;
+  if (wantBld) map.once('moveend', syncBuildings);
+}
+
+/* ---------- scroll, keys, buttons ---------- */
+const dots = STEPS.map((s, i) => {
+  const b = document.createElement('button');
+  b.type = 'button'; b.className = s.base === 'sat' ? 'sat' : '';
+  b.setAttribute('aria-label', `Step ${i + 1}: ${steps[i].querySelector('.kick').firstChild.textContent.trim()}`);
+  b.addEventListener('click', () => scrollToStep(i));
+  $('dots').append(b);
+  return b;
+});
+function scrollToStep(i, instant) {
+  i = Math.max(0, Math.min(STEPS.length - 1, i));
+  const el = steps[i];
+  const top = isSheet() ? el.offsetTop : el.offsetTop + el.offsetHeight / 2 - story.clientHeight / 2;
+  story.scrollTo({ top: Math.max(0, top), behavior: instant || reduceMotion ? 'auto' : 'smooth' });
+  // A short last step may not reach the trigger band; activate directly as well.
+  activate(i, instant);
+}
+const io = new IntersectionObserver(entries => {
+  if (!booted) return;
+  for (const e of entries) if (e.isIntersecting) activate(+e.target.dataset.step);
+}, { root: story, rootMargin: '-46% 0px -46% 0px', threshold: 0 });
+steps.forEach(s => io.observe(s));
+$('prev').addEventListener('click', () => scrollToStep(active - 1));
+$('next').addEventListener('click', () => scrollToStep(active + 1));
+$('restart').addEventListener('click', () => scrollToStep(0));
+$('hide').addEventListener('click', () => { document.documentElement.classList.add('story-off'); $('replay').focus(); });
+$('replay').addEventListener('click', () => { document.documentElement.classList.remove('story-off'); scrollToStep(active, true); });
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea, select, .maplibregl-canvas, .dmc-stamp')) return;
+  if (document.documentElement.classList.contains('story-off')) return;
+  const next = ['ArrowDown', 'ArrowRight', 'PageDown'].includes(e.key), back = ['ArrowUp', 'ArrowLeft', 'PageUp'].includes(e.key);
+  if (!next && !back) return;
+  e.preventDefault();
+  scrollToStep(active + (next ? 1 : -1));
+});
+
+/* ---------- hover / tap a subzone ---------- */
+const tip = $('tip');
+let hoverId = null;
+const fmtD = d => d >= 100 ? nf.format(Math.round(d / 10) * 10) : d >= 10 ? d.toFixed(0) : d >= 1 ? d.toFixed(1) : d > 0 ? d.toFixed(2) : '0';
+function hideTip() {
+  tip.hidden = true;
+  if (hoverId != null && map.getSource('sz')) map.setFeatureState({ source: 'sz', id: hoverId }, { hover: false });
+  hoverId = null;
+}
+function probe(e) {
+  if (!map.getLayer('sz-fill')) return;
+  const f = map.queryRenderedFeatures(e.point, { layers: ['sz-fill'] })[0];
+  if (!f) { hideTip(); map.getCanvas().style.cursor = ''; return; }
+  if (hoverId !== f.id) {
+    if (hoverId != null) map.setFeatureState({ source: 'sz', id: hoverId }, { hover: false });
+    hoverId = f.id; map.setFeatureState({ source: 'sz', id: hoverId }, { hover: true });
+  }
+  const p = f.properties, mix = [['HDB', p.hdb, '#FFA65C'], ['Condo', p.condo, '#8FB8FF'], ['Landed', p.landed, '#E8D36A'], ['Other', p.other, '#B9C3D4']].filter(m => m[1] > 0);
+  tip.innerHTML = `<div class="t1">${p.name}<small>${p.pa} planning area</small></div>
+    <div class="t2"><b style="color:${p.d < 300 ? RURAL : p.d > 28870 ? ACCENT : 'var(--text)'}">${fmtD(p.d)}</b><span>residents per km²</span></div>
+    <div class="t3">${nf.format(p.pop)} residents · ${p.km2.toFixed(2)} km²</div>
+    ${p.pop && mix.length ? `<div class="mix" aria-hidden="true">${mix.map(m => `<i style="width:${m[1]}%;background:${m[2]}"></i>`).join('')}</div>
+    <div class="mixk">${mix.map(m => `<span><span class="swatch" style="background:${m[2]}"></span>${m[0]} ${m[1]}%</span>`).join('')}</div>` : ''}
+    ${p.d < 300 ? `<div class="flag">Under 300 per km²: rural by the UN yardstick</div>` : p.d > 28870 ? `<div class="flag" style="color:${ACCENT}">Denser than Manhattan</div>` : ''}`;
+  tip.hidden = false;
+  const W = innerWidth, H = innerHeight, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = e.point.x + 16, y = e.point.y + 16;
+  if (x + w > W - 8) x = e.point.x - w - 16;
+  if (y + h > H - 8) y = e.point.y - h - 16;
+  tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${Math.max(8, y)}px`;
+  map.getCanvas().style.cursor = 'crosshair';
+}
+const canHover = matchMedia('(hover: hover)').matches;
+if (canHover) { map.on('mousemove', probe); map.on('mouseout', hideTip); }
+map.on('click', probe);
+map.on('movestart', e => { if (!canHover || !e.originalEvent) hideTip(); });
+
+/* ---------- comparison chart (log scale) ---------- */
+const CMP = [
+  ['Kwun Tong, HK', 'densest district, 2021', 59704, 0, 'Hong Kong 2021 Population Census (C&SD): 673,166 people.'],
+  ['Mong Kok district, HK', 'Yau Tsim Mong, 2021', 44458, 0, 'Hong Kong 2021 Population Census (C&SD): 310,647 people in Yau Tsim Mong.'],
+  ['Yishun East, SG', 'densest subzone, 2026', 43996, 1, 'SingStat June 2026: 77,840 residents on 1.77 km² (URA MP2019 subzone).'],
+  ['Dhaka South', 'city corporation, 2022', 39400, 0, 'Bangladesh 2022 Census (BBS): about 4.3 million people on 109 km².'],
+  ['Manhattan', 'New York, 2020', 28870, 0, 'US Census 2020: 1,694,251 people on 22.7 sq mi of land.'],
+  ['Singapore overall', 'incl. non-residents, 2026', 8332, 1, 'SingStat M810001: total population density, June 2026 (6.21 million people).'],
+  ['Batam', 'Indonesia, 2020', 1152, 0, 'BPS Batam SP2020: 1,196,396 people ÷ 1,038.84 km² of land.'],
+  ['Mersing, Johor', 'rural district, 2020', 27.5, 0, 'DOSM MyCensus 2020: 78,195 people ÷ 2,838 km².'],
+  ['Mongolia', 'whole country, 2024', 2.26, 0, 'World Bank: population density, people per km² of land, 2024.'],
+  ['Lim Chu Kang, SG', 'farm belt, 2026', 1.14, 1, 'SingStat June 2026: 20 residents on 17.5 km².'],
+  ['Ubin & Tekong, SG', 'N-E Islands, 2026', .45, 1, 'SingStat June 2026: 30 residents on 67.3 km² (North-Eastern Islands subzone).'],
+  ['Tuas View Ext., SG', 'emptiest lived-in, 2026', .36, 1, 'SingStat June 2026: 10 residents on 27.7 km² of reclaimed land.'],
+];
+function drawChart() {
+  // One row per place: name and note on a text line, its bar beneath, all on one log axis.
+  const W = 294, X0 = 0, X1 = W - 2, RH = 27, TOP = 16;
+  const lo = Math.log10(.1), hi = Math.log10(100000);
+  const sx = v => X0 + (Math.log10(Math.max(v, .1)) - lo) / (hi - lo) * (X1 - X0);
+  const H = TOP + CMP.length * RH + 14;
+  let s = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Population density, people per square kilometre, log scale: ${CMP.map(r => `${r[0]} ${fmtD(r[2])}`).join('; ')}">`;
+  for (const v of [.1, 1, 10, 100, 1000, 10000, 100000]) {
+    const x = sx(v);
+    s += `<line x1="${x}" x2="${x}" y1="${TOP - 2}" y2="${H - 12}" stroke="rgba(255,255,255,.07)"/>`;
+    s += `<text class="axis" x="${x}" y="${H - 2}" text-anchor="${v === .1 ? 'start' : v === 100000 ? 'end' : 'middle'}">${v >= 1000 ? v / 1000 + 'k' : v}</text>`;
+  }
+  for (const [v, c, t, anchor] of [[300, RURAL, 'rural <300', 'end'], [1500, '#E8D36A', 'urban ≥1,500', 'start']]) {
+    const x = sx(v);
+    s += `<line x1="${x}" x2="${x}" y1="${TOP - 4}" y2="${H - 12}" stroke="${c}" stroke-opacity=".75" stroke-dasharray="2 2"/>`;
+    s += `<text class="thr" x="${x + (anchor === 'end' ? -3 : 3)}" y="${TOP - 6}" text-anchor="${anchor}" fill="${c}">${t.replace('<', '&lt;')}</text>`;
+  }
+  CMP.forEach(([name, sub, v, sg], i) => {
+    const y = TOP + i * RH, w = Math.max(3, sx(v) - X0);
+    s += `<g class="row" tabindex="0" data-i="${i}" aria-label="${name}, ${sub}: ${fmtD(v)} people per square kilometre">
+      <rect class="hit" x="-4" y="${y}" width="${W + 8}" height="${RH}" rx="4" fill="transparent"/>
+      <text class="lbl" x="0" y="${y + 11}">${name}<tspan class="sub" dx="5">${sub}</tspan></text>
+      <text class="val" x="${W}" y="${y + 11}" text-anchor="end">${fmtD(v)}</text>
+      <rect x="${X0}" y="${y + 15}" width="${w}" height="7" rx="2" fill="${sg ? ACCENT : 'var(--world)'}"/></g>`;
+  });
+  s += '</svg>';
+  $('chart').innerHTML = s;
+  const out = $('cmp-tip'), def = out.textContent;
+  $('chart').querySelectorAll('g.row').forEach(g => {
+    const show = () => { const r = CMP[+g.dataset.i]; out.innerHTML = `<b>${fmtD(r[2])}</b> per km²: ${r[4]}`; };
+    g.addEventListener('mouseenter', show); g.addEventListener('focus', show);
+    g.addEventListener('mouseleave', () => { out.textContent = def; }); g.addEventListener('blur', () => { out.textContent = def; });
+  });
+}
+drawChart();
+
+/* ---------- layout: the column starts under the stamp ---------- */
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open') && !isSheet()) document.documentElement.style.setProperty('--story-top', `${Math.round(st.getBoundingClientRect().bottom + 6)}px`);
+}
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => {
+  layout();
+  const c = STEPS[active] && (STEPS[active].cam || STEPS[7].cam);
+  if (c && booted) map.jumpTo(cameraFor(c));
+}, 180); });
+document.addEventListener('dmc:focus', () => { const c = STEPS[active] && STEPS[active].cam; if (c) go(cameraFor(c)); });
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day09/density.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([d]) => {
+  D = buildData(d);
+  $('n-res').textContent = `${(D.total / 1e6).toFixed(2)}M`;
+  $('n-zero').textContent = D.zero;
+  addLayers();
+  booted = true;
+  const start = Math.max(0, Math.min(STEPS.length - 1, parseInt(params.get('step') || '0', 10) || 0));
+  if (start) scrollToStep(start, true);
+  else {   // the reader may have scrolled while the data loaded: start on the card in the middle
+    const mid = story.getBoundingClientRect().top + story.clientHeight / 2;
+    const k = steps.findIndex(el => { const r = el.getBoundingClientRect(); return r.top <= mid && r.bottom >= mid; });
+    activate(Math.max(0, k));
+  }
+  map.once('idle', () => { $('loading').hidden = true; });
+}).catch(err => {
+  $('loading').textContent = 'The population data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body></html>
