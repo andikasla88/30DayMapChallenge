@@ -1,0 +1,1078 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F8F4EB">
+<title>Day 19 · Where the hawker smells drift, right now</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 19, Smell: a smell plume from every hawker centre in Singapore, blown downwind by the wind NEA's weather stations measured minutes ago, painted in watercolour over Sentinel-2 imagery. Tap anywhere to ask: can I smell lunch from here?">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F8F4EB'/%3E%3Cpath d='M7 20c4-7 12-9 21-8-7 2-12 7-21 8z' fill='%23F29BAE' opacity='.85'/%3E%3Cpath d='M9 18c4-4 9-5 15-5' fill='none' stroke='%23E07A92' stroke-width='1.4' stroke-linecap='round'/%3E%3Cpath d='M4 22h7a3.5 3.5 0 0 1-7 0z' fill='%232F3245'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Caveat:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 19: a watercolour painted on cold-press paper, with its caption underneath ===== */
+:root {
+  --paper: #F8F4EB; --paper-rgb: 248, 244, 235;
+  --ink: #2F3245; --ink-2: rgba(47, 50, 69, .76); --ink-3: rgba(47, 50, 69, .56);
+  --indigo: #3D4A78;
+  /* the kit's dark glass, re-washed as paper */
+  --glass: rgba(252, 250, 245, .88); --line: rgba(47, 50, 69, .15);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  --cap-h: 204px;             /* the caption under the painting */
+  --edge: 10px;               /* paper margin around the painting */
+  color-scheme: light;
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .42  0 0 0 0 .38  0 0 0 0 .3  0 0 0 -.85 .6'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --mottle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='700' height='700'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='.006' numOctaves='4' seed='19' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .6  0 0 0 0 .52  0 0 0 0 .4  0 0 0 -1.5 .95'/></filter><rect width='100%' height='100%' filter='url(%23m)'/></svg>");
+}
+body { background: var(--paper); color: var(--ink); }
+#map { inset: var(--edge) var(--edge) var(--cap-h) var(--edge); background: var(--paper); }
+.dmc-focus #map { inset: 0; }
+#map .maplibregl-canvas:focus-visible { outline: 2px solid var(--day-accent); outline-offset: -2px; }
+
+/* paper: grain and soft mottling, multiplied over the painting and the caption */
+.paper { position: fixed; inset: 0; z-index: 1; pointer-events: none; mix-blend-mode: multiply; opacity: .5;
+  background: var(--mottle), var(--grain); background-size: 700px 700px, 240px 240px; }
+/* the painting's edges bleed into the paper; the far side (top) fades like distance */
+.feather { position: absolute; inset: 0; pointer-events: none;
+  box-shadow: inset 0 0 18px 14px var(--paper), inset 0 0 46px 10px rgba(var(--paper-rgb), .55);
+  background: linear-gradient(180deg, rgba(var(--paper-rgb), .92) 0, rgba(var(--paper-rgb), .45) 7%, rgba(var(--paper-rgb), 0) 20%); }
+.dmc-focus .feather { box-shadow: inset 0 0 12px 6px rgba(var(--paper-rgb), .8); }
+#smoke { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+
+/* ---- kit pieces, re-washed for paper ---- */
+.dmc-glass { -webkit-backdrop-filter: blur(10px) saturate(120%); backdrop-filter: blur(10px) saturate(120%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 10px 26px rgba(70, 55, 35, .13); }
+.dmc-stamp { top: calc(var(--edge) + 10px + env(safe-area-inset-top, 0px)); left: calc(var(--edge) + 10px + env(safe-area-inset-left, 0px)); }
+.dmc-num { text-shadow: none; color: var(--day-accent); }
+.dmc-title { font-weight: 600; }
+.dmc-more, .dmc-btn { background: rgba(47, 50, 69, .05); color: var(--ink); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(47, 50, 69, .11); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(47, 50, 69, .18); }
+.dmc-index li.done { background: rgba(47, 50, 69, .1); }
+.dmc-index li.today { color: #fff; box-shadow: none; }
+.maplibregl-ctrl-top-right { top: calc(var(--edge) + 10px + env(safe-area-inset-top, 0px)); right: calc(var(--edge) + 4px); }
+.dmc-focus .maplibregl-ctrl-top-right { top: 14px; right: 14px; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
+.dmc-ctrl button[aria-pressed="true"] { background: rgba(var(--day-accent-rgb), .16); }
+.dmc-focus-credit { background: rgba(252, 250, 245, .9); color: var(--ink-2); }
+.dmc-focus-exit { color: var(--ink); }
+.dmc-keys kbd { color: var(--ink); }
+
+/* ---- the caption under the painting ---- */
+.cap { position: fixed; z-index: 2; left: 0; right: 0; bottom: 0; height: var(--cap-h);
+  padding: 4px 26px calc(10px + env(safe-area-inset-bottom, 0px));
+  display: grid; grid-template-columns: minmax(262px, 300px) minmax(0, 1fr) minmax(260px, 350px); gap: 0 24px; }
+.cap .col { min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(47, 50, 69, .25) transparent; padding: 8px 2px 2px; position: relative; }
+.cap .col + .col::before { content: ""; position: absolute; left: -13px; top: 12px; bottom: 6px; width: 1px;
+  background: repeating-linear-gradient(180deg, rgba(47, 50, 69, .22) 0 7px, transparent 7px 11px); }
+.kick { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 7px; }
+.hand { font-family: var(--hand); font-weight: 700; color: var(--ink); line-height: 1; }
+.sub { margin: 0; font-size: 12px; line-height: 1.4; color: var(--ink-2); }
+.sub b { color: var(--ink); font-weight: 600; }
+.live { display: inline-flex; align-items: center; gap: 5px; padding: 1px 7px 1px 6px; border-radius: 999px; font-size: 10px; letter-spacing: .06em; color: #24774D; background: rgba(62, 156, 107, .12); }
+.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; box-shadow: 0 0 0 0 rgba(62, 156, 107, .5); animation: pulse 2s infinite; }
+.live.snap { color: #9A5B1E; background: rgba(214, 140, 60, .14); }
+.live.snap::before { animation: none; }
+@keyframes pulse { 70% { box-shadow: 0 0 0 6px rgba(62, 156, 107, 0); } 100% { box-shadow: 0 0 0 0 rgba(62, 156, 107, 0); } }
+
+.wind { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 0 12px; align-content: start; }
+.wind .row { grid-column: 1 / -1; margin-top: 6px; }
+.wind > svg { width: 80px; height: 80px; margin-top: 8px; overflow: visible; }
+.wind .txt { display: grid; gap: 3px; align-content: start; }
+.wind .hand { font-size: 24px; margin: 1px 0 1px; text-wrap: balance; }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; }
+.seg { display: inline-flex; gap: 2px; padding: 2px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255, 255, 255, .45); }
+.seg button, .chip, .link { position: relative; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--ink-2); background: transparent; border: 0; border-radius: 999px; padding: 4px 10px; min-height: 26px; cursor: pointer; }
+.seg button::after, .chip::after { content: ""; position: absolute; inset: -6px -2px; }
+.seg button:hover, .chip:hover { color: var(--ink); }
+.seg button[aria-pressed="true"] { color: #fff; background: var(--day-accent); }
+.chip { border: 1px solid var(--line); background: rgba(255, 255, 255, .45); display: inline-flex; align-items: center; gap: 6px; }
+.chip svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.chip[aria-pressed="true"] { color: var(--indigo); border-color: rgba(61, 74, 120, .4); background: rgba(61, 74, 120, .08); }
+
+.sniff { display: grid; gap: 5px; align-content: start; }
+.sniff h2 { margin: 0; font-family: var(--hand); font-size: 27px; font-weight: 700; line-height: .95; }
+.sniff .ask { margin: 0; font-size: 12px; color: var(--ink-2); display: flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.link { padding: 3px 9px; color: var(--indigo); border: 1px solid rgba(61, 74, 120, .3); background: rgba(255, 255, 255, .5); display: inline-flex; align-items: center; gap: 5px; }
+.link:hover { background: rgba(61, 74, 120, .08); }
+.link svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1.9; stroke-linecap: round; }
+.verdict { margin: 2px 0 0; font-size: 13px; line-height: 1.4; color: var(--ink); }
+.verdict b { font-weight: 700; }
+.verdict .yes { color: #24774D; } .verdict .no { color: #9A4B2E; }
+.hits { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(232px, 1fr)); gap: 4px 16px; }
+.hits li { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; align-items: center; gap: 1px 8px; padding: 3px 0; border-bottom: 1px dotted rgba(47, 50, 69, .16); font-size: 11.5px; color: var(--ink-2); }
+.hits li i { grid-row: span 2; width: 12px; height: 12px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); }
+.hits li b { font-size: 12px; font-weight: 600; color: var(--ink); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hits li em { grid-row: span 2; font-style: normal; font-size: 10.5px; font-weight: 600; padding: 1px 7px; border-radius: 999px; background: rgba(47, 50, 69, .07); color: var(--ink); white-space: nowrap; }
+.hits li em[data-l="2"], .hits li em[data-l="3"] { background: rgba(214, 96, 120, .16); color: #8A2E45; }
+.hits li em[data-l="1"] { background: rgba(230, 150, 80, .17); color: #87501E; }
+.more { font-size: 11px; color: var(--ink-3); margin: 0; }
+
+.notes { display: grid; gap: 5px; align-content: start; }
+.notes .dmc-credits { line-height: 1.38; }
+.legend { display: grid; grid-template-columns: 56px 1fr; gap: 0 8px; align-items: center; }
+.legend svg { width: 56px; height: 28px; }
+.legend ol { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0 2px; font-size: 10.5px; color: var(--ink-2); }
+.legend li { display: grid; gap: 2px; white-space: nowrap; text-align: center; }
+.legend li i { height: 7px; }
+.legend li:first-child i { border-radius: 4px 0 0 4px; } .legend li:last-child i { border-radius: 0 4px 4px 0; }
+.key2 { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 11px; color: var(--ink-2); margin: 0; }
+.key2 .chip { font-size: 11px; min-height: 24px; padding: 2px 9px; }
+.key2 span { display: inline-flex; align-items: center; gap: 5px; }
+.key2 svg { width: 16px; height: 12px; }
+details { font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
+summary { cursor: pointer; font-weight: 600; color: var(--ink); width: fit-content; }
+summary::marker { color: var(--day-accent); }
+details p { margin: 4px 0 0; }
+.dmc-credits { color: var(--ink-3); }
+.dmc-credits a { text-decoration-color: rgba(47, 50, 69, .3); }
+
+/* ---- on the map: the pin, the tooltip, the loading note ---- */
+.pin { pointer-events: auto; cursor: grab; display: grid; justify-items: center; }
+.pin .tag { padding: 2px 8px 3px; border-radius: 8px; background: rgba(252, 250, 245, .94); border: 1px solid rgba(47, 50, 69, .28); box-shadow: 0 4px 12px rgba(70, 55, 35, .18);
+  font-family: var(--hand); font-size: 17px; font-weight: 700; line-height: 1; color: var(--ink); white-space: nowrap; }
+.pin .stem { width: 1.5px; height: 16px; background: var(--ink); }
+.pin .dot { width: 12px; height: 12px; margin-top: -2px; border-radius: 50%; background: var(--day-accent); box-shadow: 0 0 0 2.5px #fff, 0 0 0 4px rgba(47, 50, 69, .5), 0 3px 8px rgba(0, 0, 0, .25); }
+.tip { position: fixed; z-index: 6; left: 0; top: 0; max-width: 250px; pointer-events: none; padding: 7px 10px 7px; border-radius: 9px;
+  background: rgba(252, 250, 245, .96); border: 1px solid rgba(47, 50, 69, .2); box-shadow: 0 8px 22px rgba(70, 55, 35, .18); display: grid; gap: 2px; font-size: 11.5px; color: var(--ink-2); }
+.tip[hidden] { display: none; }
+.tip b { font-size: 12.5px; color: var(--ink); font-weight: 600; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 42%; transform: translate(-50%, -50%); margin: 0; padding: 6px 14px; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.loading[hidden] { display: none; }
+.pencil { position: fixed; z-index: 2; left: calc(var(--edge) + 18px); bottom: calc(var(--cap-h) + 8px); max-width: min(460px, calc(100% - 140px)); margin: 0; pointer-events: none;
+  font-family: var(--hand); font-size: 17px; font-weight: 600; line-height: 1.05; color: rgba(47, 50, 69, .78); text-shadow: 0 0 6px var(--paper), 0 0 2px var(--paper); }
+.dmc-focus .pencil { bottom: 10px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- smaller desktops ---- */
+@media (max-width: 1100px) and (min-width: 641px) and (min-height: 521px) {
+  :root { --cap-h: 214px; }
+  .cap { grid-template-columns: minmax(250px, 290px) minmax(0, 1fr); grid-template-rows: auto auto; }
+  .cap .notes { grid-column: 1 / -1; display: none; }
+}
+@media (max-width: 1100px) and (min-width: 641px) and (min-height: 521px) {
+  .cap { overflow-y: auto; grid-template-rows: none; }
+  .cap .notes { display: grid; grid-column: 1 / -1; padding-top: 10px; }
+  .cap .notes::before { display: none; }
+}
+/* ---- phones held upright: the painting on top, the caption below it ---- */
+@media (max-width: 640px) and (orientation: portrait) {
+  :root { --edge: 6px; --map-h: 54%; }
+  #map { inset: 0 0 auto 0; height: var(--map-h); }
+  .dmc-focus #map { height: 100%; }
+  .cap { top: var(--map-h); height: auto; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; align-content: start; gap: 14px; overflow-y: auto; padding: 0 14px calc(16px + env(safe-area-inset-bottom, 0px)); }
+  .cap .col { overflow: visible; padding-top: 0; min-height: auto; }
+  .cap .col + .col::before { left: 0; right: 0; top: -7px; bottom: auto; width: auto; height: 1px; background: repeating-linear-gradient(90deg, rgba(47, 50, 69, .22) 0 7px, transparent 7px 11px); }
+  .cap .sniff { order: 1; padding-top: 2px; } .cap .wind { order: 2; } .cap .notes { order: 3; }
+  .cap .sniff::before { display: none; }
+  .cap .wind::before { content: ""; position: absolute; left: 0; right: 0; top: -7px; height: 1px; background: repeating-linear-gradient(90deg, rgba(47, 50, 69, .22) 0 7px, transparent 7px 11px); }
+  .sniff h2 { font-size: 25px; }
+  .hits { grid-template-columns: 1fr; }
+  .feather { background: linear-gradient(180deg, rgba(var(--paper-rgb), .85) 0, rgba(var(--paper-rgb), 0) 16%); box-shadow: inset 0 -14px 14px -4px var(--paper), inset 0 0 10px 4px rgba(var(--paper-rgb), .7); }
+  .pencil { bottom: auto; top: calc(var(--map-h) - 40px); left: 12px; max-width: calc(100% - 24px); font-size: 14.5px; }
+  .dmc-focus .pencil { top: auto; bottom: 10px; }
+}
+/* ---- phones held sideways: the painting on the left, the caption as a column ---- */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --edge: 6px; --cap-w: min(340px, 44vw); }
+  #map { inset: 0 var(--cap-w) 0 0; }
+  .cap { top: 0; left: auto; width: var(--cap-w); height: auto; grid-template-columns: minmax(0, 1fr); grid-auto-rows: max-content; align-content: start; gap: 14px; overflow-y: auto;
+    padding: calc(8px + env(safe-area-inset-top, 0px)) calc(12px + env(safe-area-inset-right, 0px)) calc(12px + env(safe-area-inset-bottom, 0px)) 10px; }
+  .cap .col { overflow: visible; padding-top: 0; min-height: auto; }
+  .cap .col + .col::before { left: 0; right: 0; top: -7px; bottom: auto; width: auto; height: 1px; background: repeating-linear-gradient(90deg, rgba(47, 50, 69, .22) 0 7px, transparent 7px 11px); }
+  .cap .sniff { order: 1; } .cap .wind { order: 2; } .cap .notes { order: 3; }
+  .cap .sniff::before { display: none; }
+  .cap .wind::before { content: ""; position: absolute; left: 0; right: 0; top: -7px; height: 1px; background: repeating-linear-gradient(90deg, rgba(47, 50, 69, .22) 0 7px, transparent 7px 11px); }
+  .sniff h2 { font-size: 23px; }
+  .hits { grid-template-columns: 1fr; }
+  .wind { grid-template-columns: 70px minmax(0, 1fr); }
+  .wind > svg { width: 70px; height: 70px; }
+  .wind .hand { font-size: 22px; }
+  .maplibregl-ctrl-top-right { right: 8px; }
+  .pencil { bottom: 8px; left: 12px; max-width: calc(100% - var(--cap-w) - 64px); font-size: 14.5px; }
+}
+@media (prefers-reduced-motion: reduce) { .live::before { animation: none; } }
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Watercolour map of Singapore: a smell plume streams downwind from every hawker centre, with wind arrows at NEA weather stations. Tap or click a spot to see which plumes reach it."></div>
+<div class="paper" aria-hidden="true"></div>
+<p id="note" class="pencil">An illustration of where cooking smells would drift with the measured wind. No smell was measured.</p>
+<p id="loading" class="loading dmc-chrome">Asking NEA's weather stations about the wind&hellip;</p>
+<div id="tip" class="tip" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="cap" class="cap dmc-chrome" aria-label="The wind, the smell finder and how to read the map">
+  <div class="col wind">
+    <svg id="compass" viewBox="-50 -50 100 100" role="img" aria-label="Compass">
+      <g id="rose">
+        <circle r="38" fill="rgba(255,255,255,.35)" stroke="rgba(47,50,69,.3)" stroke-width="1"/>
+        <circle r="31" fill="none" stroke="rgba(47,50,69,.12)" stroke-width="1" stroke-dasharray="1.5 3"/>
+        <g stroke="rgba(47,50,69,.45)" stroke-width="1.2" stroke-linecap="round">
+          <path d="M0-38v6M0 38v-6M-38 0h6M38 0h-6"/>
+          <path d="M26.9-26.9l-3 3M-26.9-26.9l3 3M26.9 26.9l-3-3M-26.9 26.9l3-3" stroke-width=".8"/>
+        </g>
+        <text x="0" y="-41" text-anchor="middle" font-family="Instrument Sans, sans-serif" font-size="10" font-weight="700" fill="#3E9C6B">N</text>
+      </g>
+      <g id="arrow">
+        <path d="M0-27C-1.5-12 1.5 4 0 17" fill="none" stroke="#3D4A78" stroke-width="3.2" stroke-linecap="round" opacity=".9"/>
+        <path d="M-7.5 12.5 0 25 7.5 12.5C3 15 -3 15 -7.5 12.5Z" fill="#3D4A78"/>
+        <circle cy="-29" r="3" fill="#3D4A78" opacity=".55"/>
+      </g>
+    </svg>
+    <div class="txt">
+      <p class="kick">The wind <span id="live" class="live">Loading</span></p>
+      <p id="w-dir" class="hand">&hellip;</p>
+      <p id="w-spd" class="sub">&nbsp;</p>
+      <p id="w-time" class="sub">&nbsp;</p>
+    </div>
+    <div class="row">
+      <div class="seg" role="group" aria-label="Turn the map">
+        <button id="cam-wind" type="button" aria-pressed="true">Face the wind</button>
+        <button id="cam-north" type="button" aria-pressed="false">North up</button>
+      </div>
+      <button id="extent" class="chip" type="button" aria-pressed="false"><svg viewBox="0 0 14 14" aria-hidden="true"><path d="M2 5V2h3M9 2h3v3M12 9v3H9M5 12H2V9"/></svg>Whole island</button>
+    </div>
+  </div>
+
+  <div class="col sniff">
+    <h2>Can I smell lunch from here?</h2>
+    <p class="ask">Tap the map or drag the pin, or
+      <button id="geo" class="link" type="button"><svg viewBox="0 0 14 14" aria-hidden="true"><circle cx="7" cy="7" r="3"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2"/></svg>use my location</button>
+      <button id="centre" class="link" type="button">check the map centre</button></p>
+    <div id="result" aria-live="polite">
+      <p id="verdict" class="verdict">Working out where every plume goes&hellip;</p>
+      <ol id="hits" class="hits"></ol>
+      <p id="more" class="more" hidden></p>
+    </div>
+  </div>
+
+  <div class="col notes">
+    <div class="legend">
+      <svg viewBox="0 0 60 30" aria-hidden="true">
+        <path d="M4 17C13 10 34 6 57 10 49 20 26 24 4 17Z" fill="#F29BAE" opacity=".42"/>
+        <path d="M4 17C11 13 25 11 39 12 33 19 19 20 4 17Z" fill="#F29BAE" opacity=".5"/>
+        <path d="M4 17C9 15 17 14 25 15 21 18 12 19 4 17Z" fill="#E77F96" opacity=".6"/>
+        <path d="M4 17C7 16 10 15.6 14 16 12 18 8 18.4 4 17Z" fill="#C9637C" opacity=".75"/>
+        <path d="M.5 19h7a3.5 3.5 0 0 1-7 0z" fill="#E59AA8" stroke="#2F3245" stroke-width=".9"/>
+      </svg>
+      <ol aria-label="Smell strength, from the edge of a plume to its core: faint, noticeable, strong, very strong">
+        <li><i style="background:#F6CDD6"></i>faint</li><li><i style="background:#EFA9B9"></i>noticeable</li><li><i style="background:#E3839A"></i>strong</li><li><i style="background:#C9607A"></i>very strong</li>
+      </ol>
+    </div>
+    <div class="key2"><span><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M3 5h10a5 5 0 0 1-10 0z" fill="#E59AA8" stroke="#2F3245" stroke-width="1.2"/></svg><span id="n-centres">Hawker centres</span></span>
+      <button id="st-toggle" class="chip" type="button" aria-pressed="true"><svg viewBox="0 0 16 12" aria-hidden="true"><path d="M2 6h9" stroke-width="2"/><path d="m10 2.5 4 3.5-4 3.5z" fill="currentColor" stroke="none"/></svg>Wind at NEA stations</button></div>
+    <details>
+      <summary>How it is drawn</summary>
+      <p><b>Wind.</b> NEA's 10-minute average wind at each weather station, fetched live and refreshed every 5 minutes. The wind at each hawker centre blends the three nearest stations, weighted by one over distance squared: their wind arrows give the direction, their speeds the speed.</p>
+      <p><b>Plumes.</b> Each runs straight downwind from its centre: a textbook Gaussian plume, as in the US EPA's ISC3 model, spreading as it would over a city in neutral air (Briggs's urban curves, tables 1-3 and 1-4). Its strength is the number of cooked-food stalls, as if every stall smelled the same. Winds under 1 m/s count as 1 m/s, as in ISC3.</p>
+      <p><b>The edge</b> of each plume is where its smell is as faint as a single stall's would be 200 m downwind in a 1 m/s breeze. We chose that level for illustration; each darker wash is about 3 times stronger than the one around it.</p>
+      <p id="left-out"><b>Left out:</b> centres still being built, and markets with no cooked-food stalls.</p>
+      <p id="smoke-note"><b>Smoke</b> moves with the measured wind, sped up.</p>
+    </details>
+    <p id="credits" class="dmc-credits"></p>
+  </div>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const ACCENT = '#3E9C6B';
+const PAPER = '#F8F4EB';
+const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+
+/* ---------- the basemap: Sentinel-2 imagery washed to pastel, OpenFreeMap water and parks on top ---------- */
+const STYLE = {
+  version: 8,
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: {
+    s2: { type: 'raster', tiles: ['https://tiles.maps.eox.at/wmts/1.0.0/s2cloudless-2024_3857/default/g/{z}/{y}/{x}.jpg'], tileSize: 256, maxzoom: 15 },
+    ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+  },
+  layers: [
+    { id: 'paper', type: 'background', paint: { 'background-color': PAPER } },
+    { id: 's2', type: 'raster', source: 's2', paint: { 'raster-saturation': -.42, 'raster-contrast': -.5, 'raster-brightness-min': .58, 'raster-brightness-max': 1, 'raster-opacity': .74, 'raster-fade-duration': 0 } },
+    { id: 'green', type: 'fill', source: 'ofm', 'source-layer': 'landcover', filter: ['match', ['get', 'class'], ['wood', 'grass', 'wetland'], true, false],
+      paint: { 'fill-color': '#C6DDB2', 'fill-opacity': .32 } },
+    { id: 'water', type: 'fill', source: 'ofm', 'source-layer': 'water', paint: { 'fill-color': '#BAD7E2', 'fill-opacity': .62 } },
+    { id: 'water-edge', type: 'line', source: 'ofm', 'source-layer': 'water',
+      paint: { 'line-color': '#7DA8BB', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, .8, 13, 2.2, 16, 3.5], 'line-blur': ['interpolate', ['linear'], ['zoom'], 9, .8, 14, 2.5], 'line-opacity': .5 } },
+    { id: 'roads', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 10,
+      filter: ['all', ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary'], true, false], ['!=', ['get', 'brunnel'], 'tunnel']],
+      layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#9C9387', 'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 10, .35, 13, .9, 16, 2.4], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, .3, 13, .45] } },
+    { id: 'streets', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 13.5,
+      filter: ['match', ['get', 'class'], ['tertiary', 'minor'], true, false], layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': '#A99F92', 'line-width': ['interpolate', ['exponential', 1.5], ['zoom'], 13.5, .4, 17, 2], 'line-opacity': .35 } },
+    { id: 'bld', type: 'fill', source: 'ofm', 'source-layer': 'building', minzoom: 14.5,
+      paint: { 'fill-color': '#E2D8C6', 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 14.5, 0, 15.5, .45], 'fill-outline-color': 'rgba(120, 105, 85, .35)' } },
+    { id: 'places', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 11.6,
+      filter: ['match', ['get', 'class'], ['suburb', 'quarter', 'neighbourhood'], true, false],
+      layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Italic'], 'text-size': ['interpolate', ['linear'], ['zoom'], 11.6, 10, 15, 12.5],
+        'text-transform': 'uppercase', 'text-letter-spacing': .14, 'text-max-width': 8, 'text-padding': 6 },
+      paint: { 'text-color': 'rgba(70, 66, 82, .52)', 'text-halo-color': 'rgba(248, 244, 235, .75)', 'text-halo-width': 1.2 } },
+  ],
+};
+
+const DAY = {
+  n: 19,
+  title: 'Where the hawker smells drift, right now',
+  deck: 'Each of Singapore\'s 120 hawker centres with cooked-food stalls sends a smell plume downwind, carried by the latest wind readings from NEA\'s weather stations and drawn with a textbook smoke-spread model. The more stalls, the bigger the plume. It shows where smells would drift, not a smell anyone measured.',
+  accent: ACCENT,
+  style: STYLE, basemapBg: PAPER,
+  styleCredit: 'Imagery: ' + ext('https://s2maps.eu', 'Sentinel-2 cloudless 2024') + ' by EOX (contains modified Copernicus Sentinel data 2024, ' + ext('https://creativecommons.org/licenses/by-nc-sa/4.0/', 'CC BY-NC-SA 4.0') + ')<br>Map: '
+    + ext('https://openfreemap.org/', 'OpenFreeMap') + ', ' + ext('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', ' + DMC.OSM_CREDIT,
+  bounds: [[103.6, 1.235], [104.03, 1.47]],
+  maxBounds: [[103.2, .95], [104.5, 1.75]],
+  minZoom: 8.8, maxZoom: 17.5,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 46 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Hawker centres and stalls: NEA ' + ext('https://data.gov.sg/datasets/d_4a086da0a5553be1d89383cd90d07ecd/view', 'Hawker Centres') + '; wind: NEA live ' + ext('https://data.gov.sg/datasets/d_534cf203023b51f51f879145ccc56ff9/view', 'direction') + ' and ' + ext('https://data.gov.sg/datasets/d_7677738484067741bf3b56ab5d69c7e9/view', 'speed') + '; all via data.gov.sg, ' + ext('https://data.gov.sg/open-data-licence', 'Open Data Licence'),
+    'Plume model: US EPA ' + ext('https://gaftp.epa.gov/Air/aqmg/SCRAM/models/other/isc3/isc3v2.pdf', 'ISC3 user’s guide, vol. II') + ', Briggs urban curves',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+
+/* the painting's edge and the smoke sit inside the map, just above the WebGL canvas */
+const map = DMC.createMap(DAY, { fadeDuration: 0 });
+window.map = map;
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const canHover = matchMedia('(hover: hover)').matches;
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+const isSide = () => matchMedia('(max-height: 520px) and (orientation: landscape)').matches;
+const canvasBox = map.getCanvasContainer();
+const smokeCv = document.createElement('canvas');
+smokeCv.id = 'smoke'; smokeCv.setAttribute('aria-hidden', 'true');
+const feather = document.createElement('div');
+feather.className = 'feather'; feather.setAttribute('aria-hidden', 'true');
+canvasBox.insertBefore(feather, map.getCanvas().nextSibling);
+canvasBox.insertBefore(smokeCv, feather);
+
+/* ---------- geometry helpers ---------- */
+const LAT0 = 1.35, KY = 110574, KX = 111320 * Math.cos(LAT0 * Math.PI / 180);
+const KNOT = 0.514444;                       // m/s per knot
+const D2R = Math.PI / 180;
+const POINTS = ['north', 'north-north-east', 'north-east', 'east-north-east', 'east', 'east-south-east', 'south-east', 'south-south-east',
+  'south', 'south-south-west', 'south-west', 'west-south-west', 'west', 'west-north-west', 'north-west', 'north-north-west'];
+const SHORT = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
+const P8 = ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'];
+const point16 = deg => POINTS[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+const short16 = deg => SHORT[Math.round(((deg % 360) + 360) % 360 / 22.5) % 16];
+const point8 = deg => P8[Math.round(((deg % 360) + 360) % 360 / 45) % 8];
+const fmtDist = m => m < 1000 ? `${Math.max(10, Math.round(m / 10) * 10)} m` : `${(m / 1000).toFixed(1)} km`;
+const mercX = lng => (lng + 180) / 360;
+const mercY = lat => (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))) / 360;
+
+/* ---------- the plume model (US EPA ISC3, Briggs urban curves, neutral class D) ---------- */
+const sigY = x => .16 * x / Math.sqrt(1 + .0004 * x);
+const sigZ = x => .14 * x / Math.sqrt(1 + .0003 * x);
+const U_MIN = 1;                                           // ISC3: wind speed never below 1 m/s
+const EDGE_X = 200;                                         // the edge of a plume: one stall, 200 m downwind, in a 1 m/s breeze
+const C0 = 1 / (Math.PI * 1 * sigY(EDGE_X) * sigZ(EDGE_X));
+const LEVELS = [1, 3, 10, 30];                             // each wash: this many times the edge strength
+const LEVEL_NAMES = ['faint', 'noticeable', 'strong', 'very strong'];
+const axis = (Q, u, x) => Q / (Math.PI * u * sigY(x) * sigZ(x));   // ground-level source, on the plume's centre line
+function reachOf(Q, u, level) {
+  const t = level * C0;
+  let lo = .5, hi = 40000;
+  if (!Q || axis(Q, u, lo) <= t) return 0;
+  for (let i = 0; i < 46; i++) { const m = (lo + hi) / 2; if (axis(Q, u, m) > t) lo = m; else hi = m; }
+  return lo;
+}
+// strength at a spot as a multiple of the edge level; Infinity means you are at the centre itself
+function strengthAt(h, lng, lat) {
+  const e = (lng - h.lng) * KX, n = (lat - h.lat) * KY, d = Math.hypot(e, n);
+  if (d < 40) return { r: h.Q ? Infinity : 0, d, here: true };
+  const x = e * h.ex + n * h.ny, y = e * h.ny - n * h.ex;
+  if (!h.Q || x <= 0) return { r: 0, d };
+  const s = sigY(x);
+  return { r: axis(h.Q, h.u, x) * Math.exp(-y * y / (2 * s * s)) / C0, d };
+}
+const levelOf = r => r >= 30 ? 3 : r >= 10 ? 2 : r >= 3 ? 1 : 0;
+
+/* ---------- wind: stations, and inverse-distance blending ---------- */
+let W = null;          // { time, live, stations: [...], mean }
+function setWind(raw, live) {
+  const stations = raw.rows.map(([id, name, lng, lat, from, kn]) => {
+    const ms = kn * KNOT, to = (from + 180) % 360;
+    return { id, name, lng, lat, from, kn, ms, to, ux: ms * Math.sin(to * D2R), vy: ms * Math.cos(to * D2R) };
+  });
+  // island mean: direction from the summed wind vectors, speed the plain average
+  let ux = 0, vy = 0, sp = 0;
+  for (const s of stations) { ux += s.ux; vy += s.vy; sp += s.kn; }
+  const to = (Math.atan2(ux, vy) / D2R + 360) % 360;
+  W = { time: raw.time, live, stations, mean: { to, from: (to + 180) % 360, kn: sp / stations.length, steady: Math.hypot(ux, vy) / stations.reduce((a, s) => a + s.ms, 0) } };
+}
+function windAt(lng, lat) {
+  const near = [];
+  for (const s of W.stations) {
+    const dx = (lng - s.lng) * KX, dy = (lat - s.lat) * KY, d2 = dx * dx + dy * dy;
+    near.push([d2, s]);
+  }
+  near.sort((a, b) => a[0] - b[0]);
+  if (near[0][0] < 2500) { const s = near[0][1]; return { to: s.to, ms: s.ms }; }
+  let sw = 0, ux = 0, vy = 0, ms = 0;
+  for (const [d2, s] of near.slice(0, 3)) { const w = 1 / d2; sw += w; ux += w * s.ux; vy += w * s.vy; ms += w * s.ms; }
+  ux /= sw; vy /= sw; ms /= sw;
+  const to = Math.hypot(ux, vy) < 1e-6 ? near[0][1].to : (Math.atan2(ux, vy) / D2R + 360) % 360;
+  return { to, ms };
+}
+
+/* ---------- hawker centres ---------- */
+const PIGMENTS = [[242, 155, 174], [246, 172, 116], [236, 196, 84], [180, 160, 226], [236, 138, 124], [214, 150, 206]];
+let H = [], SUMMARY = null, SNAPSHOT = null;
+function setCentres(d) {
+  const F = d.hawkers.fields, ix = Object.fromEntries(F.map((f, i) => [f, i]));
+  H = d.hawkers.rows.map((r, i) => {
+    let seed = 0; for (const ch of r[ix.name]) seed = (seed * 31 + ch.charCodeAt(0)) >>> 0;
+    return { i, name: r[ix.name], lng: r[ix.lng], lat: r[ix.lat], Q: r[ix.stalls], status: r[ix.status], pig: seed % PIGMENTS.length, rgb: PIGMENTS[seed % PIGMENTS.length], seed: (seed % 1000) / 159 };
+  });
+  SUMMARY = d.summary;
+}
+// wind at each centre, its plume's direction, and how far each wash reaches
+function windCentres() {
+  for (const h of H) {
+    const w = windAt(h.lng, h.lat);
+    h.to = w.to; h.ms = w.ms; h.u = Math.max(U_MIN, w.ms);
+    h.ex = Math.sin(w.to * D2R); h.ny = Math.cos(w.to * D2R);
+    h.R = LEVELS.map(L => reachOf(h.Q, h.u, L));
+  }
+}
+
+/* ---------- the plumes: a custom WebGL layer, multiplied onto the paper like watercolour washes ---------- */
+const plumeLayer = {
+  id: 'plumes', type: 'custom', renderingMode: '2d', count: 0, data: null,
+  onAdd(m, gl) {
+    const vs = `attribute vec2 a_pos; attribute vec2 a_uv; attribute vec4 a_col;
+      uniform mat4 u_matrix; varying vec2 v_uv; varying vec4 v_col;
+      void main() { v_uv = a_uv; v_col = a_col; gl_Position = u_matrix * vec4(a_pos, 0.0, 1.0); }`;
+    const fs = `precision mediump float; varying vec2 v_uv; varying vec4 v_col; uniform float u_dpr;
+      float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233))) * 43758.5453); }
+      void main() {
+        float s = abs(v_uv.y);
+        float body = 1.0 - smoothstep(0.55, 1.0, s);
+        float rim = smoothstep(0.7, 0.95, s) * (1.0 - smoothstep(0.95, 1.0, s));   // pigment pools at the edge
+        float tip = 1.0 - smoothstep(0.86, 1.0, v_uv.x);
+        float g = hash(floor(gl_FragCoord.xy / (1.6 * u_dpr)));                      // paper grain
+        float a = v_col.a * (0.72 * body + 0.95 * rim) * tip * (0.78 + 0.4 * g);
+        gl_FragColor = vec4(v_col.rgb * a, a);
+      }`;
+    const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); return s; };
+    const p = this.prog = gl.createProgram();
+    gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs)); gl.linkProgram(p);
+    this.loc = { pos: gl.getAttribLocation(p, 'a_pos'), uv: gl.getAttribLocation(p, 'a_uv'), col: gl.getAttribLocation(p, 'a_col'),
+      m: gl.getUniformLocation(p, 'u_matrix'), dpr: gl.getUniformLocation(p, 'u_dpr') };
+    this.buf = gl.createBuffer();
+    this.gl = gl;
+    if (this.data) this.upload(this.data);
+  },
+  upload(arr) {
+    this.data = arr;
+    const gl = this.gl;
+    if (!gl) return;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, arr, gl.STATIC_DRAW);
+    this.count = arr.length / 8;
+  },
+  render(gl, matrix) {
+    if (!this.count) return;
+    gl.useProgram(this.prog);
+    gl.uniformMatrix4fv(this.loc.m, false, matrix);
+    gl.uniform1f(this.loc.dpr, devicePixelRatio || 1);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    const L = this.loc, S = 32;
+    gl.enableVertexAttribArray(L.pos); gl.vertexAttribPointer(L.pos, 2, gl.FLOAT, false, S, 0);
+    gl.enableVertexAttribArray(L.uv); gl.vertexAttribPointer(L.uv, 2, gl.FLOAT, false, S, 8);
+    gl.enableVertexAttribArray(L.col); gl.vertexAttribPointer(L.col, 4, gl.FLOAT, false, S, 16);
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST); gl.disable(gl.CULL_FACE);
+    gl.enable(gl.BLEND);
+    gl.blendFuncSeparate(gl.DST_COLOR, gl.ONE_MINUS_SRC_ALPHA, gl.ZERO, gl.ONE);   // multiply, like a glaze
+    gl.drawArrays(gl.TRIANGLES, 0, this.count);
+    gl.disableVertexAttribArray(L.pos); gl.disableVertexAttribArray(L.uv); gl.disableVertexAttribArray(L.col);
+  },
+};
+// without the moving steam on top (reduced motion), the washes are laid on a little heavier
+const WASH = [.42, .3, .28, .3].map(a => a * (reduceMotion ? 1.3 : 1));
+function buildPlumes() {
+  const N = 36, out = [];
+  for (const h of H) {
+    if (!h.Q) continue;
+    const kx = 111320 * Math.cos(h.lat * D2R), [r, g, b] = h.rgb.map(c => c / 255);
+    LEVELS.forEach((L, li) => {
+      const R = h.R[li];
+      if (R < 6) return;
+      const t = L * C0, a = WASH[li];
+      let pl = null, pr = null, pf = 0;
+      for (let k = 0; k <= N; k++) {
+        const f = (1 - Math.cos(Math.PI * k / N)) / 2, x = Math.max(.5, f * R);
+        const c = axis(h.Q, h.u, x);
+        let w = c > t ? sigY(x) * Math.sqrt(2 * Math.log(c / t)) : 0;
+        w *= 1 + .07 * Math.sin(f * 9 + h.seed + li) + .045 * Math.sin(f * 23 + h.seed * 2.3);
+        const ax = x * h.ex, ay = x * h.ny, cx = w * h.ny, cy = -w * h.ex;
+        const lp = [mercX(h.lng + (ax - cx) / kx), mercY(h.lat + (ay - cy) / KY)];
+        const rp = [mercX(h.lng + (ax + cx) / kx), mercY(h.lat + (ay + cy) / KY)];
+        if (pl) {
+          out.push(pl[0], pl[1], pf, -1, r, g, b, a, pr[0], pr[1], pf, 1, r, g, b, a, lp[0], lp[1], f, -1, r, g, b, a);
+          out.push(pr[0], pr[1], pf, 1, r, g, b, a, rp[0], rp[1], f, 1, r, g, b, a, lp[0], lp[1], f, -1, r, g, b, a);
+        }
+        pl = lp; pr = rp; pf = f;
+      }
+    });
+  }
+  plumeLayer.upload(new Float32Array(out));
+  map.triggerRepaint();
+}
+
+/* ---------- icons: a little bowl and a brush arrow, drawn once ---------- */
+function canvas(w, h) { const c = document.createElement('canvas'); c.width = w; c.height = h; return [c, c.getContext('2d')]; }
+function bowlIcon(fill, steam) {
+  const [c, g] = canvas(44, 40);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  if (steam) {
+    g.strokeStyle = 'rgba(47, 50, 69, .5)'; g.lineWidth = 2;
+    for (const dx of [-7, 0, 7]) { g.beginPath(); g.moveTo(22 + dx, 17); g.bezierCurveTo(19 + dx, 13, 25 + dx, 10, 22 + dx, 5); g.stroke(); }
+  }
+  const bowl = () => { g.beginPath(); g.moveTo(5, 22); g.lineTo(39, 22); g.bezierCurveTo(38, 33, 31, 37, 22, 37); g.bezierCurveTo(13, 37, 6, 33, 5, 22); g.closePath(); };
+  g.fillStyle = 'rgba(255, 255, 255, .96)'; bowl(); g.lineWidth = 5; g.strokeStyle = 'rgba(255, 255, 255, .9)'; g.stroke();
+  g.fillStyle = fill; bowl(); g.fill();
+  g.strokeStyle = '#2F3245'; g.lineWidth = 1.7; bowl(); g.stroke();
+  return g.getImageData(0, 0, 44, 40);
+}
+function arrowIcon() {
+  const [c, g] = canvas(40, 64);
+  g.lineCap = 'round'; g.lineJoin = 'round';
+  g.strokeStyle = 'rgba(255, 255, 255, .85)'; g.lineWidth = 8;
+  g.beginPath(); g.moveTo(20, 58); g.bezierCurveTo(18, 44, 22, 30, 20, 18); g.stroke();
+  g.strokeStyle = '#3D4A78'; g.lineWidth = 4.2;
+  g.beginPath(); g.moveTo(20, 58); g.bezierCurveTo(18, 44, 22, 30, 20, 18); g.stroke();
+  g.fillStyle = '#3D4A78'; g.strokeStyle = 'rgba(255, 255, 255, .85)'; g.lineWidth = 2;
+  g.beginPath(); g.moveTo(8, 22); g.lineTo(20, 3); g.lineTo(32, 22); g.quadraticCurveTo(20, 17, 8, 22); g.closePath(); g.stroke(); g.fill();
+  return g.getImageData(0, 0, 40, 64);
+}
+
+/* ---------- map layers ---------- */
+function geo(features) { return { type: 'FeatureCollection', features }; }
+function centreFeatures() {
+  return geo(H.map(h => ({ type: 'Feature', id: h.i, geometry: { type: 'Point', coordinates: [h.lng, h.lat] }, properties: { i: h.i, name: h.name, q: h.Q, pig: h.pig } })));
+}
+function stationFeatures() {
+  return geo(W.stations.map(s => ({ type: 'Feature', geometry: { type: 'Point', coordinates: [s.lng, s.lat] },
+    properties: { id: s.id, name: s.name, to: s.to, kn: s.kn, label: `${short16(s.from)} ${s.kn.toFixed(1)} kn` } })));
+}
+let layersAdded = false;
+function addLayers() {
+  PIGMENTS.forEach(([r, g, b], k) => map.addImage(`bowl-${k}`, bowlIcon(`rgb(${Math.round(r * .86)}, ${Math.round(g * .8)}, ${Math.round(b * .84)})`, true), { pixelRatio: 2 }));
+  map.addImage('bowl-empty', bowlIcon('rgba(255, 255, 255, .9)', false), { pixelRatio: 2 });
+  map.addImage('arrow', arrowIcon(), { pixelRatio: 2 });
+  map.addLayer(plumeLayer, 'places');
+  map.addSource('centres', { type: 'geojson', data: centreFeatures() });
+  map.addSource('stations', { type: 'geojson', data: stationFeatures() });
+  map.addLayer({ id: 'st-ring', type: 'circle', source: 'stations',
+    paint: { 'circle-radius': 3.2, 'circle-color': '#fff', 'circle-stroke-color': '#3D4A78', 'circle-stroke-width': 1.4, 'circle-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'st-arrow', type: 'symbol', source: 'stations',
+    layout: { 'icon-image': 'arrow', 'icon-rotate': ['get', 'to'], 'icon-rotation-alignment': 'map', 'icon-pitch-alignment': 'map', 'icon-anchor': 'bottom',
+      'icon-size': ['interpolate', ['linear'], ['zoom'], 9, ['interpolate', ['linear'], ['get', 'kn'], 0, .35, 6, .55, 15, .8], 11, ['interpolate', ['linear'], ['get', 'kn'], 0, .6, 6, .95, 15, 1.35], 13, ['interpolate', ['linear'], ['get', 'kn'], 0, .9, 6, 1.4, 15, 2]],
+      'icon-allow-overlap': true, 'icon-ignore-placement': true } });
+  map.addLayer({ id: 'centres', type: 'symbol', source: 'centres',
+    layout: { 'icon-image': ['case', ['>', ['get', 'q'], 0], ['concat', 'bowl-', ['to-string', ['get', 'pig']]], 'bowl-empty'], 'icon-anchor': 'bottom', 'icon-allow-overlap': true, 'icon-ignore-placement': true,
+      'icon-size': ['interpolate', ['linear'], ['zoom'],
+        10, ['interpolate', ['linear'], ['get', 'q'], 0, .26, 40, .32, 226, .56],
+        13, ['interpolate', ['linear'], ['get', 'q'], 0, .4, 40, .5, 226, .86],
+        16, ['interpolate', ['linear'], ['get', 'q'], 0, .6, 40, .75, 226, 1.15]],
+      'symbol-sort-key': ['get', 'q'] } });
+  map.addLayer({ id: 'centre-names', type: 'symbol', source: 'centres',
+    filter: ['any', ['>=', ['get', 'q'], 100], ['>=', ['zoom'], 13.4]],
+    minzoom: 12,
+    layout: { 'text-field': ['get', 'name'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 12, 10.5, 16, 12.5],
+      'text-anchor': 'top', 'text-offset': [0, .35], 'text-max-width': 9, 'text-optional': true, 'symbol-sort-key': ['-', 0, ['get', 'q']], 'text-padding': 3 },
+    paint: { 'text-color': '#3A3346', 'text-halo-color': 'rgba(252, 250, 245, .92)', 'text-halo-width': 1.5 } });
+  map.addLayer({ id: 'st-label', type: 'symbol', source: 'stations',
+    layout: { 'text-field': ['get', 'label'], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 9, 9, 11.5, 10.5], 'text-anchor': 'top', 'text-offset': [0, .55],
+      'text-allow-overlap': false, 'text-optional': true, 'text-padding': 2 },
+    paint: { 'text-color': '#3D4A78', 'text-halo-color': 'rgba(252, 250, 245, .95)', 'text-halo-width': 1.6 } });
+  layersAdded = true;
+}
+function setStations(on) {
+  for (const id of ['st-ring', 'st-arrow', 'st-label']) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+  $('st-toggle').setAttribute('aria-pressed', String(on));
+}
+$('st-toggle').addEventListener('click', () => setStations($('st-toggle').getAttribute('aria-pressed') !== 'true'));
+
+/* ---------- the wind panel ---------- */
+const fmtTime = iso => {
+  const d = new Date(iso);
+  const t = new Intl.DateTimeFormat('en-SG', { timeZone: 'Asia/Singapore', hour: 'numeric', minute: '2-digit', hour12: true }).format(d).replace(/\s?([ap])\.?m\.?/i, ' $1m').toLowerCase();
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(d).map(p => [p.type, p.value]));
+  return `${t} on ${parts.weekday} ${parts.day} ${parts.month} ${parts.year}`;
+};
+function windPanel() {
+  const m = W.mean;
+  $('w-dir').textContent = `From the ${point16(m.from)}`;
+  $('w-spd').innerHTML = `<b>${m.kn.toFixed(1)} knots</b> (${(m.kn * KNOT).toFixed(1)} m/s), the average of ${W.stations.length} stations`;
+  const mins = Math.round((Date.now() - new Date(W.time)) / 60000);
+  $('w-time').innerHTML = W.live
+    ? `Measured at <b>${fmtTime(W.time)}</b>${mins >= 60 ? ' (the latest reading)' : ''}`
+    : `Snapshot from <b>${fmtTime(W.time)}</b>${snapWhy}`;
+  const live = $('live');
+  live.textContent = W.live ? 'Live' : 'Snapshot';
+  live.classList.toggle('snap', !W.live);
+  $('compass').setAttribute('aria-label', `Compass: the wind blows from the ${point16(m.from)}`);
+  turnCompass();
+}
+function turnCompass() {
+  if (!W) return;
+  const b = map.getBearing();
+  $('rose').setAttribute('transform', `rotate(${-b})`);
+  $('arrow').setAttribute('transform', `rotate(${W.mean.to - b + 180})`);
+}
+map.on('rotate', turnCompass);
+
+/* ---------- camera: face into the wind, so every smell drifts towards you ---------- */
+// rough outline of the main island, Sentosa and Ubin, used only to frame the view
+const OUTLINE = [[103.608, 1.272], [103.64, 1.335], [103.665, 1.395], [103.7, 1.447], [103.77, 1.457], [103.82, 1.468], [103.87, 1.44], [103.92, 1.41],
+  [103.965, 1.425], [104.0, 1.405], [104.03, 1.37], [104.0, 1.315], [103.94, 1.3], [103.87, 1.272], [103.83, 1.245], [103.75, 1.262], [103.68, 1.25]];
+const pitchFor = () => isSheet() ? 40 : isSide() ? 38 : 46;
+function camPadding() {
+  const c = map.getContainer().getBoundingClientRect();
+  const st = $('dmc-stamp').getBoundingClientRect();
+  const focus = document.documentElement.classList.contains('dmc-focus');
+  // keep the island below the stamp unless the stamp sits in a corner the island does not need
+  const top = focus ? 30 : Math.max(26, Math.min(st.bottom - c.top + 4, c.height * .3));
+  return { top, bottom: 14, left: 18, right: isSheet() ? 16 : 54 };
+}
+function fitPoints(pts, bearing, animate) {
+  const pitch = pitchFor(), pad = camPadding(), c = map.getContainer();
+  const W0 = c.clientWidth, H0 = c.clientHeight;
+  if (!W0 || !H0) return;
+  const tgt = { cx: (pad.left + W0 - pad.right) / 2, cy: (pad.top + H0 - pad.bottom) / 2, w: W0 - pad.left - pad.right, h: H0 - pad.top - pad.bottom };
+  const start = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+  let center = pts.reduce((a, p) => [a[0] + p[0] / pts.length, a[1] + p[1] / pts.length], [0, 0]), zoom = 10;
+  const box = () => {
+    let x0 = Infinity, x1 = -Infinity, y0 = Infinity, y1 = -Infinity;
+    for (const p of pts) { const q = map.project(p); x0 = Math.min(x0, q.x); x1 = Math.max(x1, q.x); y0 = Math.min(y0, q.y); y1 = Math.max(y1, q.y); }
+    return { x0, x1, y0, y1 };
+  };
+  fitting = true;
+  for (let pass = 0; pass < 3; pass++) {
+    let lo = 7, hi = 16;
+    for (let i = 0; i < 18; i++) {
+      const z = (lo + hi) / 2;
+      map.jumpTo({ center, zoom: z, bearing, pitch });
+      const b = box();
+      if (b.x1 - b.x0 <= tgt.w && b.y1 - b.y0 <= tgt.h) lo = z; else hi = z;
+    }
+    zoom = lo;
+    map.jumpTo({ center, zoom, bearing, pitch });
+    const b = box();
+    const ll = map.unproject([W0 / 2 + ((b.x0 + b.x1) / 2 - tgt.cx), H0 / 2 + ((b.y0 + b.y1) / 2 - tgt.cy)]);
+    center = [ll.lng, ll.lat];
+  }
+  const cam = { center, zoom: Math.max(map.getMinZoom(), zoom), bearing, pitch };
+  map.jumpTo(start);
+  fitting = false;
+  if (animate && !reduceMotion) map.easeTo({ ...cam, duration: 1600, essential: true });
+  else map.jumpTo(cam);
+}
+let fitting = false, camMode = 'wind', extent = 'close', userMoved = false, HOT = null;
+// the close-up: a circle about 4 km round the spot where the most plumes meet right now
+function closeUp() {
+  const c = HOT ? [HOT[2], HOT[3]] : [103.85, 1.3], r = isSheet() ? 3000 : isSide() ? 3300 : 4300;
+  return Array.from({ length: 16 }, (_, k) => [c[0] + r * Math.sin(k * Math.PI / 8) / KX, c[1] + r * Math.cos(k * Math.PI / 8) / KY]);
+}
+// facing the wind: in the close-up, the wind the plumes in view actually follow (their stalls as weights); for the whole island, the island mean
+function facing() {
+  if (extent === 'island' || !HOT) return W.mean.from;
+  let ex = 0, ny = 0;
+  for (const h of H) {
+    const d = Math.hypot((h.lng - HOT[2]) * KX, (h.lat - HOT[3]) * KY);
+    if (h.Q && d < 4500) { ex += h.ex * h.Q * h.ms; ny += h.ny * h.Q * h.ms; }
+  }
+  return ex || ny ? (Math.atan2(ex, ny) / D2R + 180 + 360) % 360 : W.mean.from;
+}
+function fitView(animate) { fitPoints(extent === 'island' ? OUTLINE : closeUp(), camMode === 'north' ? 0 : facing(), animate); }
+function setCam(mode, animate) {
+  camMode = mode;
+  $('cam-wind').setAttribute('aria-pressed', String(mode === 'wind'));
+  $('cam-north').setAttribute('aria-pressed', String(mode === 'north'));
+  $('extent').setAttribute('aria-pressed', String(extent === 'island'));
+  userMoved = false;
+  fitView(animate);
+}
+$('cam-wind').addEventListener('click', () => W && setCam('wind', true));
+$('cam-north').addEventListener('click', () => W && setCam('north', true));
+$('extent').addEventListener('click', () => { if (!W) return; extent = extent === 'island' ? 'close' : 'island'; setCam(camMode === 'north' ? 'north' : 'wind', true); });
+map.on('movestart', e => { if (e.originalEvent) userMoved = true; });
+map.on('rotatestart', e => { if (e.originalEvent) { $('cam-wind').setAttribute('aria-pressed', 'false'); $('cam-north').setAttribute('aria-pressed', 'false'); } });
+let rT = 0;
+const refit = () => { clearTimeout(rT); rT = setTimeout(() => { if (W && !userMoved) fitView(false); }, 120); };
+addEventListener('resize', refit);
+document.addEventListener('dmc:focus', () => { requestAnimationFrame(() => { map.resize(); sizeSmoke(); refit(); }); });
+
+/* ---------- can I smell lunch from here? ---------- */
+let pin = null, pinAt = null, pinIsHot = false;
+function pinElement(label) {
+  const el = document.createElement('div');
+  el.className = 'pin';
+  el.innerHTML = `<span class="tag"></span><span class="stem"></span><span class="dot"></span>`;
+  el.querySelector('.tag').textContent = label;
+  return el;
+}
+function placePin(lngLat, label) {
+  pinAt = lngLat;
+  if (!pin) {
+    pin = new maplibregl.Marker({ element: pinElement(label), anchor: 'bottom', draggable: true, offset: [0, 4] }).setLngLat(lngLat).addTo(map);
+    pin.on('dragend', () => { const ll = pin.getLngLat(); sniff([ll.lng, ll.lat], 'Here'); });
+  } else pin.setLngLat(lngLat);
+  const el = pin.getElement();
+  el.querySelector('.tag').textContent = label;
+}
+function sniff(lngLat, label, intro) {
+  if (!W || !H.length) return;
+  pinIsHot = !!intro;
+  placePin(lngLat, label);
+  const [lng, lat] = lngLat;
+  const res = H.map(h => ({ h, ...strengthAt(h, lng, lat) }));
+  const here = res.find(r => r.here && r.h.Q);
+  const hits = res.filter(r => r.r >= 1 && !r.here).sort((a, b) => b.r - a.r);
+  const v = $('verdict'), list = $('hits'), more = $('more');
+  list.replaceChildren();
+  const n = hits.length + (here ? 1 : 0);
+  if (intro) v.innerHTML = intro;
+  else if (here) v.innerHTML = `<b class="yes">Yes, you are at ${esc(here.h.name)}.</b>${hits.length ? ` ${hits.length === 1 ? 'One more plume reaches' : `${hits.length} more plumes reach`} this spot.` : ''}`;
+  else if (n) v.innerHTML = `<b class="yes">Yes.</b> ${n === 1 ? 'One plume reaches' : `${n} plumes reach`} this spot right now.`;
+  else {
+    const near = res.filter(r => r.h.Q).sort((a, b) => a.d - b.d)[0];
+    const toward = point8(near.h.to);
+    const dirFromYou = bearingTo(lng, lat, near.h.lng, near.h.lat);
+    v.innerHTML = `<b class="no">Not right now.</b> No plume reaches this spot. The nearest centre, ${esc(near.h.name)}, is ${fmtDist(near.d)} to the ${point8(dirFromYou)}, and the wind carries its smell ${toward === point8(dirFromYou + 180) ? 'towards you, but it thins out first' : `to the ${toward}`}.`;
+  }
+  const rows = (here ? [here] : []).concat(hits);
+  const cap = 4;
+  for (const r of rows.slice(0, cap)) {
+    const li = document.createElement('li');
+    const lvl = r.here ? 3 : levelOf(r.r);
+    const where = r.here ? 'right here' : `${fmtDist(r.d)} to the ${point8(bearingTo(lng, lat, r.h.lng, r.h.lat))}`;
+    li.innerHTML = `<i style="background:rgb(${r.h.rgb.join(',')})"></i><b></b><em data-l="${lvl}">${r.here ? 'you are here' : LEVEL_NAMES[lvl]}</em><span>${nf.format(r.h.Q)} stalls · ${where}</span>`;
+    li.querySelector('b').textContent = r.h.name;
+    li.title = r.h.name;
+    list.append(li);
+  }
+  more.hidden = rows.length <= cap;
+  more.textContent = rows.length > cap ? `and ${rows.length - cap} more, fainter` : '';
+}
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]);
+function bearingTo(lng, lat, lng2, lat2) { return (Math.atan2((lng2 - lng) * KX, (lat2 - lat) * KY) / D2R + 360) % 360; }
+
+// where do the most plumes overlap right now? (a 40 m grid over every plume)
+function hotSpot() {
+  const cell = 40, counts = new Map();
+  for (const h of H) {
+    const R = h.R[0];
+    if (!h.Q || R < 20) continue;
+    const half = .2 * R + 20;
+    const xs = [0, R].flatMap(x => [-half, half].map(y => [x * h.ex + y * h.ny, x * h.ny - y * h.ex]));
+    const e0 = Math.min(...xs.map(p => p[0])), e1 = Math.max(...xs.map(p => p[0])), n0 = Math.min(...xs.map(p => p[1])), n1 = Math.max(...xs.map(p => p[1]));
+    const gx = (h.lng - 103.6) * KX, gy = (h.lat - 1.2) * KY;
+    for (let i = Math.floor((gx + e0) / cell); i <= Math.ceil((gx + e1) / cell); i++) {
+      for (let j = Math.floor((gy + n0) / cell); j <= Math.ceil((gy + n1) / cell); j++) {
+        const lng = 103.6 + (i + .5) * cell / KX, lat = 1.2 + (j + .5) * cell / KY;
+        const s = strengthAt(h, lng, lat);
+        if (s.r >= 1 && !s.here) {
+          const k = i * 100000 + j, c = counts.get(k) || [0, 0, lng, lat];
+          c[0]++; c[1] += Math.min(s.r, 100); counts.set(k, c);
+        }
+      }
+    }
+  }
+  // the best spot where plumes meet, away from the doorstep (150 m) of any centre
+  const cooking = H.filter(h => h.Q);
+  const ranked = [...counts.values()].sort((a, b) => b[0] - a[0] || b[1] - a[1]);
+  return ranked.find(c => cooking.every(h => Math.hypot((c[2] - h.lng) * KX, (c[3] - h.lat) * KY) > 150)) || ranked[0] || null;
+}
+function showHotSpot() {
+  const b = HOT = hotSpot();
+  if (!b) { $('verdict').textContent = 'The wind is too light to carry any smell far right now. Tap the map to check a spot.'; return; }
+  const near = H.filter(h => h.Q).map(h => [h, Math.hypot((b[2] - h.lng) * KX, (b[3] - h.lat) * KY)]).sort((a, c) => a[1] - c[1])[0];
+  sniff([b[2], b[3]], b[0] > 1 ? 'Most smells meet here' : 'Smell this',
+    b[0] > 1 ? `Right now <b class="yes">${b[0]} plumes</b> overlap ${fmtDist(near[1])} from ${esc(near[0].name)}: the most of any spot. Tap anywhere to check another.`
+      : `Right now the plumes are short and none of them overlap. This spot, ${fmtDist(near[1])} from ${esc(near[0].name)}, is inside the strongest. Tap anywhere to check another.`);
+}
+
+map.on('click', e => {
+  if (!W) return;
+  sniff([e.lngLat.lng, e.lngLat.lat], 'Here');
+});
+$('centre').addEventListener('click', () => { const c = map.getCenter(); sniff([c.lng, c.lat], 'Map centre'); });
+$('geo').addEventListener('click', () => {
+  if (!navigator.geolocation) { $('verdict').textContent = 'Your browser cannot share your location. Tap the map instead.'; return; }
+  $('verdict').textContent = 'Finding you…';
+  navigator.geolocation.getCurrentPosition(p => {
+    const { longitude: lng, latitude: lat } = p.coords;
+    if (lng < 103.55 || lng > 104.12 || lat < 1.13 || lat > 1.52) { $('verdict').textContent = 'You seem to be outside Singapore. Tap the map to check a spot instead.'; return; }
+    sniff([lng, lat], 'You');
+    userMoved = true;
+    map.flyTo({ center: [lng, lat], zoom: Math.max(map.getZoom(), 14), duration: reduceMotion ? 0 : 1800, essential: true });
+  }, () => { $('verdict').textContent = 'Your location is not available. Tap the map to check a spot instead.'; }, { enableHighAccuracy: true, timeout: 12000 });
+});
+// keyboard: Enter on the map checks its centre
+map.getCanvas().addEventListener('keydown', e => { if (e.key === 'Enter' && W) { const c = map.getCenter(); sniff([c.lng, c.lat], 'Map centre'); } });
+
+/* ---------- hover tooltips ---------- */
+const tip = $('tip');
+function showTip(e, html) {
+  tip.innerHTML = html; tip.hidden = false;
+  const W0 = innerWidth, H0 = innerHeight, w = tip.offsetWidth, h = tip.offsetHeight, r = map.getContainer().getBoundingClientRect();
+  let x = r.left + e.point.x + 14, y = r.top + e.point.y + 14;
+  if (x + w > W0 - 8) x = r.left + e.point.x - w - 14;
+  if (y + h > H0 - 8) y = r.top + e.point.y - h - 14;
+  tip.style.left = `${Math.max(6, x)}px`; tip.style.top = `${Math.max(6, y)}px`;
+}
+function probe(e) {
+  if (!layersAdded) return;
+  const pad = 6, f = map.queryRenderedFeatures([[e.point.x - pad, e.point.y - pad], [e.point.x + pad, e.point.y + pad]], { layers: ['centres', 'st-arrow', 'st-ring'] })[0];
+  if (!f) { tip.hidden = true; map.getCanvas().style.cursor = ''; return; }
+  map.getCanvas().style.cursor = 'pointer';
+  if (f.layer.id === 'centres') {
+    const h = H[f.properties.i];
+    showTip(e, h.Q
+      ? `<b>${esc(h.name)}</b><span>${nf.format(h.Q)} cooked-food stalls</span><span>Wind here: from the ${point8(h.to + 180)}, ${(h.ms / KNOT).toFixed(1)} knots</span><span>Its smell drifts ${fmtDist(h.R[0])} to the ${point8(h.to)}</span>`
+      : `<b>${esc(h.name)}</b><span>A market with no cooked-food stalls, so no plume</span>`);
+  } else {
+    const s = W.stations.find(x => x.id === f.properties.id);
+    showTip(e, `<b>${esc(s.name)}</b><span>NEA weather station ${s.id}</span><span>Wind from the ${point16(s.from)} (${Math.round(s.from)}°)</span><span>${s.kn.toFixed(1)} knots, ${(s.ms).toFixed(1)} m/s</span>`);
+  }
+}
+if (canHover) { map.on('mousemove', probe); map.getContainer().addEventListener('mouseleave', () => { tip.hidden = true; }); }
+map.on('movestart', () => { tip.hidden = true; });
+
+/* ---------- smoke: wind particles everywhere, and smells streaming from each centre ---------- */
+const ctx = smokeCv.getContext('2d');
+let dpr = 1, SW = 0, SH = 0, grid = null, moved = true, speedK = 300;
+function sizeSmoke() {
+  const c = map.getContainer();
+  dpr = Math.min(2, devicePixelRatio || 1); SW = c.clientWidth; SH = c.clientHeight;
+  smokeCv.width = Math.round(SW * dpr); smokeCv.height = Math.round(SH * dpr);
+  moved = true;
+  if (!reduceMotion) seedWind();
+}
+const G = { lng0: 103.5, lat0: 1.1, step: .004, nx: 0, ny: 0 };
+function buildGrid() {
+  G.nx = Math.ceil((104.2 - G.lng0) / G.step) + 1; G.ny = Math.ceil((1.58 - G.lat0) / G.step) + 1;
+  grid = new Float32Array(G.nx * G.ny * 2);
+  for (let j = 0; j < G.ny; j++) for (let i = 0; i < G.nx; i++) {
+    const w = windAt(G.lng0 + i * G.step, G.lat0 + j * G.step), k = (j * G.nx + i) * 2;
+    grid[k] = w.ms * Math.sin(w.to * D2R); grid[k + 1] = w.ms * Math.cos(w.to * D2R);
+  }
+}
+function field(lng, lat, out) {
+  const fx = (lng - G.lng0) / G.step, fy = (lat - G.lat0) / G.step;
+  const i = Math.floor(fx), j = Math.floor(fy);
+  if (i < 0 || j < 0 || i >= G.nx - 1 || j >= G.ny - 1) return false;
+  const tx = fx - i, ty = fy - j, k00 = (j * G.nx + i) * 2, k10 = k00 + 2, k01 = k00 + G.nx * 2, k11 = k01 + 2;
+  for (let c = 0; c < 2; c++) out[c] = (grid[k00 + c] * (1 - tx) + grid[k10 + c] * tx) * (1 - ty) + (grid[k01 + c] * (1 - tx) + grid[k11 + c] * tx) * ty;
+  return true;
+}
+let windP = [], smellP = [];
+const SMOKE = { c: '72, 84, 132', a: .42, w: 1.3, fade: .028, curl: .45, freq: 1.7, per: 2200 };
+// soft round sprites for the smells, drawn once, one per pigment
+const PUFF = (() => {
+  const make = rgb => {
+    const S = 64, c = document.createElement('canvas'); c.width = c.height = S;
+    const g = c.getContext('2d'), gr = g.createRadialGradient(S / 2, S / 2, 0, S / 2, S / 2, S / 2);
+    gr.addColorStop(0, `rgba(${rgb}, 1)`); gr.addColorStop(.4, `rgba(${rgb}, .55)`); gr.addColorStop(1, `rgba(${rgb}, 0)`);
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+    return c;
+  };
+  const out = PIGMENTS.map(([r, g, b]) => make(`${Math.round(r * .82)}, ${Math.round(g * .74)}, ${Math.round(b * .8)}`));
+  return out;
+})();
+window.SMOKE = SMOKE;
+function respawn(p) {
+  p.age = 0; p.life = 1.4 + Math.random() * 3.2; p.ph = Math.random() * 6.28; p.fresh = true;
+  for (let t = 0; t < 6; t++) {
+    const x = Math.random() * SW, y = SH * (.06 + .94 * Math.random());
+    const ll = map.unproject([x, y]);
+    if (ll.lng > G.lng0 && ll.lng < 104.2 && ll.lat > G.lat0 && ll.lat < 1.58) { p.lng = ll.lng; p.lat = ll.lat; p.x = x; p.y = y; return; }
+  }
+  // nowhere on screen is over Singapore (zoomed far out, or mid-resize): park it and try again next frame
+  p.lng = 103.85; p.lat = 1.33; p.age = p.life;
+}
+function seedWind() {
+  const n = Math.round(Math.max(80, Math.min(900, SW * SH / SMOKE.per)));
+  windP = Array.from({ length: n }, () => { const p = {}; respawn(p); p.age = Math.random() * p.life; return p; });
+}
+function seedSmell() {
+  smellP = [];
+  for (const h of H) {
+    if (!h.Q || h.R[0] < 15) continue;
+    const n = Math.round(3 + h.Q / 12);
+    for (let k = 0; k < n; k++) smellP.push({ h, x: Math.random() * h.R[0], n: gauss() * .5, w: Math.random() * 6.28, fresh: true });
+  }
+}
+function gauss() { let u = 0, v = 0; while (!u) u = Math.random(); while (!v) v = Math.random(); return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v); }
+function updateSpeed() {
+  // smoke crosses the screen at a steady pace: a 3 m/s wind moves about 24 px a second at any zoom
+  const mpp = 78271.517 * Math.cos(map.getCenter().lat * D2R) / 2 ** map.getZoom();
+  speedK = 24 * mpp / 3;
+  const real = speedK;   // seconds of real wind per second on screen
+  const txt = real >= 90 ? `${Math.round(real / 60)} minutes` : `${Math.max(1, Math.round(real))} seconds`;
+  $('smoke-note').innerHTML = `<b>Smoke</b> moves with the measured wind, sped up: each second on screen is about ${txt} of real wind.`;
+}
+map.on('zoomend', () => { updateSpeed(); if (running) seedWind(); });
+map.on('move', () => { moved = true; });
+const v2 = [0, 0];
+let last = 0, running = false;
+function tick(t) {
+  if (!running) return;
+  const dt = Math.min(.05, (t - (last || t)) / 1000); last = t;
+  const D = dpr;
+  if (moved) {
+    ctx.clearRect(0, 0, smokeCv.width, smokeCv.height);
+    for (const p of windP) { const q = map.project([p.lng, p.lat]); p.x = q.x; p.y = q.y; }
+    for (const p of smellP) p.fresh = true;
+    moved = false;
+  } else {
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.fillStyle = `rgba(0, 0, 0, ${(1 - Math.pow(1 - SMOKE.fade, dt * 60)).toFixed(4)})`;
+    ctx.fillRect(0, 0, smokeCv.width, smokeCv.height);
+    ctx.globalCompositeOperation = 'source-over';
+  }
+  // wind: thin wisps of smoke that curl as they drift, fading in and out over their short lives
+  const mpp = 78271.517 * Math.cos(LAT0 * D2R) / 2 ** map.getZoom();
+  const wisps = [new Path2D(), new Path2D(), new Path2D()];
+  for (const p of windP) {
+    p.age += dt;
+    if (p.age > p.life || !field(p.lng, p.lat, v2)) { respawn(p); continue; }
+    const m = SMOKE.curl * Math.sin(p.age * SMOKE.freq + p.ph);   // a lazy sideways curl, so the smoke meanders
+    p.lng += (v2[0] + m * v2[1]) * dt * speedK / KX; p.lat += (v2[1] - m * v2[0]) * dt * speedK / KY;
+    const q = map.project([p.lng, p.lat]);
+    if (q.x < -30 || q.y < 0 || q.x > SW + 30 || q.y > SH + 30) { respawn(p); continue; }
+    if (!p.fresh) {
+      const k = Math.min(2, Math.floor(3 * Math.sin(Math.PI * p.age / p.life)));
+      wisps[k].moveTo(p.x * D, p.y * D); wisps[k].lineTo(q.x * D, q.y * D);
+    }
+    p.x = q.x; p.y = q.y; p.fresh = false;
+  }
+  ctx.lineCap = 'butt'; ctx.lineJoin = 'round'; ctx.lineWidth = SMOKE.w * D;
+  wisps.forEach((path, k) => { ctx.strokeStyle = `rgba(${SMOKE.c}, ${(SMOKE.a * (k + 1) / 3).toFixed(3)})`; ctx.stroke(path); });
+  // smells: coloured steam that leaves each bowl and spreads as wide as its plume
+  for (const p of smellP) {
+    const h = p.h, R = h.R[0];
+    p.x += h.u * dt * speedK;
+    p.w += dt * 1.7;
+    if (p.x > R) { p.x = Math.random() * R * .04; p.n = gauss() * .5; p.fresh = true; }
+    const sy = sigY(Math.max(1, p.x)), off = (p.n + .16 * Math.sin(p.w)) * sy;
+    const e = p.x * h.ex + off * h.ny, n = p.x * h.ny - off * h.ex;
+    const q = map.project([h.lng + e / KX, h.lat + n / KY]);
+    if (p.fresh) { p.fresh = false; continue; }
+    const f = p.x / R, size = Math.max(5, Math.min(30, 1.6 * sy / mpp + 5)) * (.6 + .4 * q.y / SH) * D;
+    ctx.globalAlpha = .55 * Math.min(1, f / .06) * Math.pow(1 - f, 1.3);
+    ctx.drawImage(PUFF[h.pig], q.x * D - size / 2, q.y * D - size / 2, size, size);
+  }
+  ctx.globalAlpha = 1;
+  requestAnimationFrame(tick);
+}
+function startSmoke() {
+  if (reduceMotion || running) return;
+  running = true; last = 0;
+  requestAnimationFrame(tick);
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) running = false;
+  else if (W && !reduceMotion) { moved = true; startSmoke(); }
+});
+new ResizeObserver(() => sizeSmoke()).observe(map.getContainer());
+
+/* ---------- wind: live from data.gov.sg, or the bundled snapshot ---------- */
+const API = 'https://api-open.data.gov.sg/v2/real-time/api/';
+async function fetchLive() {
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 9000);
+  try {
+    const [d, s] = await Promise.all(['wind-direction', 'wind-speed'].map(a =>
+      fetch(API + a, { signal: ctl.signal, cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(`${a}: HTTP ${r.status}`); return r.json(); })));
+    if (d.code !== 0 || s.code !== 0) throw new Error('API error');
+    const D = d.data, S = s.data;
+    if (D.readingUnit !== 'degrees' || S.readingUnit !== 'knots') throw new Error('unexpected units');
+    const st = new Map([...D.stations, ...S.stations].map(x => [x.id, x]));
+    const rd = D.readings[0], rs = S.readings[0];
+    const spd = new Map(rs.data.map(x => [x.stationId, x.value]));
+    const rows = [];
+    for (const x of rd.data) {
+      const k = spd.get(x.stationId), info = st.get(x.stationId);
+      if (info && typeof x.value === 'number' && typeof k === 'number') rows.push([x.stationId, info.name, info.location.longitude, info.location.latitude, x.value, k]);
+    }
+    if (rows.length < 3) throw new Error('too few stations');
+    return { time: rd.timestamp, rows };
+  } finally { clearTimeout(timer); }
+}
+let snapWhy = '';
+async function getWind() {
+  if (new URLSearchParams(location.search).has('snapshot')) return [SNAPSHOT, false];
+  try { return [await fetchLive(), true]; }
+  catch (err) { snapWhy = ': live readings could not be reached'; return [SNAPSHOT, false]; }
+}
+function applyWind(raw, live, first) {
+  setWind(raw, live);
+  windCentres();
+  buildGrid();
+  if (layersAdded) {
+    buildPlumes();
+    map.getSource('stations').setData(stationFeatures());
+  }
+  windPanel();
+  seedSmell();
+  if (first) return;
+  if (pinIsHot) showHotSpot();
+  else if (pinAt) sniff(pinAt, pin.getElement().querySelector('.tag').textContent);
+}
+
+const dataP = fetch('data/day19/smell.json').then(r => { if (!r.ok) throw new Error(`smell.json: ${r.status}`); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+dataP.then(d => {
+  setCentres(d);
+  SNAPSHOT = d.wind;
+  $('n-centres').textContent = `${d.summary.cooking} hawker centres, ${nf.format(d.summary.stalls)} stalls`;
+  const deck = document.querySelector('.dmc-deck');
+  const nc = d.summary.noCooked.length;
+  $('left-out').innerHTML = `<b>Left out:</b> ${d.summary.underConstruction} centres still being built. ${nc} open markets with no cooked-food stalls (${d.summary.noCooked.map(esc).join(', ')}) are drawn as empty bowls, with no plume.`;
+  if (deck) deck.textContent = DAY.deck.replace(/\b120\b/, String(d.summary.cooking));
+});
+Promise.all([dataP, styleP]).then(async () => {
+  const [raw, live] = await getWind();
+  applyWind(raw, live, true);
+  addLayers();
+  buildPlumes();
+  setStations(true);
+  sizeSmoke();
+  seedSmell();
+  updateSpeed();
+  const q = new URLSearchParams(location.search);
+  showHotSpot();
+  if (q.has('island')) extent = 'island';
+  if (!q.has('view')) setCam(q.has('north') ? 'north' : 'wind', false); else { camMode = 'free'; userMoved = true; $('cam-wind').setAttribute('aria-pressed', 'false'); }
+  turnCompass();
+  map.once('idle', () => { $('loading').hidden = true; });
+  startSmoke();
+  if (live) setInterval(async () => {
+    if (document.hidden) return;
+    try { applyWind(await fetchLive(), true, false); } catch (err) { /* keep the last good reading */ }
+  }, 5 * 60 * 1000);
+}).catch(err => {
+  $('loading').textContent = 'The map data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
