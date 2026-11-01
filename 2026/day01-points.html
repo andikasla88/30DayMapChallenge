@@ -1,0 +1,1820 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B1220">
+<title>Day 01 · Available Taxis</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 1, Points: every taxi free for hire in Singapore right now, lit by the real sun, with a 24-hour replay.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<style>
+/* ==========================================================================
+   30DMC KIT v2. Keep this block identical in every day's file.
+   Each day is one sheet of a 30-sheet series, shown as dark glass over the
+   map so it reads on light and dark basemaps alike. The day number glows in
+   that day's accent; the dot grid is November 2026 (it starts on a Sunday,
+   so day d sits in cell d). Each day sets one colour: DAY.accent.
+   Layout: stamp top-left, optional panel bottom-left. Phones: the stamp is a
+   compact strip and the panel a bottom sheet. Short landscape screens: compact
+   stamp top-left, panel as a card bottom-right.
+   ========================================================================== */
+:root {
+  --glass: rgba(9, 14, 24, .80);
+  --line: rgba(255, 255, 255, .13);
+  --text: #EEF2F7;
+  --text-2: rgba(238, 242, 247, .74);
+  --live: #3DDC84;
+  --day-accent: #8FB8FF;     /* set from DAY.accent */
+  --day-accent-rgb: 143, 184, 255;
+  --display: "Big Shoulders Display", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font: "Instrument Sans", "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif;
+  --gutter: 16px;
+  --radius: 16px;
+  color-scheme: dark;
+}
+*, *::before, *::after { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--map-bg, #0B1220); color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased; overflow: hidden; }
+.dmc-map { position: fixed; inset: 0; }
+
+.dmc-glass {
+  position: absolute; z-index: 2;
+  background: var(--glass);
+  -webkit-backdrop-filter: blur(16px) saturate(150%); backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--line); border-radius: var(--radius);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .06), 0 18px 44px rgba(0, 0, 0, .38);
+}
+.dmc-glass :is(p, h1, h2, ol) { margin: 0; }
+
+/* ---- stamp ---- */
+.dmc-stamp {
+  top: calc(var(--gutter) + env(safe-area-inset-top, 0px));
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  width: 336px; padding: 16px 18px 14px;
+  display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px;   /* a long theme name can't widen it */
+  container-type: inline-size;
+}
+.dmc-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 14px; }
+.dmc-id { min-width: 0; display: grid; gap: 8px; }
+.dmc-num {
+  display: flex; align-items: flex-start;
+  font-family: var(--display); font-size: 78px; font-weight: 900; line-height: .76; letter-spacing: -.01em;
+  color: var(--day-accent);
+  text-shadow: 0 0 2px rgba(var(--day-accent-rgb), .9), 0 0 18px rgba(var(--day-accent-rgb), .55), 0 0 42px rgba(var(--day-accent-rgb), .25);
+}
+.dmc-num small { margin: 1px 0 0 6px; font-family: var(--font); font-size: 12px; font-weight: 600; letter-spacing: .02em; color: var(--text-2); text-shadow: none; }
+.dmc-meta { display: grid; gap: 3px; min-width: 0; }
+.dmc-theme { font-family: var(--display); font-size: 26px; font-weight: 800; line-height: .95; letter-spacing: .01em; overflow-wrap: break-word; }
+.dmc-date { font-size: 12.5px; color: var(--text-2); }
+.dmc-index { flex: none; list-style: none; padding: 2px 0 0; display: grid; grid-template-columns: repeat(7, 8px); gap: 6px; }
+.dmc-index li { position: relative; width: 8px; height: 8px; border-radius: 50%; box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .3); }
+.dmc-index li.dow { height: 10px; border-radius: 0; box-shadow: none; font-size: 8px; font-weight: 600; line-height: 10px; text-align: center; color: var(--text-2); }
+.dmc-index li.done { background: rgba(255, 255, 255, .55); box-shadow: none; }
+.dmc-index li.today { background: var(--day-accent); box-shadow: 0 0 0 2px rgba(var(--day-accent-rgb), .3), 0 0 12px 2px rgba(var(--day-accent-rgb), .65); }
+.dmc-index a { position: absolute; inset: -4px; border-radius: 50%; }
+.dmc-titlerow { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; border-top: 1px solid var(--line); padding-top: 12px; }
+.dmc-title { font-size: 20px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; text-wrap: balance; }
+.dmc-deck { font-size: 13.5px; line-height: 1.5; color: var(--text-2); }
+.dmc-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; border-top: 1px solid var(--line); padding-top: 10px; font-size: 11.5px; color: var(--text-2); }
+.dmc-more { display: none; position: relative; flex: none; font: inherit; font-size: 12px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 999px; padding: 4px 12px; min-height: 30px; cursor: pointer; }
+.dmc-more::after { content: ""; position: absolute; inset: -8px -6px; }   /* 44px touch target */
+/* An open About sheet or day picker sits above the other sheets and scrolls if it has to. */
+.dmc-stamp:is(.open, .pick) { z-index: 3; max-height: calc(100% - 2 * var(--gutter)); overflow-y: auto; }
+
+/* Desktop windows too short for the full stamp above the panel (kit.js sets .dmc-tight):
+   the deck folds behind About, as on phones. */
+.dmc-tight .dmc-more { display: inline-flex; align-items: center; }
+.dmc-tight .dmc-titlerow { align-items: center; }
+.dmc-tight .dmc-stamp .dmc-deck, .dmc-tight .dmc-stamp .dmc-foot { display: none; }
+.dmc-tight .dmc-stamp.open .dmc-deck { display: block; }
+
+/* ---- no WebGL ---- */
+.dmc-nomap [data-dmc-overlay]:not(.dmc-stamp) { display: none; }
+.dmc-nomap-msg { left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(360px, calc(100% - 2 * var(--gutter))); padding: 16px 18px; display: grid; gap: 8px; }
+
+/* ---- panel ---- */
+.dmc-panel {
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  width: min(540px, calc(100% - 2 * var(--gutter)));
+  padding: 14px 16px 12px;
+  display: grid; gap: 10px;
+}
+.dmc-note { font-size: 13px; line-height: 1.45; color: var(--text-2); }
+.dmc-credits { font-size: 10.5px; line-height: 1.45; color: var(--text-2); }
+.dmc-credits a { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.dmc-credits img { width: 13px; height: 13px; margin-right: 3px; vertical-align: -2px; }
+
+/* ---- controls ---- */
+.dmc-btn { position: relative; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; min-height: 32px; cursor: pointer; }
+.dmc-btn::after { content: ""; position: absolute; inset: -6px -4px; }
+.dmc-btn:hover { background: rgba(255, 255, 255, .14); }
+.dmc-seg { display: inline-flex; gap: 2px; padding: 3px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 999px; }
+.dmc-seg button { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 32px; padding: 5px 11px; font: inherit; font-size: 12px; font-weight: 600; color: var(--text-2); background: transparent; border: 0; border-radius: 999px; cursor: pointer; }
+.dmc-seg button::after { content: ""; position: absolute; inset: -7px 0; }   /* 46px tall touch target */
+.dmc-seg button:hover { color: var(--text); }
+.dmc-seg button[aria-pressed="true"] { color: #0B1220; background: var(--day-accent); box-shadow: 0 0 14px rgba(var(--day-accent-rgb), .45); }
+.dmc-seg svg { width: 13px; height: 13px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+:where(button, a, input, [tabindex]):focus-visible { outline: 2px solid var(--day-accent); outline-offset: 2px; }
+
+/* ---- MapLibre controls in glass ---- */
+.maplibregl-ctrl-top-right { top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); }
+.maplibregl-ctrl-top-right .maplibregl-ctrl { margin: 0; }
+.maplibregl-ctrl-group { background: var(--glass) !important; border: 1px solid var(--line); border-radius: 12px !important; box-shadow: none !important; -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); overflow: hidden; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid var(--line) !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: invert(1) brightness(1.4); }
+.maplibregl-ctrl-bottom-right { bottom: var(--dmc-clear-bottom, 0px); }
+
+/* ---- compact screens: phones (narrow) and phones held landscape (short) ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  :root { --gutter: 10px; --radius: 14px; }
+  .dmc-stamp { padding: 10px 12px; gap: 8px; }
+  .dmc-head { align-items: center; flex-wrap: wrap; row-gap: 8px; }   /* the grid drops under a long name */
+  .dmc-id { display: flex; align-items: center; gap: 10px; flex: 1 1 0; min-width: min-content; }   /* the date wraps first; the grid only drops for a long theme word */
+  .dmc-num { font-size: 52px; }
+  .dmc-num small { margin-left: 4px; font-size: 10.5px; }
+  .dmc-theme { font-size: 21px; }
+  .dmc-date { font-size: 11.5px; }
+  .dmc-index { grid-template-columns: repeat(7, 6px); gap: 4px; padding: 0; }
+  .dmc-index li { width: 6px; height: 6px; }
+  .dmc-index li.dow { display: none; }
+  .dmc-titlerow { align-items: center; padding-top: 8px; }
+  .dmc-title { font-size: 15.5px; }
+  .dmc-more { display: inline-flex; align-items: center; }
+  .dmc-stamp .dmc-deck { display: none; font-size: 12.5px; }
+  .dmc-stamp.open .dmc-deck { display: block; }
+  .dmc-stamp .dmc-foot { display: none; }
+  .dmc-stamp.pick .dmc-head { flex-wrap: wrap; }
+  .dmc-stamp.pick .dmc-index { flex: 1 1 100%; max-width: 280px; grid-template-columns: repeat(7, minmax(0, 36px)); gap: 4px; }
+  .dmc-stamp.pick .dmc-index li { width: auto; height: auto; aspect-ratio: 1; border-radius: 10px; display: grid; place-items: center; font-size: 12px; font-weight: 600; color: var(--text-2); }
+  .dmc-stamp.pick .dmc-index li::before { content: attr(data-d); }
+  .dmc-stamp.pick .dmc-index li:is(.done, .today) { color: #0B1220; }
+  .dmc-panel { padding: 12px 14px 10px; gap: 8px; }
+  .dmc-credits { font-size: 10px; }
+  .maplibregl-ctrl-top-right { display: none; }
+}
+/* Phones held upright: stamp across the top, panel as a bottom sheet. */
+@media (max-width: 640px) and (orientation: portrait), (max-width: 640px) and (min-height: 521px) {
+  .dmc-stamp { right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); width: auto; }
+  .dmc-panel { left: 0; right: 0; bottom: 0; width: auto; border-bottom: 0; border-radius: 18px 18px 0 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+}
+/* Tall phones: there is room to show the deck without the About tap. */
+@media (max-width: 640px) and (min-height: 780px) {
+  .dmc-stamp .dmc-deck { display: block; }
+  .dmc-more { display: none; }
+}
+/* Phones held sideways (any width): stamp top-left, panel in a right-hand column. A day can
+   widen the column with --dmc-side-w; the stamp takes what is left. */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --dmc-side-w: min(360px, 52vw); }
+  .dmc-stamp { width: min(318px, calc(100vw - var(--dmc-side-w) - 3 * var(--gutter))); }
+  .dmc-num { font-size: 44px; }
+  .dmc-panel { left: auto; right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); width: var(--dmc-side-w); padding: 10px 12px 8px; gap: 6px; }
+}
+/* Last resort on a very narrow stamp (a small phone held sideways): no room for the grid
+   beside the name, so it goes, and a long theme word breaks rather than spill out. */
+@container (max-width: 200px) {
+  .dmc-stamp:not(.pick) .dmc-index { display: none; }
+  .dmc-id { min-width: 0; }
+  .dmc-theme { overflow-wrap: anywhere; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+/* ===== end 30DMC KIT v2 ===== */
+
+/* ===== Day 01: taxi lights, lighting control, 24-hour chart ===== */
+.sky { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: 0; mix-blend-mode: soft-light; }
+.vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none; opacity: var(--glow, 1); background: radial-gradient(120% 95% at 58% 45%, transparent 52%, rgba(2, 5, 12, .6) 100%); }
+
+.tl-top { display: flex; align-items: center; gap: 12px; }
+.tl-play { flex: none; width: 48px; height: 48px; display: grid; place-items: center; border: 0; border-radius: 50%; color: #0B1220; background: var(--day-accent); box-shadow: 0 0 0 4px rgba(var(--day-accent-rgb), .16), 0 0 24px rgba(var(--day-accent-rgb), .5); cursor: pointer; }
+.tl-play:disabled { opacity: .35; box-shadow: none; cursor: default; }
+.tl-play svg { width: 18px; height: 18px; fill: currentColor; }
+.tl-read { flex: 1; min-width: 0; display: grid; gap: 3px; }
+.tl-count { font-family: var(--display); font-size: 48px; font-weight: 800; line-height: .86; color: #FFF4DE; text-shadow: 0 0 22px rgba(var(--day-accent-rgb), .4); font-variant-numeric: tabular-nums; }
+.tl-when { font-size: 13px; line-height: 1.3; color: var(--text-2); }
+.tl-side { flex: none; align-self: flex-start; }
+.chip-live { display: inline-flex; align-items: center; gap: 7px; padding: 6px 2px; font-size: 12.5px; font-weight: 600; }
+.chip-live i { width: 8px; height: 8px; border-radius: 50%; background: var(--live); animation: live-pulse 2s ease-out infinite; }
+.chip-live.off { color: var(--text-2); }
+.chip-live.off i { background: var(--text-2); animation: none; }
+@keyframes live-pulse { 0% { box-shadow: 0 0 0 0 rgba(61, 220, 132, .6); } 70%, 100% { box-shadow: 0 0 0 8px rgba(61, 220, 132, 0); } }
+
+.spark { position: relative; height: 84px; touch-action: none; cursor: crosshair; }
+.spark svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.spark input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; pointer-events: none; }
+.spark:focus-within { outline: 2px solid var(--day-accent); outline-offset: 5px; border-radius: 4px; }
+.spark text { font-family: var(--font); font-size: 10.5px; fill: var(--text-2); font-variant-numeric: tabular-nums; }
+.spark .daylight { fill: rgba(255, 196, 110, .1); }
+.spark .daylabel { fill: rgba(255, 214, 160, .85); font-size: 9.5px; font-weight: 600; }
+.spark .grid { stroke: rgba(255, 255, 255, .09); stroke-width: 1; }
+.spark .base { stroke: rgba(255, 255, 255, .3); stroke-width: 1; }
+.spark .area { fill: url(#spark-fill); }
+.spark .line { fill: none; stroke: #C9830F; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; filter: drop-shadow(0 0 3px rgba(255, 181, 71, .7)); }
+.spark .pend { fill: rgba(255, 255, 255, .4); }
+.spark .cursor { stroke: rgba(255, 255, 255, .8); stroke-width: 1; }
+.spark .hover { stroke: rgba(255, 255, 255, .4); stroke-width: 1; }
+.spark .dot { fill: var(--day-accent); stroke: #10151F; stroke-width: 2; }
+.spark .ext { fill: #10151F; stroke: var(--day-accent); stroke-width: 1.5; }
+.spark .val { fill: var(--text); font-size: 11px; font-weight: 700; }
+.spark .halo { paint-order: stroke; stroke: #121823; stroke-width: 3px; stroke-linejoin: round; }
+.tip { position: absolute; top: -4px; left: 0; z-index: 3; display: none; padding: 6px 10px 5px; border-radius: 10px; background: #F4F6F9; color: #0B1220; box-shadow: 0 8px 22px rgba(0, 0, 0, .4); font-size: 12px; line-height: 1.3; white-space: nowrap; pointer-events: none; }
+.tip b { display: block; font-size: 15px; font-weight: 700; }
+.tl-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; }
+.tl-note { font-size: 12px; color: var(--text-2); }
+
+.hot { width: 0; height: 0; pointer-events: none; }
+.hot-in { position: absolute; left: 0; top: 0; transition: opacity .3s, visibility .3s; }
+.hots-hidden .hot-in, .hot.gone .hot-in { opacity: 0; visibility: hidden; }
+.hot .ring { position: absolute; left: -15px; top: -15px; width: 30px; height: 30px; border-radius: 50%; border: 2px solid #FFF1D6; box-shadow: 0 0 0 1.5px rgba(11, 18, 32, .75), 0 0 12px rgba(var(--day-accent-rgb), .55); }
+.hot .ring::after { content: ""; position: absolute; inset: -2px; border-radius: 50%; border: 2px solid rgba(var(--day-accent-rgb), .9); animation: hot-ring 2.6s ease-out infinite; }
+.hot .lead { position: absolute; left: 0; top: 0; height: 1.5px; display: none; background: rgba(255, 241, 214, .75); box-shadow: 0 0 0 1px rgba(11, 18, 32, .35); transform-origin: 0 50%; }
+.hot.led .lead { display: block; }
+.hot.compact .lbl span { display: none; }
+.hot.compact .lbl i { display: inline; }
+.hot .lbl i { display: none; font-style: normal; }
+.hot.short .lbl i { display: none; }
+.daylit .hot .ring { border: 2px solid #fff; box-shadow: 0 0 0 1.5px rgba(11, 18, 32, .7), 0 2px 10px rgba(0, 0, 0, .35); }
+.hot.r2 .ring::after, .hot.r3 .ring::after { animation-delay: .9s; }
+.daylit .hot .lead { height: 2px; background: rgba(11, 18, 32, .85); box-shadow: 0 0 0 1px rgba(255, 255, 255, .8); }
+@keyframes hot-ring { 0% { transform: scale(.55); opacity: 1; } 100% { transform: scale(1.7); opacity: 0; } }
+.hot .lbl { position: absolute; left: 18px; top: -13px; display: flex; align-items: baseline; gap: 5px; padding: 4px 10px 4px 9px; white-space: nowrap; border-radius: 999px; background: rgba(9, 14, 24, .86); border: 1px solid var(--line); font-size: 11.5px; color: var(--text); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.hot .lbl b { font-family: var(--display); font-size: 15px; font-weight: 800; color: var(--day-accent); }
+.hot.short .lbl span, .hot.nolbl .lbl { display: none; }
+.hint { position: absolute; top: 0; left: 50%; transform: translateX(-50%); display: none; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, .1); border: 1px solid var(--line); font-size: 11px; font-weight: 600; color: var(--text); white-space: nowrap; pointer-events: none; }
+@media (max-width: 640px), (max-height: 520px) { .hint.on { display: block; } }
+
+@media (max-width: 640px), (max-height: 520px) {
+  .tl-play { width: 44px; height: 44px; }
+  .tl-count { font-size: 40px; }
+  .tl-when { font-size: 12px; }
+  .spark { height: 64px; }
+  .tl-note.done { display: none; }
+  .dmc-seg { flex: 1; justify-content: space-between; }
+  .dmc-seg button { flex: 1; padding: 5px 6px; }
+  .hot .lbl { font-size: 10.5px; padding: 3px 8px; }
+  .hot .lbl b { font-size: 13px; }
+}
+@media (max-width: 640px) and (min-height: 780px) {
+  .spark { height: 84px; }   /* tall phones have the room */
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --dmc-side-w: min(390px, 52vw); }
+  .dmc-credits { font-size: 9.5px; }
+  .tl-play { width: 40px; height: 40px; }
+  .tl-count { font-size: 32px; }
+  .spark { height: 50px; }
+  .tl-note { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore showing taxis free for hire"></div>
+<div id="sky" class="sky" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="panel" class="dmc-glass dmc-panel" data-dmc-overlay aria-label="Taxi count, 24-hour replay and lighting">
+  <div class="tl-top">
+    <button id="play" class="tl-play" type="button" aria-label="Play the last 24 hours" disabled>
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path id="play-icon" d="M5 2.4v11.2L13.8 8z"/></svg>
+    </button>
+    <div class="tl-read">
+      <div id="count" class="tl-count">&ndash;</div>
+      <div id="when" class="tl-when">Loading live taxi positions&hellip;</div>
+    </div>
+    <div id="side" class="tl-side"></div>
+  </div>
+  <div id="spark" class="spark">
+    <svg id="spark-svg" aria-hidden="true"></svg>
+    <input id="scrub" type="range" min="0" max="48" step="1" value="48" aria-label="Replay time, last 24 hours">
+    <div id="tip" class="tip"></div>
+    <div id="hint" class="hint" aria-hidden="true">Drag to replay</div>
+  </div>
+  <div class="tl-row">
+    <div id="light" class="dmc-seg" role="group" aria-label="Lighting">
+      <button type="button" data-mode="auto" aria-pressed="true" title="Light follows the sun at the time shown"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.6"/><path d="M8 2.4v11.2"/></svg>Auto</button>
+      <button type="button" data-mode="morning" aria-pressed="false" title="Sunrise"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M1.8 12.2h12.4M4.6 12.2a3.4 3.4 0 0 1 6.8 0M8 4.2v1.6M3.6 6.6l1.1 1.1M12.4 6.6l-1.1 1.1"/></svg>Morning</button>
+      <button type="button" data-mode="day" aria-pressed="false" title="Full daylight"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="2.8"/><path d="M8 1.6v1.7M8 12.7v1.7M1.6 8h1.7M12.7 8h1.7M3.5 3.5l1.2 1.2M11.3 11.3l1.2 1.2M3.5 12.5l1.2-1.2M11.3 4.7l1.2-1.2"/></svg>Day</button>
+      <button type="button" data-mode="night" aria-pressed="false" title="Full night"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13 10.3A5.4 5.4 0 0 1 5.7 3a5.4 5.4 0 1 0 7.3 7.3z"/></svg>Night</button>
+    </div>
+    <p id="note" class="tl-note">Loading the last 24 hours&hellip;</p>
+  </div>
+  <p id="credits" class="dmc-credits"></p>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script>
+/* ===== 30DMC KIT v2 (script). Keep identical in every day's file. ===== */
+const DMC = (() => {
+  const THEMES = ['Points', 'Lines', 'Polygons', 'Clusters', 'Sight', 'Vintage', '10 minute map', 'Utopia',
+    'Urban-rural', 'Prompting only', 'Sound', 'Power', 'Interactions', 'Borgesian map', 'Inside out',
+    'Collaborative map', 'Light & dark', 'NULL', 'Smell', 'Hexagons', 'OpenStreetMap', 'Projections',
+    'Taste', 'Network', 'Is this a map?', 'Water', 'New tool', 'Feeling', 'Raster', 'Pen & paper'];
+  const SG_BOUNDS = [[103.605, 1.215], [104.035, 1.47]];
+  const ONEMAP_CREDIT = '<img src="https://www.onemap.gov.sg/web-assets/images/logo/om_logo.png" alt="">'
+    + '<a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> &copy; contributors &#124; '
+    + '<a href="https://www.sla.gov.sg/" target="_blank" rel="noopener noreferrer">Singapore Land Authority</a>';
+  const COMPACT_Q = '(max-width: 640px), (max-height: 520px)';   // phones, upright or sideways
+  const pad2 = n => String(n).padStart(2, '0');
+  const rgb = hex => { const h = hex.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)).join(', '); };
+  const el = (tag, cls, text) => {
+    const e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  };
+
+  // DAY = { n, title, deck, credit, accent, basemap, basemapBg, author, nav, attribution, creditsEl }
+  function mountStamp(day, host = document.getElementById('dmc-stamp')) {
+    const root = document.documentElement.style;
+    if (day.accent) { root.setProperty('--day-accent', day.accent); root.setProperty('--day-accent-rgb', rgb(day.accent)); }
+    if (day.basemapBg) root.setProperty('--map-bg', day.basemapBg);
+    const theme = THEMES[day.n - 1];
+    const weekday = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'long' }).format(new Date(Date.UTC(2026, 10, day.n)));
+    host.setAttribute('aria-label', `#30DayMapChallenge 2026, day ${day.n} of 30: ${theme}`);
+
+    const num = el('p', 'dmc-num');
+    num.setAttribute('aria-hidden', 'true');
+    num.append(el('span', null, pad2(day.n)), el('small', null, '/30'));
+    const meta = el('div', 'dmc-meta');
+    meta.append(el('p', 'dmc-theme', theme), el('p', 'dmc-date', `${weekday} ${day.n} November`));
+    const id = el('div', 'dmc-id');
+    id.append(num, meta);
+
+    const index = el('ol', 'dmc-index');
+    index.setAttribute('aria-label', 'Series index, November 2026');
+    for (const d of 'SMTWTFS') {
+      const h = el('li', 'dow', d);
+      h.setAttribute('aria-hidden', 'true');
+      index.append(h);
+    }
+    for (let d = 1; d <= 30; d++) {
+      const li = el('li', d < day.n ? 'done' : d === day.n ? 'today' : '');
+      li.dataset.d = d;
+      const label = `Day ${d}: ${THEMES[d - 1]}`;
+      li.title = label;
+      if (d === day.n) li.setAttribute('aria-current', 'date');
+      if (day.nav && d !== day.n) {
+        const a = el('a');
+        a.href = day.nav.replace('{nn}', pad2(d)).replace('{n}', String(d));
+        a.setAttribute('aria-label', label);
+        li.append(a);
+      } else {
+        li.setAttribute('aria-label', label);
+      }
+      index.append(li);
+    }
+    const head = el('div', 'dmc-head');
+    head.append(id, index);
+    // With links on, a tap on the tiny phone grid first opens a full-size picker.
+    if (day.nav) {
+      const compact = matchMedia(COMPACT_Q);
+      index.addEventListener('click', e => {
+        if (compact.matches && !host.classList.contains('pick')) { e.preventDefault(); host.classList.add('pick'); }
+      });
+      document.addEventListener('click', e => { if (!index.contains(e.target)) host.classList.remove('pick'); });
+    }
+
+    const deck = el('p', 'dmc-deck', day.deck);
+    deck.id = 'dmc-deck';
+    const more = el('button', 'dmc-more', 'About');
+    more.type = 'button';
+    more.setAttribute('aria-expanded', 'false');
+    more.setAttribute('aria-controls', deck.id);
+    const setOpen = open => {
+      host.classList.toggle('open', open);
+      more.setAttribute('aria-expanded', String(open));
+      more.textContent = open ? 'Close' : 'About';
+    };
+    more.addEventListener('click', () => setOpen(!host.classList.contains('open')));
+    document.addEventListener('keydown', e => {
+      if (e.key !== 'Escape') return;
+      if (host.classList.contains('open')) { setOpen(false); more.focus(); }
+      host.classList.remove('pick');
+    });
+    const titleRow = el('div', 'dmc-titlerow');
+    titleRow.append(el('h1', 'dmc-title', day.title), more);
+
+    const foot = el('p', 'dmc-foot');
+    foot.append(
+      el('span', null, day.author ? `#30DayMapChallenge by ${day.author}` : '#30DayMapChallenge'),
+      el('span', null, day.creditsEl ? '' : (day.credit || '')),   // full credits already sit in the panel
+    );
+    host.replaceChildren(head, titleRow, deck, foot);
+  }
+
+  // Map padding that keeps Singapore clear of every [data-dmc-overlay] sheet. Each sheet
+  // can be cleared by keeping the island below, above, right or left of it; every
+  // combination is tried and the one where the island would be drawn largest wins.
+  const SG_ASPECT = 1.69;   // the island's width / height in screen space
+  function overlayPadding() {
+    const vw = innerWidth, vh = innerHeight;
+    const rects = [...document.querySelectorAll('[data-dmc-overlay]')].map(e => e.getBoundingClientRect()).filter(r => r.width && r.height);
+    let best = null;
+    for (let k = 0; k < 4 ** rects.length; k++) {
+      const p = { top: 16, right: 16, bottom: 16, left: 16 };
+      rects.forEach((r, i) => {
+        const side = Math.floor(k / 4 ** i) % 4;
+        if (side === 0) p.top = Math.max(p.top, r.bottom + 10);
+        else if (side === 1) p.bottom = Math.max(p.bottom, vh - r.top + 10);
+        else if (side === 2) p.left = Math.max(p.left, r.right + 16);
+        else p.right = Math.max(p.right, vw - r.left + 16);
+      });
+      const score = Math.min((vw - p.left - p.right) / SG_ASPECT, vh - p.top - p.bottom);
+      if (!best || score > best.score) best = { score, p };
+    }
+    // Nowhere useful left (a tiny window): fit the whole window and let the sheets overlap.
+    return best && best.score >= 70 ? best.p : { top: 12, right: 12, bottom: 12, left: 12 };
+  }
+
+  // On desktop, folds the stamp's deck behind About (.dmc-tight) when the full stamp would
+  // run into another sheet, e.g. a laptop window under ~700 px tall. Returns true if it changed.
+  function fitStamp() {
+    const root = document.documentElement, stamp = document.querySelector('.dmc-stamp');
+    const was = root.classList.contains('dmc-tight');
+    root.classList.remove('dmc-tight');
+    if (stamp && !matchMedia(COMPACT_Q).matches) {
+      const s = stamp.getBoundingClientRect();
+      for (const e of document.querySelectorAll('[data-dmc-overlay]')) {
+        if (e === stamp) continue;
+        const r = e.getBoundingClientRect();
+        if (r.width && r.left < s.right && s.left < r.right && r.top < s.bottom + 12 && s.top < r.bottom + 12) { root.classList.add('dmc-tight'); break; }
+      }
+    }
+    return root.classList.contains('dmc-tight') !== was;
+  }
+
+  // Lifts bottom-right map controls above a bottom sheet that reaches the right edge (phones),
+  // and re-checks the stamp fit when a sheet changes size (onFit runs if the stamp changed).
+  function watchOverlays(onFit) {
+    let fitQueued = false;
+    const update = () => {
+      if (!fitQueued) {
+        fitQueued = true;
+        requestAnimationFrame(() => { fitQueued = false; if (fitStamp() && onFit) onFit(); });
+      }
+      let clear = 0;
+      for (const e of document.querySelectorAll('[data-dmc-overlay]')) {
+        const r = e.getBoundingClientRect();
+        if (r.top > innerHeight * 0.45 && r.right > innerWidth - 140) clear = Math.max(clear, innerHeight - r.top + 8);
+      }
+      document.documentElement.style.setProperty('--dmc-clear-bottom', `${clear}px`);
+    };
+    const ro = new ResizeObserver(update);
+    document.querySelectorAll('[data-dmc-overlay]').forEach(e => ro.observe(e));
+    addEventListener('resize', update);
+    update();
+  }
+
+  // MapLibre map on OneMap raster basemaps. DAY.basemap is a style name or a list
+  // (Default, Night, Grey, Original, LandLot). OneMap tiles start at z11, so each style
+  // gets two layers: "basemap-<Style>" (map zoom 9.5 and up, 256 px tiles) and
+  // "basemap-<Style>-lo" (below zoom 11, the same z11 tiles drawn at 128 px), which
+  // lets a phone, portrait or landscape, zoom out far enough to see the whole island.
+  // From 9.5 to 11 both draw, so a fast zoom never shows a gap while the sharper tiles
+  // load. The first style is visible, the rest start at opacity 0. Change paint with
+  // DMC.setBasemapPaint(), and opacity with DMC.setBasemapOpacity().
+  // Credits go into DAY.creditsEl if given, otherwise into the attribution control.
+  const MIN_ZOOM = 8.6;   // the 128 px z11 tiles round to z11 down to zoom 8.5
+  function createMap(day, options = {}) {
+    const styles = [].concat(day.basemap || 'Default');
+    const sources = {}, layers = [{ id: 'background', type: 'background', paint: { 'background-color': day.basemapBg || '#0B1220' } }];
+    styles.forEach((s, i) => {
+      const url = [`https://www.onemap.gov.sg/maps/tiles/${s}/{z}/{x}/{y}.png`];
+      const paint = { 'raster-opacity': i ? 0 : 1, 'raster-fade-duration': 0 };
+      sources[`basemap-${s}`] = { type: 'raster', tiles: url, tileSize: 256, minzoom: 11, maxzoom: 19 };
+      sources[`basemap-${s}-lo`] = { type: 'raster', tiles: url, tileSize: 128, minzoom: 11, maxzoom: 11 };
+      layers.push({ id: `basemap-${s}-lo`, type: 'raster', source: `basemap-${s}-lo`, maxzoom: 11, paint: { ...paint } });
+      layers.push({ id: `basemap-${s}`, type: 'raster', source: `basemap-${s}`, minzoom: 9.5, paint: { ...paint } });
+    });
+    let map;
+    try {
+      map = new maplibregl.Map({
+        container: 'map',
+        style: { version: 8, sources, layers },
+        center: [103.82, 1.35], zoom: 10.5,
+        minZoom: MIN_ZOOM, maxZoom: 18,
+        maxBounds: [[102.6, 0.5], [105.0, 2.2]],   // roomy, so a side panel never forces the island off-centre
+        attributionControl: false, dragRotate: false, pitchWithRotate: false, touchPitch: false,
+        ...options,
+      });
+    } catch (err) {   // no WebGL (blocklisted GPU, locked-down browser): say so instead of a blank page
+      noMap();
+      throw err;
+    }
+    fitStamp();
+    frame(map);
+    // Re-fit after rotation, resize and web-font load (the stamp's height changes), until
+    // the viewer has moved the map themselves.
+    let userMoved = false, timer = 0;
+    map.on('movestart', e => { if (e.originalEvent) userMoved = true; });
+    const refit = () => { fitStamp(); if (!userMoved) frame(map); };
+    addEventListener('resize', () => { fitStamp(); clearTimeout(timer); timer = setTimeout(refit, 160); });
+    if (document.fonts) document.fonts.ready.then(refit);
+    map.touchZoomRotate.disableRotation();
+    // Phones drop WebGL contexts under memory pressure; a reload is the reliable way back.
+    map.on('webglcontextrestored', () => location.reload());
+    map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+    const creditsEl = day.creditsEl && document.getElementById(day.creditsEl);
+    if (creditsEl) creditsEl.innerHTML = [ONEMAP_CREDIT].concat(day.attribution || []).join('<br>');
+    else map.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: [ONEMAP_CREDIT].concat(day.attribution || []) }), 'bottom-right');
+    watchOverlays(() => { if (!userMoved) frame(map); });
+    return map;
+  }
+
+  // Shown when the map can't start. The other sheets are hidden, since nothing in them works.
+  function noMap() {
+    document.documentElement.classList.add('dmc-nomap');
+    const box = el('div', 'dmc-glass dmc-nomap-msg');
+    box.setAttribute('role', 'alert');
+    box.append(el('p', 'dmc-title', 'This map needs WebGL'),
+      el('p', 'dmc-deck', 'Your browser or device has it turned off. Try another browser, or turn on hardware acceleration in your browser settings.'));
+    document.body.append(box);
+  }
+
+  // Fit the island into the space the sheets leave free. If even the lowest zoom is too
+  // close, centre on the east-central island (CBD to Changi) instead of letting the
+  // padding offset push it sideways.
+  function frame(map, focus = [103.875, 1.345]) {
+    map.setPadding({ top: 0, right: 0, bottom: 0, left: 0 });
+    const padding = overlayPadding();
+    const cam = map.cameraForBounds(SG_BOUNDS, { padding });
+    if (cam && cam.zoom >= map.getMinZoom()) map.jumpTo({ center: cam.center, zoom: cam.zoom });
+    else map.jumpTo({ center: focus, zoom: map.getMinZoom(), padding });
+  }
+
+  function setBasemapPaint(map, style, prop, value) {
+    for (const id of [`basemap-${style}`, `basemap-${style}-lo`]) if (map.getLayer(id)) map.setPaintProperty(id, prop, value);
+  }
+  // Where the two layers overlap (zoom 9.5 to 11) each gets opacity b, so together they
+  // show 1 - (1 - b)^2 = a; outside the overlap the one layer drawn gets a itself.
+  function setBasemapOpacity(map, style, a) {
+    const b = 1 - Math.sqrt(Math.max(0, 1 - a)), hi = `basemap-${style}`, lo = `${hi}-lo`, same = Math.abs(a - b) < 1e-4;
+    if (map.getLayer(hi)) map.setPaintProperty(hi, 'raster-opacity', same ? a : ['step', ['zoom'], b, 11, a]);
+    if (map.getLayer(lo)) map.setPaintProperty(lo, 'raster-opacity', same ? a : ['step', ['zoom'], a, 9.5, b]);
+  }
+  function setBasemapVisible(map, style, on) {
+    for (const id of [`basemap-${style}`, `basemap-${style}-lo`]) {
+      if (map.getLayer(id) && (map.getLayoutProperty(id, 'visibility') !== 'none') !== on) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+    }
+  }
+
+  return { THEMES, SG_BOUNDS, ONEMAP_CREDIT, COMPACT_Q, pad2, rgb, mountStamp, fitStamp, overlayPadding, createMap, frame, setBasemapPaint, setBasemapOpacity, setBasemapVisible };
+})();
+/* ===== end 30DMC KIT v2 (script) ===== */
+</script>
+<script>
+'use strict';
+/* ===== Day 01 · Points ===== */
+const DAY = {
+  n: 1,
+  title: 'Every available taxi, right now',
+  deck: "Each light is a taxi free for hire, from LTA's live feed. Rings mark the three busiest spots, counting taxis within about 750 m. The map is lit by the sun's real position over Singapore, so the 24-hour replay runs from night to morning and back.",
+  credit: 'Data: LTA via data.gov.sg',
+  accent: '#FFB547',
+  basemap: ['Night', 'Default'],   // night underneath, day brought in by the sun
+  basemapBg: '#0B1220',
+  creditsEl: 'credits',
+  author: '',                      // optional: your name or handle, shown in the stamp footer
+  nav: null,                       // optional: link the November grid to other days, e.g. '../day{nn}/'
+  attribution: 'Taxi data: <a href="https://data.gov.sg/datasets/d_e25662f1a062dd046453926aa284ba64/view" target="_blank" rel="noopener noreferrer">LTA Taxi Availability</a>, data.gov.sg, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Open Data Licence</a>',
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+
+/* ---------- time and sun ---------- */
+const SGT = 8 * 3600e3;
+const fmtHM = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const fmtDay = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', weekday: 'short', day: 'numeric', month: 'short' });
+const nf = new Intl.NumberFormat('en-SG');
+const smooth = (e0, e1, x) => { const t = Math.min(1, Math.max(0, (x - e0) / (e1 - e0))); return t * t * (3 - 2 * t); };
+// Solar altitude in degrees over central Singapore (low-precision almanac, good to a few minutes).
+function sunAltitude(ms) {
+  const r = Math.PI / 180, lat = 1.3521 * r, lon = 103.8198;
+  const d = ms / 864e5 + 2440587.5 - 2451545;
+  const g = r * (357.529 + 0.98560028 * d);
+  const L = r * (280.459 + 0.98564736 * d + 1.915 * Math.sin(g) + 0.02 * Math.sin(2 * g));
+  const e = r * (23.439 - 3.6e-7 * d);
+  const ra = Math.atan2(Math.cos(e) * Math.sin(L), Math.cos(L));
+  const dec = Math.asin(Math.sin(e) * Math.sin(L));
+  const gmst = ((18.697374558 + 24.06570982441908 * d) % 24 + 24) % 24;
+  const H = r * (15 * gmst + lon) - ra;
+  return Math.asin(Math.sin(lat) * Math.sin(dec) + Math.cos(lat) * Math.cos(dec) * Math.cos(H)) / r;
+}
+
+/* ---------- data ---------- */
+const API = 'https://api.data.gov.sg/v1/transport/taxi-availability';
+const STEP = 30 * 60e3;   // one snapshot every 30 minutes
+const HIST = 48;          // 24 hours of history
+const LIVE = HIST;        // the last slot holds the live snapshot
+// One request every 2.1 s keeps under data.gov.sg's public limit of 6 per 10 s.
+// For local testing only, ?gap=200 shortens the spacing.
+const GAP = Math.max(150, Number(params.get('gap')) || 2100);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const sgtParam = t => new Date(t + SGT).toISOString().slice(0, 19);
+const anchor = Math.floor(Date.now() / STEP) * STEP;
+const slots = Array.from({ length: HIST + 1 }, (_, i) => ({
+  i, live: i === LIVE, t: i < HIST ? anchor - (HIST - i) * STEP : 0, status: 'idle',
+}));
+const slotTime = s => (s.live ? (s.ts ? s.ts.getTime() : Date.now()) : s.t);
+const shownTime = s => (s.live ? s.ts : new Date(s.t));   // history is labelled by its half-hour slot
+const isOk = i => !!slots[i] && slots[i].status === 'ok';
+
+// Positions are stored relative to a Singapore origin so 32-bit floats stay precise at street zoom.
+const ORIGIN = maplibregl.MercatorCoordinate.fromLngLat([103.82, 1.35]);
+function pack(coords) {
+  const a = new Float32Array(coords.length * 3);
+  for (let k = 0; k < coords.length; k++) {
+    const [lng, lat] = coords[k];
+    a[k * 3] = (lng + 180) / 360 - ORIGIN.x;
+    a[k * 3 + 1] = (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360))) / 360 - ORIGIN.y;
+    const h = Math.sin(lng * 12.9898 + lat * 78.233) * 43758.5453;
+    a[k * 3 + 2] = h - Math.floor(h);
+  }
+  return a;
+}
+
+async function fetchSnapshot(dateTime) {
+  const url = dateTime ? `${API}?date_time=${encodeURIComponent(dateTime)}` : API;
+  // A hung request would stall the queue, live refresh included, so give up after 15 s.
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), 15000);
+  let json;
+  try {
+    const res = await fetch(url, { headers: { Accept: 'application/json' }, signal: ctl.signal });
+    if (res.status === 429) { const e = new Error('Rate limited'); e.rate = true; throw e; }
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    json = await res.json();
+  } finally {
+    clearTimeout(timer);
+  }
+  const f = json && json.features && json.features[0];
+  const coords = f && f.geometry && f.geometry.coordinates;
+  if (!Array.isArray(coords)) throw new Error('No taxi positions in the response');
+  const p = f.properties || {};
+  return { ts: new Date(p.timestamp || Date.now()), count: Number.isFinite(p.taxi_count) ? p.taxi_count : coords.length, coords, gl: pack(coords), hot: null };
+}
+
+// One request at a time. A 429, or one network failure (a 429 from a gateway can arrive
+// without CORS headers and look like one), waits for the 10-second window to reset.
+const net = { q: [], busy: false, last: 0, gap: GAP };
+function request(dateTime, urgent) {
+  return new Promise((resolve, reject) => {
+    const job = { dateTime, resolve, reject, tries: 0, soft: false };
+    if (urgent) net.q.unshift(job); else net.q.push(job);
+    drain();
+  });
+}
+async function drain() {
+  if (net.busy) return;
+  net.busy = true;
+  while (net.q.length) {
+    const wait = net.last + net.gap - Date.now();
+    if (wait > 0) { await sleep(wait); continue; }
+    if (document.hidden) { await new Promise(r => document.addEventListener('visibilitychange', r, { once: true })); continue; }
+    const job = net.q.shift();
+    net.last = Date.now();
+    try {
+      job.resolve(await fetchSnapshot(job.dateTime));
+      net.gap = Math.max(GAP, net.gap * 0.85);
+    } catch (err) {
+      const softRate = (err instanceof TypeError || err.name === 'AbortError') && !job.soft;   // network failure or timeout
+      if ((err.rate && job.tries < 5) || softRate) {
+        if (softRate) job.soft = true; else job.tries++;
+        net.gap = Math.min(8000, net.gap * 1.5);
+        net.last = Date.now() + 10000;
+        net.q.unshift(job);
+      } else {
+        job.reject(err);
+      }
+    }
+  }
+  net.busy = false;
+}
+
+// Newest first, then halve the gaps (12 h, 6 h, 3 h ...) so the chart sharpens as it loads.
+function coarseToFine(n) {
+  const order = [], seen = new Set(), last = n - 1;
+  for (const step of [n, n / 2, n / 4, n / 8, n / 16, 2, 1].map(Math.round)) {
+    for (let i = last; i >= 0; i--) {
+      if ((last - i) % step === 0 && !seen.has(i)) { seen.add(i); order.push(i); }
+    }
+  }
+  return order;
+}
+async function backfill() {
+  for (let pass = 0; pass < 2; pass++) {
+    for (const i of coarseToFine(HIST).filter(k => !isOk(k))) {
+      const s = slots[i];
+      s.status = 'loading';
+      try {
+        Object.assign(s, await request(sgtParam(s.t)), { status: 'ok' });
+      } catch (err) {
+        s.status = 'error';
+        console.warn(`Snapshot ${sgtParam(s.t)} failed:`, err.message);
+      }
+      onSlot(i);
+    }
+  }
+}
+let livePending = false;
+async function refreshLive() {
+  if (livePending) return;
+  livePending = true;
+  try {
+    Object.assign(slots[LIVE], await request(null, true), { status: 'ok' });
+    onSlot(LIVE);
+  } catch (err) {
+    console.error('Live taxi request failed:', err);
+    if (!isOk(LIVE)) showError();
+  } finally {
+    livePending = false;
+  }
+}
+
+/* ---------- taxi lights ----------
+   Night: every taxi is drawn as an instanced quad into an offscreen light buffer
+   (half-float where the GPU allows), summed additively. A quarter-size copy is
+   blurred for bloom. The composite tone-maps the summed light so dense clusters
+   saturate to amber-gold instead of clipping to white, then adds it to the map.
+   Day: the same quads drawn as halo, then every dark rim, then every amber fill,
+   so clusters merge into one shape with one outline. */
+const SPRITE_VS = `
+attribute vec2 a_corner;
+attribute vec2 a_pos;
+attribute float a_seed;
+uniform mat4 u_matrix;
+uniform vec2 u_viewport;
+uniform float u_size;
+uniform float u_time;
+uniform float u_twinkle;
+varying vec2 v_c;
+void main() {
+  vec4 p = u_matrix * vec4(a_pos, 0.0, 1.0);
+  float tw = 1.0 + u_twinkle * 0.14 * sin(u_time * (1.1 + a_seed * 1.6) + a_seed * 61.0);
+  float s = u_size * (0.82 + 0.36 * a_seed) * tw;
+  p.xy += a_corner * (s / u_viewport) * p.w;
+  gl_Position = p;
+  v_c = a_corner;
+}`;
+const LIGHT_FS = `
+precision mediump float;
+varying vec2 v_c;
+uniform float u_alpha;
+uniform float u_scale;
+void main() {
+  float r2 = dot(v_c, v_c);
+  if (r2 > 1.0) discard;
+  float core = exp(-r2 * 70.0);
+  float halo = exp(-r2 * 9.0) * (1.0 - r2);
+  vec3 col = vec3(1.0, 0.94, 0.8) * core * 1.6 + vec3(1.0, 0.6, 0.17) * halo * 0.55;
+  gl_FragColor = vec4(col * u_alpha * u_scale, 1.0);
+}`;
+const DOT_FS = `
+precision mediump float;
+varying vec2 v_c;
+uniform float u_alpha;
+uniform float u_mode;
+void main() {
+  float r2 = dot(v_c, v_c);
+  if (r2 > 1.0) discard;
+  float r = sqrt(r2);
+  vec3 col;
+  float a;
+  if (u_mode < 1.5) { col = vec3(1.0, 0.62, 0.2); a = exp(-r2 * 3.0) * (1.0 - r2) * 0.22; }
+  else if (u_mode < 2.5) { col = vec3(0.2, 0.11, 0.02); a = (1.0 - smoothstep(0.56, 0.66, r)) * 0.9; }
+  else { col = vec3(0.96, 0.6, 0.13); a = 1.0 - smoothstep(0.4, 0.48, r); }
+  a *= u_alpha;
+  gl_FragColor = vec4(col * a, a);
+}`;
+const CORE_FS = `
+precision mediump float;
+varying vec2 v_c;
+uniform float u_alpha;
+void main() {
+  float r2 = dot(v_c, v_c);
+  if (r2 > 1.0) discard;
+  float core = exp(-r2 * 8.2) * u_alpha;   // = exp(-80 r^2) on a quad 0.32x the light's size
+  gl_FragColor = vec4(vec3(1.0, 0.95, 0.84) * core, 0.0);
+}`;
+const QUAD_VS = `
+attribute vec2 a_corner;
+varying vec2 v_uv;
+void main() { v_uv = a_corner * 0.5 + 0.5; gl_Position = vec4(a_corner, 0.0, 1.0); }`;
+const DOWN_FS = `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+uniform vec2 u_texel;
+uniform float u_gain;
+void main() {
+  gl_FragColor = u_gain * 0.25 * (texture2D(u_tex, v_uv + u_texel * vec2(-1.0, -1.0)) + texture2D(u_tex, v_uv + u_texel * vec2(1.0, -1.0))
+    + texture2D(u_tex, v_uv + u_texel * vec2(-1.0, 1.0)) + texture2D(u_tex, v_uv + u_texel * vec2(1.0, 1.0)));
+}`;
+const BLUR_FS = `
+precision mediump float;
+varying vec2 v_uv;
+uniform sampler2D u_tex;
+uniform vec2 u_dir;
+void main() {
+  vec4 c = texture2D(u_tex, v_uv) * 0.227027;
+  c += (texture2D(u_tex, v_uv + u_dir * 1.3846154) + texture2D(u_tex, v_uv - u_dir * 1.3846154)) * 0.3162162;
+  c += (texture2D(u_tex, v_uv + u_dir * 3.2307692) + texture2D(u_tex, v_uv - u_dir * 3.2307692)) * 0.0702703;
+  gl_FragColor = c;
+}`;
+const COMP_FS = `
+#ifdef GL_FRAGMENT_PRECISION_HIGH
+precision highp float;
+#else
+precision mediump float;
+#endif
+varying vec2 v_uv;
+uniform sampler2D u_light;
+uniform sampler2D u_bloom;
+uniform float u_unscale;
+uniform float u_bunscale;
+uniform float u_bloomk;
+uniform float u_exposure;
+uniform float u_intensity;
+uniform float u_ldr;
+void main() {
+  vec3 raw = texture2D(u_light, v_uv).rgb;
+  vec3 c = raw * u_unscale + texture2D(u_bloom, v_uv).rgb * u_bunscale * u_bloomk;
+  float l = max(max(c.r, c.g), c.b);
+  if (l < 0.002) discard;
+  float m = 1.0 - exp(-l * u_exposure);
+  vec3 col = c * (m / l);
+  col = mix(col, vec3(1.0, 0.72, 0.35) * m, smoothstep(0.6, 1.0, m) * 0.5);   // dense light rolls to deep gold
+  col = mix(col, vec3(1.0, 0.72, 0.35) * m, smoothstep(0.85, 1.0, raw.r) * u_ldr * 0.8);   // 8-bit buffer saturating
+  vec2 q = mod(gl_FragCoord.xy, 64.0);   // dither against banding; numbers stay small for 16-bit GPUs
+  float n = fract(52.9829189 * fract(dot(q, vec2(0.06711056, 0.00583715))));
+  gl_FragColor = vec4(col * u_intensity + (n - 0.5) / 255.0, 0.0);
+}`;
+const stops = (z, s) => {
+  if (z <= s[0][0]) return s[0][1];
+  for (let i = 1; i < s.length; i++) if (z <= s[i][0]) { const [z0, v0] = s[i - 1], [z1, v1] = s[i]; return v0 + (v1 - v0) * (z - z0) / (z1 - z0); }
+  return s[s.length - 1][1];
+};
+const NIGHT_SIZE = [[9, 13], [10, 17], [12, 26], [14, 40], [16, 58], [18, 78]];          // sprite diameter, CSS px
+const NIGHT_ALPHA = [[9, 0.32], [10, 0.38], [11.5, 0.5], [13, 0.68], [15, 0.88], [17, 1]];
+const EXPOSURE = [[9, 0.8], [10.5, 1.05], [13, 1.4]];
+const BLOOM = [[9, 1.1], [11, 1.5], [13, 1.8]];
+const DAY_SIZE = [[9, 7], [10, 9], [12, 12], [14, 16], [16, 22], [18, 28]];
+const LDR_SCALE = 1 / 6;   // headroom when the light and bloom buffers have to be 8-bit
+const LDR_BLOOM_GAIN = 4;  // 8-bit bloom is stored brighter so faint halos keep their gradient
+const CORE_K = 0.32;       // core sprites only need the middle of the quad: exp(-80 r^2) is gone by r = 0.32
+
+const glow = {
+  id: 'taxi-lights', type: 'custom', renderingMode: '2d',
+  cur: null, prev: null, pending: null, mix: 1, night: 1, dayDots: 0, strength: 1, lit: false, size: '',
+  onAdd(m, gl) {
+    this.map = m;
+    this.gl = gl;
+    this.gl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    this.inst = this.gl2 ? null : gl.getExtension('ANGLE_instanced_arrays');
+    this.vaoExt = this.gl2 ? null : gl.getExtension('OES_vertex_array_object');
+    this.ok = this.gl2 || !!this.inst;
+    if (!this.ok) { console.warn('Instanced drawing unavailable; taxi lights disabled.'); return; }
+    // Light buffer format: half-float if it can be rendered to and filtered, else 8-bit.
+    const LDR = { internal: gl.RGBA, format: gl.RGBA, type: gl.UNSIGNED_BYTE };
+    this.fmt = LDR;
+    if (!params.has('ldr')) {
+      if (this.gl2 && (gl.getExtension('EXT_color_buffer_half_float') || gl.getExtension('EXT_color_buffer_float'))) {
+        this.fmt = { internal: gl.RGBA16F, format: gl.RGBA, type: gl.HALF_FLOAT };
+      } else if (!this.gl2) {
+        const hf = gl.getExtension('OES_texture_half_float');
+        if (hf && gl.getExtension('EXT_color_buffer_half_float') && gl.getExtension('OES_texture_half_float_linear')) {
+          this.fmt = { internal: gl.RGBA, format: gl.RGBA, type: hf.HALF_FLOAT_OES };
+        }
+      }
+    }
+    this.hdr = this.fmt !== LDR;
+    this.LDR = LDR;
+    const program = (vs, fs) => {
+      const sh = (type, src) => {
+        const s = gl.createShader(type);
+        gl.shaderSource(s, src);
+        gl.compileShader(s);
+        if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+        return s;
+      };
+      const p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER, vs));
+      gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+      gl.bindAttribLocation(p, 0, 'a_corner');
+      gl.bindAttribLocation(p, 1, 'a_pos');
+      gl.bindAttribLocation(p, 2, 'a_seed');
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      p.u = {};
+      return p;
+    };
+    this.pLight = program(SPRITE_VS, LIGHT_FS);
+    this.pDot = program(SPRITE_VS, DOT_FS);
+    this.pCore = program(SPRITE_VS, CORE_FS);
+    this.pDown = program(QUAD_VS, DOWN_FS);
+    this.pBlur = program(QUAD_VS, BLUR_FS);
+    this.pComp = program(QUAD_VS, COMP_FS);
+    const buffer = data => { const b = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, b); gl.bufferData(gl.ARRAY_BUFFER, data, gl.STATIC_DRAW); return b; };
+    this.cornerBuf = buffer(new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]));
+    this.quadBuf = buffer(new Float32Array([-1, -1, 1, -1, -1, 1, 1, 1]));
+    this.quadVao = this.newVao();
+    if (this.quadVao) { this.bindVao(this.quadVao); this.quadAttribs(); this.bindVao(null); }
+    this.frames = [{ buf: gl.createBuffer(), vao: null, n: 0 }, { buf: gl.createBuffer(), vao: null, n: 0 }];
+    this.mat = new Float32Array(16);
+    this.maxEq = this.gl2 ? gl.MAX : (gl.getExtension('EXT_blend_minmax') || {}).MAX_EXT;
+  },
+  // ---- small GL helpers ----
+  uni(p, name) { if (!(name in p.u)) p.u[name] = this.gl.getUniformLocation(p, name); return p.u[name]; },
+  newVao() { const gl = this.gl; return this.gl2 ? gl.createVertexArray() : this.vaoExt ? this.vaoExt.createVertexArrayOES() : null; },
+  bindVao(v) { if (this.gl2) this.gl.bindVertexArray(v); else if (this.vaoExt) this.vaoExt.bindVertexArrayOES(v); },
+  divisor(loc, d) { if (this.gl2) this.gl.vertexAttribDivisor(loc, d); else this.inst.vertexAttribDivisorANGLE(loc, d); },
+  quadAttribs() {
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuf);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  },
+  spriteAttribs(f) {
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.cornerBuf);
+    gl.enableVertexAttribArray(0);
+    gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+    this.divisor(0, 0);
+    gl.bindBuffer(gl.ARRAY_BUFFER, f.buf);
+    gl.enableVertexAttribArray(1);
+    gl.vertexAttribPointer(1, 2, gl.FLOAT, false, 12, 0);
+    this.divisor(1, 1);
+    gl.enableVertexAttribArray(2);
+    gl.vertexAttribPointer(2, 1, gl.FLOAT, false, 12, 8);
+    this.divisor(2, 1);
+  },
+  drawQuad() {
+    const gl = this.gl;
+    if (this.quadVao) { this.bindVao(this.quadVao); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); this.bindVao(null); }
+    else { this.quadAttribs(); gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4); gl.disableVertexAttribArray(0); }
+  },
+  drawFrames(p, base) {
+    const gl = this.gl;
+    for (const [f, w] of [[this.prev, 1 - this.mix], [this.cur, this.mix]]) {
+      const a = base * w;
+      if (!f || !f.n || a < 0.004) continue;
+      gl.uniform1f(this.uni(p, 'u_alpha'), a);
+      if (f.vao) this.bindVao(f.vao); else this.spriteAttribs(f);
+      if (this.gl2) gl.drawArraysInstanced(gl.TRIANGLES, 0, 6, f.n); else this.inst.drawArraysInstancedANGLE(gl.TRIANGLES, 0, 6, f.n);
+      if (f.vao) this.bindVao(null);
+      else { this.divisor(1, 0); this.divisor(2, 0); [0, 1, 2].forEach(l => gl.disableVertexAttribArray(l)); }
+    }
+  },
+  target(w, h) {
+    const gl = this.gl, f = this.fmt;
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, f.internal, w, h, 0, f.format, f.type, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fbo = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    const ok = gl.checkFramebufferStatus(gl.FRAMEBUFFER) === gl.FRAMEBUFFER_COMPLETE;
+    return { tex, fbo, w, h, ok };
+  },
+  freeTargets() {
+    for (const t of [this.light, this.b1, this.b2]) if (t) { this.gl.deleteTexture(t.tex); this.gl.deleteFramebuffer(t.fbo); }
+    this.light = this.b1 = this.b2 = null;
+  },
+  // Device pixels per CSS pixel as actually drawn: MapLibre caps the canvas at 4096 px, so
+  // on 5K/6K screens this is less than devicePixelRatio.
+  pxr() { const w = this.map.getCanvas().clientWidth; return w ? this.gl.drawingBufferWidth / w : window.devicePixelRatio || 1; },
+  ensureTargets() {
+    const gl = this.gl, dpr = this.pxr();
+    this.res = Math.min(1, 2 / dpr);   // cap the light buffer at 2x density on 3x phones
+    const lw = Math.max(1, Math.round(gl.drawingBufferWidth * this.res)), lh = Math.max(1, Math.round(gl.drawingBufferHeight * this.res));
+    const key = `${lw}x${lh}x${this.hdr}`;
+    if (key === this.size) return;
+    this.freeTargets();
+    this.light = this.target(lw, lh);
+    if (!this.light.ok && this.hdr) { this.freeTargets(); this.fmt = this.LDR; this.hdr = false; this.light = this.target(lw, lh); }
+    const bw = Math.max(1, Math.round(lw / 4)), bh = Math.max(1, Math.round(lh / 4));
+    this.b1 = this.target(bw, bh);
+    this.b2 = this.target(bw, bh);
+    this.size = `${lw}x${lh}x${this.hdr}`;
+  },
+  setFrame(data) {   // GL uploads wait for the next draw, where MapLibre expects state changes
+    this.pending = data;
+    this.mix = reduceMotion ? 1 : 0;
+    if (this.map) this.map.triggerRepaint();
+  },
+  flush() {
+    if (!this.pending) return;
+    const gl = this.gl;
+    const f = this.frames[0] === this.cur ? this.frames[1] : this.frames[0];
+    gl.bindBuffer(gl.ARRAY_BUFFER, f.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, this.pending, gl.DYNAMIC_DRAW);
+    f.n = this.pending.length / 3;
+    if (!f.vao) {
+      f.vao = this.newVao();
+      if (f.vao) { this.bindVao(f.vao); this.spriteAttribs(f); this.bindVao(null); }
+    }
+    this.prev = this.cur;
+    this.cur = f;
+    this.pending = null;
+  },
+  setMatrix(p, args) {
+    // Fold the origin into the matrix in 64-bit maths, then hand 32-bit floats to the GPU.
+    const m = args && args.defaultProjectionData ? args.defaultProjectionData.mainMatrix : args;
+    for (let i = 0; i < 16; i++) this.mat[i] = m[i];
+    for (let i = 0; i < 4; i++) this.mat[12 + i] = m[i] * ORIGIN.x + m[4 + i] * ORIGIN.y + m[12 + i];
+    this.gl.uniformMatrix4fv(this.uni(p, 'u_matrix'), false, this.mat);
+  },
+  pass(p, src, dst, vec, flt = {}) {
+    const gl = this.gl;
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fbo);
+    gl.viewport(0, 0, dst.w, dst.h);
+    gl.useProgram(p);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, src);
+    gl.uniform1i(this.uni(p, 'u_tex'), 0);
+    for (const k in vec) gl.uniform2f(this.uni(p, k), vec[k][0], vec[k][1]);
+    for (const k in flt) gl.uniform1f(this.uni(p, k), flt[k]);
+    this.drawQuad();
+  },
+  prerender(gl, args) {
+    if (!this.ok) return;
+    this.flush();
+    this.lit = false;
+    if (!this.cur || this.night < 0.01) return;
+    this.ensureTargets();
+    const z = this.map.getZoom(), dpr = this.pxr(), L = this.light;
+    gl.disable(gl.DEPTH_TEST); gl.disable(gl.STENCIL_TEST); gl.disable(gl.SCISSOR_TEST); gl.disable(gl.CULL_FACE);
+    gl.colorMask(true, true, true, true);
+    // 1. Sum every taxi's light.
+    gl.bindFramebuffer(gl.FRAMEBUFFER, L.fbo);
+    gl.viewport(0, 0, L.w, L.h);
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    const p = this.pLight;
+    gl.useProgram(p);
+    this.setMatrix(p, args);
+    gl.uniform2f(this.uni(p, 'u_viewport'), L.w, L.h);
+    gl.uniform1f(this.uni(p, 'u_size'), stops(z, NIGHT_SIZE) * dpr * this.res);
+    gl.uniform1f(this.uni(p, 'u_time'), performance.now() / 1000);
+    gl.uniform1f(this.uni(p, 'u_twinkle'), reduceMotion ? 0 : 1);
+    gl.uniform1f(this.uni(p, 'u_scale'), this.hdr ? 1 : LDR_SCALE);
+    this.drawFrames(p, stops(z, NIGHT_ALPHA));
+    // 2. Bloom: quarter size, blurred twice each way.
+    gl.disable(gl.BLEND);
+    this.pass(this.pDown, L.tex, this.b1, { u_texel: [1 / L.w, 1 / L.h] }, { u_gain: this.hdr ? 1 : LDR_BLOOM_GAIN });
+    for (let i = 0; i < 3; i++) {
+      this.pass(this.pBlur, this.b1.tex, this.b2, { u_dir: [1.3 / this.b1.w, 0] });
+      this.pass(this.pBlur, this.b2.tex, this.b1, { u_dir: [0, 1.3 / this.b1.h] });
+    }
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    this.lit = true;
+  },
+  render(gl, args) {
+    if (!this.ok) return;
+    this.flush();
+    const z = this.map.getZoom(), dpr = this.pxr();
+    if (this.lit) {   // 3. Tone-map the light and screen it onto the map, which can never clip.
+      const p = this.pComp;
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_COLOR);
+      gl.useProgram(p);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, this.light.tex);
+      gl.uniform1i(this.uni(p, 'u_light'), 0);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, this.b1.tex);
+      gl.uniform1i(this.uni(p, 'u_bloom'), 1);
+      gl.uniform1f(this.uni(p, 'u_unscale'), this.hdr ? 1 : 1 / LDR_SCALE);
+      gl.uniform1f(this.uni(p, 'u_bunscale'), this.hdr ? 1 : 1 / (LDR_SCALE * LDR_BLOOM_GAIN));
+      gl.uniform1f(this.uni(p, 'u_ldr'), this.hdr ? 0 : 1);
+      gl.uniform1f(this.uni(p, 'u_bloomk'), stops(z, BLOOM));
+      gl.uniform1f(this.uni(p, 'u_exposure'), stops(z, EXPOSURE));
+      gl.uniform1f(this.uni(p, 'u_intensity'), this.night * this.strength);
+      this.drawQuad();
+      gl.activeTexture(gl.TEXTURE0);
+      // 4. Bright cores on top, so single taxis still sparkle inside a glowing cluster.
+      const c = this.pCore;
+      gl.useProgram(c);
+      this.setMatrix(c, args);
+      gl.uniform2f(this.uni(c, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
+      gl.uniform1f(this.uni(c, 'u_size'), stops(z, NIGHT_SIZE) * dpr * CORE_K);
+      gl.uniform1f(this.uni(c, 'u_time'), performance.now() / 1000);
+      gl.uniform1f(this.uni(c, 'u_twinkle'), reduceMotion ? 0 : 1);
+      if (this.maxEq) gl.blendEquation(this.maxEq);   // a core can brighten a pixel but cores never stack
+      this.drawFrames(c, 0.55 * this.night * this.strength);
+      gl.blendEquation(gl.FUNC_ADD);
+    }
+    if (this.dayDots > 0.01 && this.cur) {   // Day: halo, all rims, then all fills.
+      const p = this.pDot;
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.useProgram(p);
+      this.setMatrix(p, args);
+      gl.uniform2f(this.uni(p, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
+      gl.uniform1f(this.uni(p, 'u_size'), stops(z, DAY_SIZE) * dpr);
+      gl.uniform1f(this.uni(p, 'u_time'), 0);
+      gl.uniform1f(this.uni(p, 'u_twinkle'), 0);
+      for (const mode of [1, 2, 3]) {
+        gl.uniform1f(this.uni(p, 'u_mode'), mode);
+        this.drawFrames(p, this.dayDots);
+      }
+    }
+  },
+};
+
+/* ---------- lighting ----------
+   The Night basemap is only blended with the Default one while both are still dark,
+   so there is never a grey half-and-half. After that the Default basemap's own
+   brightness and saturation carry dawn and dusk, and a soft-light gradient warms the
+   side of the sky the sun is on (east at dawn, west at dusk). */
+const PRESETS = { morning: { alt: 0, rising: true }, day: { alt: 55, rising: true }, night: { alt: -25, rising: false } };
+const light = { mode: 'auto', alt: null, target: -25, rising: false, sky: '', nightReady: true, waiting: false };
+const skyEl = document.getElementById('sky');
+let mapReady = false;
+function lightTarget() {
+  if (light.mode === 'auto') {
+    const s = slots[view.shown];
+    const t = s && s.status === 'ok' ? shownTime(s).getTime() : Date.now();
+    light.target = sunAltitude(t);
+    light.rising = sunAltitude(t + 600e3) > light.target;
+  } else {
+    ({ alt: light.target, rising: light.rising } = PRESETS[light.mode]);
+  }
+  if (light.alt === null || reduceMotion) light.alt = light.target;
+  applyLight();
+  kick();
+}
+function applyLight() {
+  if (!mapReady || light.alt === null) return;
+  const a = light.alt;
+  const dayLayer = smooth(-11, -6, a);
+  const tw = Math.exp(-(((a - 0.5) / 5.5) ** 2));
+  glow.night = 1 - smooth(3, 5.5, a);
+  glow.dayDots = smooth(2.5, 4.5, a);
+  glow.strength = 1 - 0.35 * smooth(2, 6, a);   // lights soften only once the sun is properly up
+  // Show whichever basemaps are needed; hide one only after the other has its tiles.
+  if (a > -16) DMC.setBasemapVisible(map, 'Default', true);   // from -16°, so its tiles are in before it fades in
+  // A basemap that was hidden has no tiles yet, so wait for the map to go idle (every
+  // visible source loaded) before hiding the one it replaces.
+  if ((dayLayer >= 0.999 || dayLayer <= 0.001) && !light.waiting) {
+    light.waiting = true;
+    map.once('idle', () => {
+      light.waiting = false;
+      const d = smooth(-11, -6, light.alt);
+      if (d >= 0.999 && light.alt >= 2) { DMC.setBasemapVisible(map, 'Night', false); light.nightReady = false; stopNightWait(); }
+      else if (d <= 0.001 && light.alt <= -16) DMC.setBasemapVisible(map, 'Default', false);
+    });
+  }
+  // Night is shown (under an opaque Default) from 2° down, so its tiles are ready by dusk;
+  // Default only fades out once Night has been through an idle with its tiles loaded.
+  const nightShown = map.getLayoutProperty('basemap-Night', 'visibility') !== 'none';
+  if ((dayLayer < 0.999 || a < 2) && !nightShown) {
+    DMC.setBasemapVisible(map, 'Night', true);
+    light.nightReady = false;
+  }
+  if (dayLayer >= 0.999 && a >= 2 && !nightShown) light.nightReady = false;   // full day: Night has no tiles to count on
+  if (!light.nightReady && map.getLayoutProperty('basemap-Night', 'visibility') !== 'none') waitForNight();
+  DMC.setBasemapOpacity(map, 'Default', light.nightReady ? dayLayer : 1);
+  DMC.setBasemapPaint(map, 'Default', 'raster-brightness-max', 0.24 + 0.76 * smooth(-6, 16, a));
+  DMC.setBasemapPaint(map, 'Default', 'raster-saturation', 0.28 * tw - 0.08 * smooth(10, 30, a));
+  DMC.setBasemapPaint(map, 'Default', 'raster-contrast', 0.12 * tw);
+  map.setPaintProperty('shade', 'fill-opacity', 0.42 * (1 - dayLayer));
+  const sky = light.rising
+    ? 'linear-gradient(to left, rgba(255,150,60,.95) 0%, rgba(255,112,120,.55) 45%, rgba(70,100,200,.5) 100%)'
+    : 'linear-gradient(to right, rgba(255,120,80,.95) 0%, rgba(220,90,165,.55) 45%, rgba(60,70,165,.55) 100%)';
+  if (sky !== light.sky) { skyEl.style.background = sky; light.sky = sky; }
+  skyEl.style.opacity = (0.9 * tw).toFixed(3);
+  document.documentElement.style.setProperty('--glow', glow.night.toFixed(3));
+  map.getContainer().classList.toggle('daylit', glow.dayDots > 0.5);
+  map.triggerRepaint();
+}
+// Night counts as ready once the source the current zoom draws from has requested and
+// loaded its tiles. Checked on every render, so it also resolves during playback.
+// Only one check is ever pending; it is dropped if Night is hidden again first.
+let nightCheck = null;
+function stopNightWait() { if (nightCheck) { map.off('render', nightCheck); nightCheck = null; } }
+function waitForNight() {
+  if (nightCheck) return;
+  nightCheck = () => {
+    if (map.getLayoutProperty('basemap-Night', 'visibility') === 'none') { stopNightWait(); return; }
+    const z = map.getZoom(), caches = map.style && map.style.sourceCaches;
+    const ids = z < 9.5 ? ['basemap-Night-lo'] : z < 11 ? ['basemap-Night', 'basemap-Night-lo'] : ['basemap-Night'];
+    const ready = caches ? ids.some(id => caches[id] && caches[id].used && caches[id].loaded()) : map.areTilesLoaded();
+    if (ready) {
+      stopNightWait();
+      light.nightReady = true;
+      applyLight();
+    }
+  };
+  map.on('render', nightCheck);
+  map.triggerRepaint();
+}
+// Night tiles loaded for one view say nothing about the next. After a move while Default
+// still covers Night, wait for Night again, so a later fade never uncovers a blank map.
+map.on('moveend', () => {
+  if (!mapReady || light.alt === null) return;
+  if (smooth(-11, -6, light.alt) >= 0.999 && map.getLayoutProperty('basemap-Night', 'visibility') !== 'none') {
+    light.nightReady = false;
+    waitForNight();
+  }
+});
+const lightButtons = [...document.querySelectorAll('#light button')];
+lightButtons.forEach(b => b.addEventListener('click', () => {
+  light.mode = b.dataset.mode;
+  lightButtons.forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  lightTarget();
+}));
+
+/* ---------- busiest waiting spots ---------- */
+const PLACES = [
+  ['Changi Airport', 103.989, 1.357], ['Changi Business Park', 103.963, 1.334], ['Tampines', 103.945, 1.353],
+  ['Pasir Ris', 103.949, 1.373], ['Bedok', 103.930, 1.324], ['Paya Lebar', 103.893, 1.318], ['Marine Parade', 103.905, 1.302],
+  ['Kallang', 103.874, 1.304], ['Marina Bay Sands', 103.860, 1.284], ['Raffles Place', 103.851, 1.284],
+  ['Tanjong Pagar', 103.846, 1.276], ['Chinatown', 103.844, 1.284], ['Clarke Quay', 103.846, 1.290], ['Bugis', 103.856, 1.300],
+  ['Suntec City', 103.859, 1.294], ['Little India', 103.849, 1.307], ['Orchard Road', 103.832, 1.304], ['Novena', 103.844, 1.320],
+  ['Toa Payoh', 103.848, 1.333], ['Bishan', 103.848, 1.351], ['Ang Mo Kio', 103.849, 1.370], ['Serangoon', 103.873, 1.350],
+  ['Hougang', 103.892, 1.371], ['Sengkang', 103.895, 1.392], ['Punggol', 103.902, 1.405], ['Yishun', 103.835, 1.429],
+  ['Sembawang', 103.820, 1.449], ['Woodlands', 103.786, 1.437], ['Choa Chu Kang', 103.744, 1.385], ['Bukit Panjang', 103.762, 1.379],
+  ['Bukit Batok', 103.750, 1.349], ['Jurong East', 103.742, 1.333], ['Jurong West', 103.705, 1.340], ['Clementi', 103.765, 1.315],
+  ['Kent Ridge', 103.776, 1.296], ['one-north', 103.788, 1.300], ['Holland Village', 103.796, 1.311], ['Bukit Timah', 103.776, 1.341],
+  ['Queenstown', 103.806, 1.294], ['HarbourFront', 103.822, 1.265], ['Sentosa', 103.830, 1.250], ['Outram', 103.839, 1.280],
+  ['Tuas', 103.640, 1.320], ['Kranji', 103.762, 1.425],
+];
+function nearestPlace(lng, lat) {
+  let best = PLACES[0][0], bd = Infinity;
+  for (const [name, x, y] of PLACES) { const d = (x - lng) ** 2 + (y - lat) ** 2; if (d < bd) { bd = d; best = name; } }
+  return best;
+}
+function hotspots(coords) {
+  const cell = 0.0045, grid = new Map(), key = (i, j) => i * 100000 + j;   // ~500 m cells, counted in 1.5 km blocks
+  for (const [x, y] of coords) { const k = key(Math.floor(x / cell), Math.floor(y / cell)); grid.set(k, (grid.get(k) || 0) + 1); }
+  const cand = [];
+  for (const k of grid.keys()) {
+    const i = Math.floor(k / 100000), j = k - i * 100000;
+    let s = 0;
+    for (let di = -1; di <= 1; di++) for (let dj = -1; dj <= 1; dj++) s += grid.get(key(i + di, j + dj)) || 0;
+    cand.push([s, i, j]);
+  }
+  cand.sort((a, b) => b[0] - a[0]);
+  const picked = [];
+  for (const c of cand) {
+    if (picked.every(p => Math.hypot(p[1] - c[1], p[2] - c[2]) > 4)) picked.push(c);
+    if (picked.length === 8) break;
+  }
+  return picked.map(([n, i, j]) => {
+    let sx = 0, sy = 0, m = 0;
+    for (const [x, y] of coords) {
+      if (Math.abs(Math.floor(x / cell) - i) <= 1 && Math.abs(Math.floor(y / cell) - j) <= 1) { sx += x; sy += y; m++; }
+    }
+    return { lng: sx / m, lat: sy / m, n, name: nearestPlace(sx / m, sy / m) };
+  });
+}
+const hotMarkers = [1, 2, 3].map(rank => {
+  const e = document.createElement('div');
+  e.className = `hot r${rank}`;
+  e.innerHTML = '<span class="hot-in"><span class="lead"></span><span class="ring"></span><span class="lbl"><b></b><span></span><i></i></span></span>';
+  return { e, lbl: e.querySelector('.lbl'), num: e.querySelector('b'), name: e.querySelector('.lbl span'), place: e.querySelector('.lbl i'), lead: e.querySelector('.lead'),
+    added: false, marker: new maplibregl.Marker({ element: e, anchor: 'center' }).setLngLat([103.82, 1.35]) };
+});
+function updateHotspots() {
+  const s = slots[view.shown];
+  const hide = view.playing || !s || s.status !== 'ok';
+  map.getContainer().classList.toggle('hots-hidden', hide);
+  if (hide) return;
+  s.hot = s.hot || hotspots(s.coords);
+  layoutHotspots();
+}
+// Shows up to three of the busiest spots that are on screen, clear of the panels and at
+// least 40 px apart (56 on phones). Each label is tried in eight directions at three or four
+// distances and placed where it covers the fewest taxi lights without touching panels,
+// rings, other labels or leader lines. A label that sits away from its ring gets a leader
+// line; leaders never run past another ring or through a label, and a label is never put
+// where it reads as another ring's. A count-only chip is the fallback, then no label.
+const DIRS = [[1, 0], [-1, 0], [0, 1], [0, -1], [0.7071, 0.7071], [-0.7071, 0.7071], [0.7071, -0.7071], [-0.7071, -0.7071]];
+const segDist = (a, b, q) => {   // distance from point q to segment ab
+  const dx = b.x - a.x, dy = b.y - a.y, t = Math.max(0, Math.min(1, ((q.x - a.x) * dx + (q.y - a.y) * dy) / (dx * dx + dy * dy || 1)));
+  return Math.hypot(q.x - a.x - t * dx, q.y - a.y - t * dy);
+};
+const segHitsRect = (a, b, r) => {   // Liang–Barsky clip of segment ab against rect r
+  let t0 = 0, t1 = 1;
+  const dx = b.x - a.x, dy = b.y - a.y;
+  for (const [pp, qq] of [[-dx, a.x - r.l], [dx, r.r - a.x], [-dy, a.y - r.t], [dy, r.b - a.y]]) {
+    if (pp === 0) { if (qq < 0) return false; continue; }
+    const t = qq / pp;
+    if (pp < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; }
+  }
+  return t0 < t1;
+};
+const segsCross = (a, b, c, d) => {
+  const o = (p, q, r) => Math.sign((q.x - p.x) * (r.y - p.y) - (q.y - p.y) * (r.x - p.x));
+  return o(a, b, c) * o(a, b, d) < 0 && o(c, d, a) * o(c, d, b) < 0;
+};
+function layoutHotspots() {
+  const s = slots[view.shown];
+  if (!s || !s.hot || view.playing) return;
+  const c = map.getContainer(), w = c.clientWidth, h = c.clientHeight;
+  const over = (r, q) => r.r > q.l && r.l < q.r && r.b > q.t && r.t < q.b;
+  const blocks = [...document.querySelectorAll('[data-dmc-overlay], .maplibregl-ctrl-top-right .maplibregl-ctrl')]   // sheets and the zoom buttons
+    .map(e => e.getBoundingClientRect()).filter(b => b.width).map(b => ({ l: b.left - 6, r: b.right + 6, t: b.top - 6, b: b.bottom + 6 }));
+  hotBlocks = blocks;
+  const blocked = r => blocks.some(b => over(r, b));
+  const compact = COMPACT.matches;
+  const chosen = [];
+  for (const spot of s.hot) {
+    const p = map.project([spot.lng, spot.lat]), ring = { l: p.x - 15, r: p.x + 15, t: p.y - 15, b: p.y + 15 };
+    if (ring.l < 4 || ring.r > w - 4 || ring.t < 4 || ring.b > h - 4 || blocked(ring)) continue;   // whole ring on screen
+    if (chosen.some(q => Math.hypot(q.p.x - p.x, q.p.y - p.y) < (compact ? 56 : 40))) continue;
+    chosen.push({ spot, p, ring });
+    if (chosen.length === 3) break;
+  }
+  const pts = [];
+  for (const ll of s.coords) { const q = map.project(ll); if (q.x >= 0 && q.x <= w && q.y >= 0 && q.y <= h) pts.push(q.x, q.y); }
+  const covered = r => { let n = 0; for (let i = 0; i < pts.length; i += 2) if (pts[i] > r.l && pts[i] < r.r && pts[i + 1] > r.t && pts[i + 1] < r.b) n++; return n; };
+  // Other busy spots are obstacles too, so a label never sits on a hub it isn't about.
+  const hubs = s.hot.filter(spot => !chosen.some(ch => ch.spot === spot)).map(spot => map.project([spot.lng, spot.lat]));
+  const shownRings = chosen.map(ch => ch.ring), hubRings = hubs.map(q => ({ l: q.x - 12, r: q.x + 12, t: q.y - 12, b: q.y + 12 }));
+  const labels = [], leaders = [];
+  hotMarkers.forEach((hm, k) => {
+    const ch = chosen[k];
+    hm.e.classList.toggle('gone', !ch);
+    hm.active = false;
+    hm.box = null;
+    if (!ch) return;
+    const { spot, p } = ch;
+    const others = chosen.filter(o => o !== ch).map(o => o.p);
+    hm.num.textContent = nf.format(spot.n);
+    hm.name.textContent = `taxis near ${spot.name}`;
+    hm.place.textContent = spot.name;
+    hm.e.classList.toggle('compact', compact);   // phones: "331 Changi Airport"
+    hm.active = true;
+    hm.marker.setLngLat([spot.lng, spot.lat]);
+    if (!hm.added) { hm.marker.addTo(map); hm.added = true; }
+    hm.e.setAttribute('role', 'img');   // after addTo, which sets its own generic label
+    hm.e.setAttribute('aria-label', `${nf.format(spot.n)} taxis waiting near ${spot.name}`);
+    let best = null;
+    hm.e.classList.remove('nolbl');   // measure the label, not a hidden one
+    // The unshown busy spots are obstacles too; only if that leaves no room are they ignored.
+    for (const strict of [true, false]) {
+      if (best) break;
+      const rings = strict ? shownRings.concat(hubRings) : shownRings, avoid = strict ? hubs : [];
+      for (const short of [false, true]) {
+        hm.e.classList.toggle('short', short);
+        const lb = hm.lbl.getBoundingClientRect(), lw = lb.width, lh = lb.height;   // fractional, unlike offsetWidth
+        for (const dist of k === 0 ? [18, 50, 86, 122] : [18, 50, 86]) {
+          for (const [dx, dy] of DIRS) {
+            const ax = p.x + dx * dist, ay = p.y + dy * dist;
+            const T = dy > 0.1 ? ay : dy < -0.1 ? ay - lh : ay - lh / 2;
+            // Straight above or below, the label may also hang left or right of the ring.
+            const Ls = dx > 0.1 ? [ax] : dx < -0.1 ? [ax - lw] : [ax - lw / 2, ax - 16, ax - lw + 16];
+            Ls.forEach((L, j) => {
+              const r = { l: L, t: T, r: L + lw, b: T + lh };
+              if (r.l < 4 || r.t < 4 || r.r > w - 4 || r.b > h - 4 || blocked(r)) return;
+              if (rings.some(q => over(r, q)) || labels.some(q => over(r, { l: q.l - 6, r: q.r + 6, t: q.t - 6, b: q.b + 6 }))) return;
+              if (leaders.some(([a, b]) => segHitsRect(a, b, r))) return;
+              const n = { x: Math.min(Math.max(p.x, r.l), r.r), y: Math.min(Math.max(p.y, r.t), r.b) };
+              const led = Math.hypot(n.x - p.x, n.y - p.y) > 20;
+              if (led) {
+                if (blocks.some(b => segHitsRect(p, n, b))) return;   // a leader never runs under a panel
+                if (others.some(q => segDist(p, n, q) < 26) || avoid.some(q => segDist(p, n, q) < 14)) return;   // clear of the other rings' pulse
+                if (labels.some(q => segHitsRect(p, n, q)) || leaders.some(([a, b]) => segsCross(p, n, a, b))) return;
+              }
+              // A label nearer another ring than its own would be read as that ring's label;
+              // with a leader the line helps, but it still must not sit right beside another ring.
+              const gap = q => Math.hypot(Math.max(r.l - q.x, 0, q.x - r.r), Math.max(r.t - q.y, 0, q.y - r.b));
+              const own = gap(p);
+              let confusing = 0;
+              for (const q of others) {
+                const g = gap(q);
+                if (!led && g < own + 6) confusing = Math.max(confusing, 400);
+                if (led && g < 40) return;   // well clear of another ring and its pulse
+                if (led && g < own + 6) confusing = Math.max(confusing, 150);
+              }
+              const score = covered(r) + dist * 0.5 + (j ? 2 : 0) + (short ? (k === 0 ? 240 : 60) : 0) + confusing;   // the busiest spot keeps its name
+              if (!best || score < best.score) best = { score, r, short, led, n };
+            });
+          }
+        }
+      }
+    }
+    hm.e.classList.toggle('short', !!(best && best.short));
+    hm.e.classList.toggle('nolbl', !best);
+    hm.e.classList.remove('led');
+    if (!best) return;
+    labels.push(best.r);
+    hm.box = { dx: best.r.l - p.x, dy: best.r.t - p.y, w: best.r.r - best.r.l, h: best.r.b - best.r.t };
+    hm.lbl.style.left = `${best.r.l - p.x}px`;
+    hm.lbl.style.top = `${best.r.t - p.y}px`;
+    if (best.led) {
+      const nx = best.n.x - p.x, ny = best.n.y - p.y, len = Math.hypot(nx, ny);
+      leaders.push([{ x: p.x, y: p.y }, best.n]);
+      hm.e.classList.add('led');
+      hm.lead.style.width = `${len - 15}px`;
+      hm.lead.style.transform = `rotate(${Math.atan2(ny, nx)}rad) translateX(15px)`;
+    }
+  });
+}
+let layoutQueued = false, hotBlocks = [];
+function queueLayout() {
+  if (layoutQueued) return;
+  layoutQueued = true;
+  requestAnimationFrame(() => { layoutQueued = false; layoutHotspots(); });
+}
+// While the map moves, markers keep their spots and label offsets; one only hides if its
+// ring leaves the screen or its label would slide under a panel. Re-placed when the move ends.
+function followHotspots() {
+  const c = map.getContainer(), w = c.clientWidth, h = c.clientHeight;
+  const over = (r, q) => r.r > q.l && r.l < q.r && r.b > q.t && r.t < q.b;
+  for (const hm of hotMarkers) {
+    if (!hm.added || !hm.active) continue;
+    const p = map.project(hm.marker.getLngLat());
+    const ring = { l: p.x - 15, r: p.x + 15, t: p.y - 15, b: p.y + 15 };
+    const lb = hm.box && { l: p.x + hm.box.dx, t: p.y + hm.box.dy, r: p.x + hm.box.dx + hm.box.w, b: p.y + hm.box.dy + hm.box.h };
+    const ok = ring.l >= 4 && ring.r <= w - 4 && ring.t >= 4 && ring.b <= h - 4 && !hotBlocks.some(b => over(ring, b) || (lb && over(lb, b)));
+    if (hm.e.classList.contains('gone') === ok) hm.e.classList.toggle('gone', !ok);
+  }
+}
+map.on('move', () => { followHotspots(); kick(); });
+map.on('moveend', queueLayout);
+addEventListener('resize', queueLayout);
+// Sheets change size too (About opening, the panel's note changing): re-place the labels.
+{ const ro = new ResizeObserver(queueLayout); document.querySelectorAll('[data-dmc-overlay]').forEach(e => ro.observe(e)); }
+
+/* ---------- view ---------- */
+const $ = id => document.getElementById(id);
+const playBtn = $('play'), playIcon = $('play-icon'), countEl = $('count'), whenEl = $('when');
+const side = $('side'), note = $('note'), scrub = $('scrub'), sparkBox = $('spark'), svg = $('spark-svg'), tip = $('tip');
+const view = { target: LIVE, shown: -1, playing: false, timer: 0, hover: -1 };
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+const counter = { cur: null, from: 0, to: 0, t0: 0 };
+
+const liveChip = document.createElement('span');
+liveChip.className = 'chip-live';
+liveChip.setAttribute('role', 'status');
+liveChip.innerHTML = '<i aria-hidden="true"></i>Live';
+const offChip = document.createElement('span');   // the live request failed; the newest history is shown
+offChip.className = 'chip-live off';
+offChip.setAttribute('role', 'status');
+offChip.innerHTML = '<i aria-hidden="true"></i>Live feed down';
+const backBtn = document.createElement('button');
+backBtn.className = 'dmc-btn';
+backBtn.type = 'button';
+backBtn.textContent = 'Back to live';
+backBtn.addEventListener('click', () => setTarget(LIVE, true));
+
+function nearestLoaded(i) {
+  for (let d = 0; d <= LIVE; d++) {
+    if (isOk(i - d)) return i - d;
+    if (isOk(i + d)) return i + d;
+  }
+  return -1;
+}
+function display(i) {
+  if (!isOk(i)) return;
+  view.shown = i;
+  if (mapReady) glow.setFrame(slots[i].gl);
+  lightTarget();
+  renderReadout();
+  updateHotspots();
+  drawSpark();
+}
+function setTarget(i, byUser) {
+  if (byUser) pause();
+  view.target = i;
+  scrub.value = String(i);
+  const j = nearestLoaded(i);
+  if (j >= 0 && j !== view.shown) display(j);
+  else { renderReadout(); drawSpark(); }
+}
+function onSlot(i) {
+  if (!view.playing) {
+    const j = nearestLoaded(view.target);
+    if (j >= 0 && (j !== view.shown || j === i)) display(j); else drawSpark();
+  } else {
+    drawSpark();
+  }
+  renderProgress();
+  playBtn.disabled = loadedHistory() < 2;
+}
+function loadedHistory() {
+  let n = 0;
+  for (let i = 0; i < HIST; i++) if (isOk(i)) n++;
+  return n;
+}
+function setCount(n) {
+  if (counter.cur === null || reduceMotion) { counter.cur = n; counter.to = n; countEl.textContent = nf.format(n); return; }
+  counter.from = counter.cur;
+  counter.to = n;
+  counter.t0 = performance.now();
+  kick();
+}
+function renderReadout() {
+  const s = slots[view.shown];
+  if (!s || s.status !== 'ok') return;
+  const t = shownTime(s), atLive = view.shown === LIVE && view.target === LIVE;
+  setCount(s.count);
+  whenEl.textContent = atLive
+    ? `taxis free for hire now, ${fmtHM.format(t)}`
+    : `${COMPACT.matches ? 'free' : 'taxis free for hire'} at ${fmtHM.format(t)}, ${fmtDay.format(t).replace(/ /g, '\u00a0')}`;   // keep "Sun 1 Nov" on one line
+  const liveDown = view.target >= LIVE && !isOk(LIVE) && !view.playing;
+  const want = view.playing ? backBtn : atLive ? liveChip : liveDown ? offChip : backBtn;
+  if (side.firstChild !== want) {
+    const hadFocus = document.activeElement === backBtn;
+    side.replaceChildren(want);
+    if (hadFocus) playBtn.focus();
+  }
+  scrub.setAttribute('aria-valuetext', `${fmtHM.format(t)} ${fmtDay.format(t)}: ${nf.format(s.count)} taxis free`);
+}
+const hintEl = document.getElementById('hint');
+let touched = false;
+function noteTouched() { if (touched) return; touched = true; hintEl.classList.remove('on'); drawSpark(); }
+function renderProgress() {
+  let ok = 0, failed = 0;
+  for (let i = 0; i < HIST; i++) {
+    if (slots[i].status === 'ok') ok++;
+    else if (slots[i].status === 'error') failed++;
+  }
+  const done = ok + failed >= HIST;
+  note.classList.toggle('done', done);
+  if (!done) note.textContent = `Loading 24 hours: ${ok} of ${HIST}`;
+  else if (failed) note.textContent = `${failed} of ${HIST} snapshots unavailable`;
+  else note.textContent = 'Drag the chart or press play';
+  const want = done && !touched && !failed;
+  if (hintEl.classList.contains('on') !== want) { hintEl.classList.toggle('on', want); drawSpark(); }
+}
+function showError() {
+  if (isOk(view.shown)) { renderReadout(); return; }   // history is on show; the chip says live is down
+  countEl.textContent = '–';
+  whenEl.textContent = "Couldn't load taxi positions from data.gov.sg. Check your connection; the page retries every minute.";
+}
+
+/* ---------- playback ---------- */
+const PLAY = 'M5 2.4v11.2L13.8 8z', PAUSE = 'M3.8 2.4h3v11.2h-3zM9.2 2.4h3v11.2h-3z';
+function setPlayIcon() {
+  playIcon.setAttribute('d', view.playing ? PAUSE : PLAY);
+  playBtn.setAttribute('aria-label', view.playing ? 'Pause' : 'Play the last 24 hours');
+}
+function play() {
+  if (view.playing || playBtn.disabled) return;
+  view.playing = true;
+  if (view.target >= LIVE) view.target = -1;   // from live, start at the oldest snapshot
+  setPlayIcon();
+  tick();
+}
+function tick() {
+  if (!view.playing) return;
+  let n = -1;
+  for (let i = view.target + 1; i <= LIVE && n < 0; i++) if (isOk(i)) n = i;
+  for (let i = 0; i <= LIVE && n < 0; i++) if (isOk(i)) n = i;
+  if (n < 0) return pause();
+  view.target = n;
+  scrub.value = String(n);
+  display(n);
+  view.timer = setTimeout(tick, n === LIVE ? 1600 : 340);
+}
+function pause() {
+  if (!view.playing) return;
+  view.playing = false;
+  clearTimeout(view.timer);
+  setPlayIcon();
+  renderReadout();
+  updateHotspots();
+}
+playBtn.addEventListener('click', () => { noteTouched(); if (view.playing) pause(); else play(); });
+addEventListener('keydown', e => {
+  if (e.key !== ' ' || e.target instanceof HTMLButtonElement || e.target instanceof HTMLAnchorElement) return;
+  e.preventDefault();
+  if (view.playing) pause(); else play();
+});
+
+/* ---------- 24-hour chart ---------- */
+const NS = 'http://www.w3.org/2000/svg';
+const M = { t: 12, r: 6, b: 18, l: 34 };
+function sv(tag, attrs, text, parent = svg) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text != null) e.textContent = text;
+  parent.append(e);
+  return e;
+}
+function niceStep(max) {
+  const raw = max / 3, p = 10 ** Math.floor(Math.log10(raw)), f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+function geometry() {
+  const W = sparkBox.clientWidth, H = sparkBox.clientHeight;
+  M.l = H < 70 ? 6 : 34;   // compact charts drop the y labels and use the width
+  const t0 = slots[0].t, t1 = Math.max(slotTime(slots[LIVE]), slots[HIST - 1].t + 60e3);
+  let max = 0;
+  for (const s of slots) if (s.status === 'ok') max = Math.max(max, s.count);
+  if (!max) max = 4000;
+  const top = max * 1.16;
+  return {
+    W, H, t0, t1, max, step: niceStep(max), base: H - M.b,
+    x: t => M.l + (t - t0) / (t1 - t0) * (W - M.l - M.r),
+    y: v => M.t + (1 - v / top) * (H - M.t - M.b),
+  };
+}
+function drawSpark() {
+  const g = geometry();
+  if (!g.W) return;
+  svg.replaceChildren();
+  svg.setAttribute('viewBox', `0 0 ${g.W} ${g.H}`);
+  const defs = sv('defs', {});
+  const grad = sv('linearGradient', { id: 'spark-fill', x1: 0, y1: 0, x2: 0, y2: 1 }, null, defs);
+  sv('stop', { offset: '0%', 'stop-color': '#FFB547', 'stop-opacity': 0.32 }, null, grad);
+  sv('stop', { offset: '100%', 'stop-color': '#FFB547', 'stop-opacity': 0 }, null, grad);
+
+  // Daylight bands (sun above the horizon), from the same sun model that lights the map.
+  let start = null, widest = null;
+  for (let t = g.t0; t <= g.t1 + 1; t += 5 * 60e3) {
+    const up = sunAltitude(t) > -0.833;
+    if (up && start === null) start = t;
+    if ((!up || t + 5 * 60e3 > g.t1) && start !== null) {
+      const x0 = g.x(start), x1 = g.x(Math.min(t, g.t1));
+      sv('rect', { class: 'daylight', x: x0, y: M.t - 8, width: Math.max(0, x1 - x0), height: g.base - M.t + 8 });
+      if (!widest || x1 - x0 > widest[1] - widest[0]) widest = [x0, x1];
+      start = null;
+    }
+  }
+  const labels = view.hover < 0;   // the tooltip replaces direct labels while it shows
+  const compact = g.H < 70;
+  // Things labels must not touch: the replay cursor and the drag hint.
+  const blockers = [];
+  const shownSlot = slots[view.shown];
+  if (shownSlot && shownSlot.status === 'ok' && view.shown !== LIVE) blockers.push({ x: g.x(slotTime(shownSlot)) - 4, y: 0, width: 8, height: g.H });
+  if (getComputedStyle(hintEl).display !== 'none') blockers.push({ x: hintEl.offsetLeft - hintEl.offsetWidth / 2, y: hintEl.offsetTop, width: hintEl.offsetWidth, height: hintEl.offsetHeight });
+  const hitsAny = (box, list) => list.some(q => !(box.x + box.width + 4 < q.x || q.x + q.width + 4 < box.x || box.y + box.height < q.y || q.y + q.height < box.y));
+  let dayLbl = null;   // drawn under the line; dropped below if a value label needs its spot
+  if (labels && widest && widest[1] - widest[0] > 70) {
+    dayLbl = sv('text', { class: 'daylabel', x: widest[0] + 5, y: M.t + 1 }, 'Daylight');
+    if (hitsAny(dayLbl.getBBox(), blockers)) { dayLbl.remove(); dayLbl = null; }
+  }
+
+  for (let v = g.step; v <= g.max; v += g.step) {
+    const yy = Math.round(g.y(v)) + 0.5;
+    sv('line', { class: 'grid', x1: M.l, x2: g.W, y1: yy, y2: yy });
+    if (!compact) sv('text', { x: M.l - 6, y: yy + 3.5, 'text-anchor': 'end' }, nf.format(v));
+  }
+  if (!compact) sv('text', { x: M.l - 6, y: g.base + 3.5, 'text-anchor': 'end' }, '0');
+  const H6 = 6 * 3600e3;
+  for (let t = Math.ceil((g.t0 + SGT) / H6) * H6 - SGT; t < g.t1; t += H6) {
+    const xx = Math.round(g.x(t)) + 0.5;
+    if (xx > g.W - 46) continue;
+    sv('line', { class: 'grid', x1: xx, x2: xx, y1: M.t - 4, y2: g.base });
+    sv('text', { x: xx, y: g.H - 4, 'text-anchor': xx < M.l + 16 ? 'start' : 'middle' }, fmtHM.format(t));
+  }
+  sv('text', { x: g.W, y: g.H - 4, 'text-anchor': 'end' }, 'Now');
+  sv('line', { class: 'base', x1: M.l, x2: g.W, y1: g.base + 0.5, y2: g.base + 0.5 });
+
+  for (const s of slots) if (!s.live && s.status !== 'ok') sv('rect', { class: 'pend', x: g.x(s.t) - 1, y: g.base - 4, width: 2, height: 2 });
+  const ok = slots.filter(s => s.status === 'ok');
+  const pts = ok.map(s => [g.x(slotTime(s)), g.y(s.count)]);
+  if (pts.length > 1) {
+    const d = pts.map((p, k) => `${k ? 'L' : 'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join('');
+    sv('path', { class: 'area', d: `${d}L${pts[pts.length - 1][0].toFixed(1)},${g.base}L${pts[0][0].toFixed(1)},${g.base}Z` });
+    sv('path', { class: 'line', d });
+  }
+  const lv = slots[LIVE], taken = [...blockers];
+  const clear = box => !hitsAny(box, taken);
+  if (labels && lv.status === 'ok') {
+    const ex = g.x(slotTime(lv)), ey = g.y(lv.count);
+    const t = sv('text', { class: 'val halo', x: ex - 9, y: Math.max(11, ey - 7), 'text-anchor': 'end' }, nf.format(lv.count));
+    const box = t.getBBox();
+    if (clear(box)) taken.push(box); else t.remove();
+  }
+  if (labels && ok.length >= 24) {   // most and fewest, once most of the day has loaded, never on top of another label
+    const hi = ok.reduce((a, b) => (b.count > a.count ? b : a)), lo = ok.reduce((a, b) => (b.count < a.count ? b : a));
+    for (const [s, word] of [[hi, 'Most'], [lo, 'Fewest']]) {
+      const x = g.x(slotTime(s)), y = g.y(s.count);
+      if (s.live) continue;
+      const t = sv('text', { class: 'val halo', x: Math.min(Math.max(x, M.l + 30), g.W - 40), y: y - 7, 'text-anchor': 'middle' }, `${word} ${nf.format(s.count)}`);
+      const box = t.getBBox();
+      if (box.x + box.width > g.W || !clear(box)) { t.remove(); continue; }
+      taken.push(box);
+      sv('circle', { class: 'ext', cx: x, cy: y, r: 3 });
+    }
+  }
+  if (dayLbl && hitsAny(dayLbl.getBBox(), taken)) dayLbl.remove();   // the numbers matter more
+  if (view.hover >= 0 && isOk(view.hover)) {
+    const hx = Math.round(g.x(slotTime(slots[view.hover]))) + 0.5;
+    sv('line', { class: 'hover', x1: hx, x2: hx, y1: M.t - 8, y2: g.base });
+  }
+  const sh = slots[view.shown];
+  if (sh && sh.status === 'ok' && view.shown !== LIVE) {
+    const cx = Math.round(g.x(slotTime(sh))) + 0.5;
+    sv('line', { class: 'cursor', x1: cx, x2: cx, y1: M.t - 8, y2: g.base });
+    sv('circle', { class: 'dot', cx, cy: g.y(sh.count), r: 4.5 });
+  }
+  if (lv.status === 'ok') sv('circle', { class: 'dot', cx: g.x(slotTime(lv)), cy: g.y(lv.count), r: 4.5 });
+}
+function indexAt(clientX) {
+  const r = sparkBox.getBoundingClientRect(), g = geometry(), px = clientX - r.left;
+  let best = 0, bd = Infinity;
+  slots.forEach((s, i) => { const d = Math.abs(g.x(slotTime(s)) - px); if (d < bd) { bd = d; best = i; } });
+  return best;
+}
+function showTip(i) {
+  if (i < 0 || !isOk(i)) return hideTip();
+  view.hover = i;
+  const s = slots[i], g = geometry(), t = shownTime(s);
+  const b = document.createElement('b');
+  b.textContent = `${nf.format(s.count)} taxis`;
+  tip.replaceChildren(b, document.createTextNode(`${fmtHM.format(t)}, ${fmtDay.format(t)}`));
+  tip.style.display = 'block';
+  const w = tip.offsetWidth, x = g.x(slotTime(s));
+  tip.style.left = `${x + 12 + w <= g.W ? x + 12 : Math.max(M.l, x - 12 - w)}px`;
+  drawSpark();
+}
+function hideTip() {
+  if (view.hover < 0) return;
+  view.hover = -1;
+  tip.style.display = 'none';
+  drawSpark();
+}
+let dragging = false;
+sparkBox.addEventListener('pointerdown', e => {
+  noteTouched();
+  dragging = true;
+  sparkBox.setPointerCapture(e.pointerId);
+  scrub.focus({ preventScroll: true });
+  setTarget(indexAt(e.clientX), true);
+});
+sparkBox.addEventListener('pointermove', e => {
+  const i = indexAt(e.clientX);
+  if (dragging) setTarget(i, true);
+  if (e.pointerType === 'mouse' || dragging) showTip(nearestLoaded(i));
+});
+sparkBox.addEventListener('pointerup', e => { dragging = false; if (e.pointerType !== 'mouse') hideTip(); });
+sparkBox.addEventListener('pointercancel', () => { dragging = false; hideTip(); });
+sparkBox.addEventListener('pointerleave', () => { if (!dragging) hideTip(); });
+scrub.addEventListener('input', () => { noteTouched(); setTarget(Number(scrub.value), true); showTip(view.shown); });
+scrub.addEventListener('blur', hideTip);
+new ResizeObserver(() => drawSpark()).observe(sparkBox);
+
+/* ---------- map layers ---------- */
+map.on('load', () => {
+  const veil = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[102.5, 0.4], [105.5, 0.4], [105.5, 2.4], [102.5, 2.4], [102.5, 0.4]]] } };
+  map.addSource('veil', { type: 'geojson', data: veil });
+  map.addLayer({ id: 'shade', type: 'fill', source: 'veil', paint: { 'fill-color': '#030812', 'fill-opacity': 0 } });
+  map.addLayer(glow);
+  mapReady = true;
+  if (isOk(view.shown)) display(view.shown); else lightTarget();
+});
+
+/* ---------- animation loop: easing light, count, crossfades, twinkle ----------
+   Runs only while something moves. The twinkle keeps going for 20 s after the last
+   activity, at 10 frames a second, then the map rests. */
+let rafOn = false, lastT = 0, lastTwinkle = 0, activeUntil = 0;
+function kick(ms = 20000) {
+  activeUntil = Math.max(activeUntil, performance.now() + ms);
+  if (!rafOn) { rafOn = true; lastT = performance.now(); requestAnimationFrame(loop); }
+}
+function loop(now) {
+  const dt = Math.min(100, now - lastT);
+  lastT = now;
+  let busy = false;
+  if (light.alt !== null && Math.abs(light.alt - light.target) > 0.05) {
+    light.alt += (light.target - light.alt) * (1 - Math.exp(-dt / 280));
+    applyLight();
+    busy = true;
+  }
+  if (glow.mix < 1) { glow.mix = Math.min(1, glow.mix + dt / 280); busy = true; }
+  if (counter.t0) {
+    const p = Math.min(1, (now - counter.t0) / 300);
+    counter.cur = Math.round(counter.from + (counter.to - counter.from) * (1 - (1 - p) ** 3));
+    countEl.textContent = nf.format(counter.cur);
+    if (p >= 1) counter.t0 = 0;
+  }
+  const twinkling = mapReady && glow.night > 0.05 && !reduceMotion && now < activeUntil;
+  if (mapReady) {
+    if (busy) map.triggerRepaint();
+    else if (twinkling && now - lastTwinkle > 100) { lastTwinkle = now; map.triggerRepaint(); }
+  }
+  if (busy || twinkling || counter.t0 || view.playing) requestAnimationFrame(loop);
+  else rafOn = false;
+}
+
+/* ---------- start ---------- */
+drawSpark();
+refreshLive();
+backfill();
+setInterval(refreshLive, 60e3);
+kick();
+</script>
+</body>
+</html>
