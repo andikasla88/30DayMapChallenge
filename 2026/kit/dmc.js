@@ -100,7 +100,7 @@ const DMC = (() => {
     foot.append(el('span', null, day.author ? `#30DayMapChallenge by ${day.author}` : '#30DayMapChallenge 2026'), el('span', null, day.creditsEl ? '' : (day.credit || '')));
     const body = el('div', 'dmc-body');
     body.id = 'dmc-body';
-    body.append(el('p', 'dmc-deck', day.deck || ''), index, keys, foot);
+    body.append(...(day.deck ? [el('p', 'dmc-deck', day.deck)] : []), index, keys, foot);
 
     const setOpen = open => {
       host.classList.toggle('open', open);
