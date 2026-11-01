@@ -1,0 +1,807 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#04060C">
+<title>Day 05 · Who can see the fireworks from home?</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 5, Sight: a viewshed of the Marina Bay fireworks. Every building within 8 km, lit gold from the floor where a straight line to the bursts clears every tower and hill in the way.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304060C'/%3E%3Cg stroke='%23FFC15E' stroke-width='2.2' stroke-linecap='round'%3E%3Cpath d='M16 5v5M16 22v5M5 16h5M22 16h5M8.2 8.2l3.5 3.5M20.3 20.3l3.5 3.5M8.2 23.8l3.5-3.5M20.3 11.7l3.5-3.5'/%3E%3C/g%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 05: night viewshed, fireworks, ticket ===== */
+:root { --gold: #FFC15E; --gold-rgb: 255, 193, 94; --slate: #8C9AB8; --mono: "JetBrains Mono", ui-monospace, Consolas, monospace; }
+/* Night air: a dark sky band at the horizon and a vignette, above the map, under the sheets. */
+.sky { position: fixed; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(to bottom, rgba(10, 16, 40, .55), rgba(10, 16, 40, 0) 22%); }
+.flash { position: fixed; z-index: 1; left: 0; top: 0; width: 70vmin; height: 70vmin; margin: -35vmin 0 0 -35vmin; pointer-events: none; opacity: 0; mix-blend-mode: screen;
+  background: radial-gradient(closest-side, rgba(255, 200, 130, .5), rgba(255, 150, 70, .16) 45%, transparent); will-change: transform, opacity; }
+.vignette { position: fixed; inset: 0; z-index: 1; pointer-events: none; background: radial-gradient(120% 95% at 50% 46%, transparent 52%, rgba(0, 1, 6, .78) 100%); }
+
+/* ---- console: one slim bar, bottom centre ---- */
+.sx-bar { left: 50%; transform: translateX(-50%); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: min(820px, calc(100% - 2 * var(--gutter))); padding: 10px 12px 10px 14px;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 6px 14px; }
+.sx-hero { font-family: var(--display); font-size: 32px; font-weight: 800; line-height: .85; color: var(--gold); letter-spacing: .01em;
+  text-shadow: 0 0 18px rgba(var(--gold-rgb), .55); font-variant-numeric: tabular-nums; min-width: 2.2em; }
+.sx-lede { font-size: 12.5px; line-height: 1.4; color: var(--text-2); }
+.sx-lede b { color: var(--text); font-weight: 600; }
+.sx-ctl { display: flex; align-items: center; gap: 8px; }
+.sx-row2 { grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 14px; border-top: 1px solid var(--line); padding-top: 8px; }
+.sx-key { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 14px; font-size: 11px; color: var(--text-2); }
+.sx-key i { display: inline-block; width: 9px; height: 14px; border-radius: 2px; vertical-align: -3px; margin-right: 6px; }
+.sx-key .k-gold { background: linear-gradient(#FFE2A0, #FF9F2E); box-shadow: 0 0 8px rgba(var(--gold-rgb), .7); }
+.sx-key .k-slate { background: linear-gradient(#3A4764, #1C2436); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, .12); }
+.sx-key .k-red { background: linear-gradient(#FF8A80, #B7404E); }
+.dmc-seg button[aria-pressed="true"] { color: #1A1006; background: var(--gold); box-shadow: 0 0 12px rgba(var(--gold-rgb), .45); }
+#orbit:disabled { opacity: .45; cursor: default; }
+#orbit[aria-pressed="true"] { color: var(--gold); border-color: rgba(var(--gold-rgb), .5); }
+#orbit svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+/* ---- find my block ---- */
+.sx-find { position: relative; flex: 1 1 220px; max-width: 300px; }
+.sx-find input { width: 100%; font: inherit; font-size: 12.5px; color: var(--text); background: rgba(255, 255, 255, .06); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px 6px 30px; min-height: 32px; }
+.sx-find input::placeholder { color: rgba(238, 242, 247, .5); }
+.sx-find input:focus-visible { outline: 2px solid var(--gold); outline-offset: 1px; }
+.sx-find svg { position: absolute; left: 10px; top: 50%; width: 13px; height: 13px; transform: translateY(-50%); fill: none; stroke: var(--text-2); stroke-width: 1.8; stroke-linecap: round; pointer-events: none; }
+.sx-list { position: absolute; left: 0; right: 0; bottom: calc(100% + 6px); margin: 0; padding: 4px; list-style: none; max-height: 260px; overflow-y: auto; }
+.sx-list[hidden] { display: none; }
+.sx-list li { display: flex; justify-content: space-between; gap: 10px; padding: 6px 9px; border-radius: 8px; font-size: 12.5px; cursor: pointer; }
+.sx-list li small { color: var(--text-2); font-size: 11px; white-space: nowrap; }
+.sx-list li small.y { color: var(--gold); }
+.sx-list li[aria-selected="true"], .sx-list li:hover { background: rgba(var(--gold-rgb), .14); }
+.sx-list .none { color: var(--text-2); cursor: default; }
+
+/* ---- the ticket ---- */
+.ticket { position: absolute; z-index: 3; width: 268px; padding: 0; overflow: visible; border-color: rgba(var(--gold-rgb), .35);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, .3), 0 18px 40px rgba(0, 0, 0, .5), 0 0 30px rgba(var(--gold-rgb), .12); }
+.ticket[hidden] { display: none; }
+.ticket.none { border-color: rgba(140, 154, 184, .35); box-shadow: 0 18px 40px rgba(0, 0, 0, .5); }
+.t-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 8px 8px 7px 12px; }
+.t-admit { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--gold); }
+.ticket.none .t-admit { color: var(--slate); }
+.t-close { position: relative; width: 26px; height: 26px; display: grid; place-items: center; border: 0; border-radius: 999px; background: rgba(255, 255, 255, .07); color: var(--text-2); cursor: pointer; font-size: 15px; line-height: 1; }
+.t-close::after { content: ""; position: absolute; inset: -9px; }
+.t-close:hover { color: var(--text); background: rgba(255, 255, 255, .14); }
+.t-perf { position: relative; height: 0; border-top: 1.5px dashed rgba(255, 255, 255, .2); margin: 0 10px; }
+.t-perf::before, .t-perf::after { content: ""; position: absolute; top: -8px; width: 14px; height: 14px; border-radius: 50%; background: #05070D; border: 1px solid rgba(var(--gold-rgb), .35); }
+.t-perf::before { left: -18px; clip-path: inset(0 0 0 50%); }
+.t-perf::after { right: -18px; clip-path: inset(0 50% 0 0); }
+.ticket.none .t-perf::before, .ticket.none .t-perf::after { border-color: rgba(140, 154, 184, .35); }
+.t-body { padding: 9px 12px 11px; display: grid; gap: 6px; }
+.t-name { font-size: 14.5px; font-weight: 700; line-height: 1.2; }
+.t-big { font-family: var(--display); font-size: 25px; font-weight: 800; line-height: .95; color: var(--gold); text-shadow: 0 0 14px rgba(var(--gold-rgb), .45); letter-spacing: .01em; }
+.ticket.none .t-big { color: #B9C4DA; text-shadow: none; }
+.t-sub { font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.t-sub b { color: var(--text); font-weight: 600; }
+.t-meta { display: flex; flex-wrap: wrap; gap: 3px 12px; font-family: var(--mono); font-size: 10.5px; color: var(--text-2); }
+.t-meta span b { color: var(--text); font-weight: 700; }
+.ticket::before { content: ""; position: absolute; right: 100%; top: var(--tip-y, 40px); width: 26px; height: 1px; background: linear-gradient(to left, rgba(var(--gold-rgb), .75), transparent); }
+.ticket.left::before { right: auto; left: 100%; background: linear-gradient(to right, rgba(var(--gold-rgb), .75), transparent); }
+.ticket.none::before { background: linear-gradient(to left, rgba(140, 154, 184, .7), transparent); }
+.ticket.none.left::before { background: linear-gradient(to right, rgba(140, 154, 184, .7), transparent); }
+
+/* ---- place labels ---- */
+.place { font-size: 10.5px; font-weight: 600; letter-spacing: .16em; text-transform: uppercase; color: rgba(214, 224, 245, .58); text-shadow: 0 1px 3px #000, 0 0 10px #000; pointer-events: none; white-space: nowrap; }
+.place.barge { color: var(--gold); letter-spacing: .12em; font-size: 10.5px; }
+.place.barge::before { content: ""; display: block; width: 7px; height: 7px; margin: 0 auto 4px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 10px var(--gold); }
+
+.sx-load { position: absolute; z-index: 3; left: 50%; top: 46%; transform: translate(-50%, -50%); font-family: var(--mono); font-size: 11px; letter-spacing: .14em; text-transform: uppercase; color: var(--text-2); }
+.sx-load[hidden] { display: none; }
+
+@media (max-width: 640px), (max-height: 520px) {
+  .sx-bar { grid-template-columns: auto 1fr; padding: 9px 11px 9px 12px; gap: 6px 10px; }
+  .sx-hero { font-size: 28px; }
+  .sx-lede { font-size: 12px; }
+  .sx-ctl { grid-column: 1 / -1; justify-content: space-between; }
+  .sx-ctl .dmc-seg { flex: 1; }
+  .sx-ctl .dmc-seg button { flex: 1; }
+  .sx-key { display: none; }
+  .sx-find { max-width: none; }
+  .ticket { width: min(300px, calc(100vw - 2 * var(--gutter))); }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .sx-bar { left: 0; right: 0; bottom: 0; width: auto; transform: none; border-bottom: 0; border-radius: 16px 16px 0 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  /* On phones the ticket docks above the sheet instead of floating by the building. */
+  .ticket.docked { left: var(--gutter) !important; right: var(--gutter); top: auto !important; bottom: calc(var(--sheet-h, 150px) + 10px); width: auto; }
+  .ticket.docked::before { display: none; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .sx-bar { left: auto; right: calc(var(--gutter) + 46px); transform: none; width: min(360px, 52vw); }
+  .sx-row2 { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="3D night map of buildings within 8 km of Marina Bay, lit gold on the floors that can see the fireworks"></div>
+<div class="sky" aria-hidden="true"></div>
+<div class="vignette" aria-hidden="true"></div>
+<div id="flash" class="flash" aria-hidden="true"></div>
+<p id="load" class="sx-load" role="status">Tracing sight lines…</p>
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="bar" class="dmc-glass sx-bar" data-dmc-overlay aria-label="Fireworks viewshed summary and controls">
+  <p id="hero" class="sx-hero" aria-hidden="true">&ndash;</p>
+  <p id="lede" class="sx-lede" aria-live="polite">Loading…</p>
+  <div class="sx-ctl">
+    <div id="burst" class="dmc-seg" role="group" aria-label="Height of the firework bursts">
+      <button type="button" data-z="150" aria-pressed="true">150 m shells</button>
+      <button type="button" data-z="250" aria-pressed="false">250 m shells</button>
+    </div>
+  </div>
+  <div class="sx-row2">
+    <div class="sx-key" aria-hidden="true">
+      <span><i class="k-gold"></i>floors with a clear line to the bursts</span>
+      <span><i class="k-slate"></i>view blocked</span>
+    </div>
+    <div class="sx-find">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="7" cy="7" r="4.5"/><path d="M10.4 10.4 14 14"/></svg>
+      <input id="q" type="search" placeholder="Find my block, e.g. 53 Toa Payoh" autocomplete="off" spellcheck="false"
+        role="combobox" aria-expanded="false" aria-controls="list" aria-autocomplete="list" aria-label="Find a block or building">
+      <ul id="list" class="dmc-glass sx-list" role="listbox" aria-label="Matching buildings" hidden></ul>
+    </div>
+    <button id="orbit" class="dmc-btn" type="button" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.6 2.2v2.6H11"/></svg>Orbit</button>
+  </div>
+</section>
+
+<article id="ticket" class="dmc-glass ticket dmc-chrome" hidden aria-live="polite" aria-label="Selected building">
+  <div class="t-head"><span id="t-admit" class="t-admit">Admit one</span><button id="t-close" class="t-close" type="button" aria-label="Close">&times;</button></div>
+  <div class="t-perf" aria-hidden="true"></div>
+  <div class="t-body">
+    <p id="t-name" class="t-name"></p>
+    <p id="t-big" class="t-big"></p>
+    <p id="t-sub" class="t-sub"></p>
+    <p id="t-meta" class="t-meta"></p>
+  </div>
+</article>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const BARGE = [103.8575, 1.2862];
+const DAY = {
+  n: 5,
+  title: 'Who can see the fireworks from home?',
+  deck: 'Every building within 8 km of the Marina Bay barge, traced floor by floor. A floor glows gold when a straight line from its bay-facing side to the bursts clears every tower and hill in between (earth curvature included, trees not). Heights come from OpenStreetMap and HDB floor counts. Pick a building for its ticket, or search for your block.',
+  accent: '#FFC15E',
+  basemap: 'Night',
+  underlay: 'esri-imagery',
+  underlayPaint: { 'raster-brightness-max': 0.16, 'raster-saturation': -0.6 },
+  basemapBg: '#04060C',
+  basemapPaint: { 'raster-brightness-max': 0.42, 'raster-saturation': -0.55, 'raster-contrast': 0.1 },
+  bounds: [[103.784, 1.214], [103.931, 1.359]],
+  camera: { pitch: 70, bearing: 165, tiltPitch: 68 },
+  buildings: false,
+  author: '',
+  nav: null,
+  attribution: [
+    'Buildings: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors (ODbL), via the <a href="https://download.bbbike.org/osm/bbbike/Singapore/" target="_blank" rel="noopener noreferrer">BBBike</a> extract of 24 Oct 2026',
+    'HDB floors and flats: <a href="https://data.gov.sg/datasets/d_17f5382f26140b1fdae0ba2ef6239d2f/view" target="_blank" rel="noopener noreferrer">HDB Property Information</a>, data.gov.sg (Singapore Open Data Licence)',
+    'Ground: <a href="https://registry.opendata.aws/terrain-tiles/" target="_blank" rel="noopener noreferrer">AWS Terrain Tiles</a> (SRTM and others)',
+  ],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY, { antialias: true });
+window.map = map;
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const params = new URLSearchParams(location.search);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+const PHONE = matchMedia('(max-width: 640px) and (orientation: portrait)');
+
+/* ---------- geometry helpers: metres east/north of the barge ---------- */
+const LAT0 = BARGE[1] * Math.PI / 180;
+const MX = 111320 * Math.cos(LAT0), MY = 110574;
+const toM = ([lng, lat]) => [(lng - BARGE[0]) * MX, (lat - BARGE[1]) * MY];
+
+/* ---------- state ---------- */
+let D = null;                  // decoded buildings
+let Z = params.get('burst') === '250' ? 250 : 150;
+let sel = -1, blocker = -1;
+const B = [];                  // per building: { ring, h, floors, storey, units, label, c:[lng,lat], v:{150:{f,eye,blk}, 250:{…}} }
+
+/* ---------- fireworks: a 3D custom layer ----------
+   Every shell is a pool slot of stars that the GPU moves itself: launch, a rising trail, a
+   white flash, then stars thrown out with air drag and gravity, cooling from white to their
+   colour to ember red. Additive light, depth-tested against the extrusions, so towers
+   standing in front of a burst hide it. A faint mirror image sits in the bay. */
+const flashEl = document.getElementById('flash');
+const SHELLS = 26, STARS = 120, LAGS = 4, TRAIL = 14;
+const PER = STARS * LAGS + TRAIL + 1, FLOATS = 14;
+const RISE = 1.7, LIFE = 3.4;
+const PALETTE = [[1, .78, .36], [1, .9, .7], [1, .36, .3], [.45, .8, 1], [.95, .45, 1], [.55, 1, .6], [1, .62, .2]];
+const FW_VS = `
+attribute vec3 a_vel;
+attribute vec3 a_col;
+attribute vec4 a_misc;   // seed, lag (s), kind (0 star, 1 trail, 2 flash), size (m)
+attribute vec4 a_shell;  // burst point (m from the barge, z up), launch time
+uniform mat4 u_m;
+uniform float u_t, u_k, u_mirror, u_alpha;
+varying vec3 v_col;
+varying float v_a;
+void main() {
+  float age = u_t - a_shell.w;
+  vec3 o = a_shell.xyz, p = o, col = a_col;
+  float a = 0.0, size = a_misc.w, kind = a_misc.z, lag = a_misc.y;
+  if (kind < 0.5) {
+    float tau = age - ${RISE.toFixed(2)} - lag;
+    if (tau > 0.0 && tau < ${LIFE.toFixed(2)}) {
+      float k = 1.05, e = 1.0 - exp(-k * tau);
+      p = o + a_vel * e / k;
+      p.z -= 5.4 / k * (tau - e / k);
+      a = exp(-tau * 0.85) * (1.0 - smoothstep(${(LIFE * 0.6).toFixed(2)}, ${LIFE.toFixed(2)}, tau)) * (1.0 - lag * 3.2);
+      a *= 0.7 + 0.3 * sin(a_misc.x * 61.0 + tau * (14.0 + 20.0 * a_misc.x));
+      col = mix(vec3(1.0, 0.97, 0.9), col, smoothstep(0.0, 0.35, tau));
+      col = mix(col, vec3(1.0, 0.38, 0.12), smoothstep(1.3, 2.9, tau));
+      size *= 1.0 - lag * 2.0;
+    }
+  } else if (kind < 1.5) {
+    float r = (age - lag) / ${RISE.toFixed(2)};
+    if (r > 0.0 && r < 1.0) {
+      p = vec3(o.xy, o.z * (1.0 - (1.0 - r) * (1.0 - r)));
+      a = (1.0 - lag * 6.0) * 0.9;
+      col = vec3(1.0, 0.8, 0.55);
+    }
+  } else {
+    float tau = age - ${RISE.toFixed(2)};
+    if (tau > 0.0 && tau < 0.9) { a = exp(-tau * 6.0); col = vec3(1.0, 0.86, 0.62); }
+  }
+  if (a <= 0.003) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; v_a = 0.0; v_col = col; return; }
+  if (u_mirror > 0.5) p.z = -p.z;
+  gl_Position = u_m * vec4(p, 1.0);
+  gl_PointSize = clamp(size * u_k / gl_Position.w, 2.0, 120.0);
+  v_col = col;
+  v_a = a * u_alpha;
+}`;
+const FW_FS = `
+precision mediump float;
+varying vec3 v_col;
+varying float v_a;
+void main() {
+  vec2 q = gl_PointCoord * 2.0 - 1.0;
+  float d = dot(q, q);
+  if (d > 1.0) discard;
+  float g = exp(-d * 5.0) + 0.6 * exp(-d * 28.0);
+  gl_FragColor = vec4(v_col * g * v_a, 0.0);
+}`;
+// The sight line: beads of light from the window to the burst, drifting towards the show.
+const SL_VS = `
+attribute float a_t;
+uniform mat4 u_m;
+uniform vec3 u_a, u_b;
+uniform float u_t, u_k;
+varying float v_a;
+void main() {
+  vec3 p = mix(u_a, u_b, a_t);
+  float ph = fract(a_t * 6.0 - u_t * 0.35);
+  v_a = 0.35 + 0.65 * exp(-ph * ph * 30.0);
+  gl_Position = u_m * vec4(p, 1.0);
+  gl_PointSize = clamp(9.0 * u_k / gl_Position.w, 4.0, 9.0);
+}`;
+const SL_FS = `
+precision mediump float;
+varying float v_a;
+uniform vec3 u_col;
+void main() {
+  vec2 q = gl_PointCoord * 2.0 - 1.0;
+  float d = dot(q, q);
+  if (d > 1.0) discard;
+  gl_FragColor = vec4(u_col * (exp(-d * 2.5) + 0.5 * exp(-d * 12.0)) * v_a * 1.3, 0.0);
+}`;
+
+const mul = (a, b) => {   // column-major 4x4
+  const o = new Float64Array(16);
+  for (let c = 0; c < 4; c++) for (let r = 0; r < 4; r++) {
+    let s = 0;
+    for (let k = 0; k < 4; k++) s += a[k * 4 + r] * b[c * 4 + k];
+    o[c * 4 + r] = s;
+  }
+  return o;
+};
+let rand = Math.random;
+function seeded(s) { return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+
+const fireworks = {
+  id: 'fireworks', type: 'custom', renderingMode: '3d',
+  t: 0, start: performance.now(), next: 0, slot: 0, line: null, lineCol: [1, .76, .37],
+  onAdd(m, gl) {
+    this.map = m; this.gl = gl;
+    const prog = (vs, fs, attrs) => {
+      const sh = (type, src) => { const s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s); if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s)); return s; };
+      const p = gl.createProgram();
+      gl.attachShader(p, sh(gl.VERTEX_SHADER, vs)); gl.attachShader(p, sh(gl.FRAGMENT_SHADER, fs));
+      attrs.forEach((a, i) => gl.bindAttribLocation(p, i, a));
+      gl.linkProgram(p);
+      if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+      p.u = n => (p[n] ??= gl.getUniformLocation(p, n));
+      return p;
+    };
+    this.p = prog(FW_VS, FW_FS, ['a_vel', 'a_col', 'a_misc', 'a_shell']);
+    this.sl = prog(SL_VS, SL_FS, ['a_t']);
+    this.data = new Float32Array(SHELLS * PER * FLOATS);
+    for (let i = 0; i < SHELLS * PER; i++) this.data[i * FLOATS + 13] = -1e6;   // never launched
+    this.buf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, this.data, gl.DYNAMIC_DRAW);
+    const ts = new Float32Array(160).map((_, i) => i / 159);
+    this.tbuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.tbuf);
+    gl.bufferData(gl.ARRAY_BUFFER, ts, gl.STATIC_DRAW);
+    const merc = maplibregl.MercatorCoordinate.fromLngLat(BARGE, 0);
+    const s = merc.meterInMercatorCoordinateUnits();
+    // metres east / north / up of the barge -> mercator units
+    this.model = new Float64Array([s, 0, 0, 0, 0, -s, 0, 0, 0, 0, s, 0, merc.x, merc.y, 0, 1]);
+    if (reduceMotion) this.still();
+  },
+  launch(t, rnd = rand) {
+    const base = this.slot * PER * FLOATS, d = this.data;
+    const alt = Z * (0.93 + rnd() * 0.1);
+    const ox = (rnd() - 0.5) * 320, oy = (rnd() - 0.5) * 180;
+    const big = alt / 150, speed = (85 + rnd() * 35) * Math.sqrt(big);
+    const c1 = PALETTE[Math.floor(rnd() * PALETTE.length)], c2 = rnd() < 0.4 ? PALETTE[Math.floor(rnd() * PALETTE.length)] : c1;
+    const ring = rnd() < 0.18;
+    let o = base;
+    const put = (vx, vy, vz, c, seed, lag, kind, size) => {
+      d[o] = vx; d[o + 1] = vy; d[o + 2] = vz; d[o + 3] = c[0]; d[o + 4] = c[1]; d[o + 5] = c[2];
+      d[o + 6] = seed; d[o + 7] = lag; d[o + 8] = kind; d[o + 9] = size;
+      d[o + 10] = ox; d[o + 11] = oy; d[o + 12] = alt; d[o + 13] = t;
+      o += FLOATS;
+    };
+    for (let i = 0; i < STARS; i++) {
+      let x, y, z;
+      if (ring) { const a = (i / STARS) * Math.PI * 2, tilt = 0.5; x = Math.cos(a); y = Math.sin(a) * tilt; z = Math.sin(a) * (1 - tilt); }
+      else { z = rnd() * 2 - 1; const a = rnd() * Math.PI * 2, r = Math.sqrt(1 - z * z); x = r * Math.cos(a); y = r * Math.sin(a); }
+      const v = speed * (ring ? 1 : 0.85 + rnd() * 0.15), seed = rnd(), c = i % 2 ? c1 : c2;
+      for (let l = 0; l < LAGS; l++) put(x * v, y * v, z * v, c, seed, l * 0.06, 0, 40 * Math.sqrt(big));
+    }
+    for (let l = 0; l < TRAIL; l++) put(0, 0, 0, [1, .8, .5], 0, l * 0.025, 1, 10);
+    put(0, 0, 0, [1, .9, .7], 0, 0, 2, 420 * big);
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.bufferSubData(gl.ARRAY_BUFFER, base * 4, d.subarray(base, base + PER * FLOATS));
+    this.slot = (this.slot + 1) % SHELLS;
+  },
+  // Reduced motion: one held moment of the show, no animation.
+  still() {
+    const r = seeded(7);
+    this.t = 100;
+    [[1.1], [0.55], [1.7], [0.25], [2.2]].forEach(([age], i) => this.launch(100 - RISE - age - i * 0.01, r));
+  },
+  reset() {   // burst height changed: clear the sky, start again
+    for (let i = 0; i < SHELLS * PER; i++) this.data[i * FLOATS + 13] = -1e6;
+    const gl = this.gl;
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    gl.bufferData(gl.ARRAY_BUFFER, this.data, gl.DYNAMIC_DRAW);
+    this.next = 0;
+    if (reduceMotion) this.still();
+  },
+  render(gl, matrix) {
+    const tr = this.map.transform;
+    if (!reduceMotion) {
+      this.t = (performance.now() - this.start) / 1000;
+      while (this.t >= this.next) {
+        this.launch(this.next + rand() * 0.1);
+        // Volleys: mostly one every second or so, sometimes a quick salvo.
+        this.next = this.t + (rand() < 0.3 ? 0.15 + rand() * 0.2 : 0.45 + rand() * 0.7);
+      }
+    }
+    const M = mul(matrix, this.model);
+    const m32 = new Float32Array(M);
+    // Point sizes in metres: pixels per metre at the screen centre, scaled by clip w.
+    const c = maplibregl.MercatorCoordinate.fromLngLat(tr.center, 0);
+    const wc = matrix[3] * c.x + matrix[7] * c.y + matrix[15];
+    const ppm = tr.worldSize / (40075016.686 * Math.cos(tr.center.lat * Math.PI / 180)) * devicePixelRatio;
+    const k = ppm * wc;
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE);
+    gl.depthMask(false);
+    gl.enable(gl.DEPTH_TEST);
+    gl.depthFunc(gl.LEQUAL);
+    // fireworks
+    const p = this.p;
+    gl.useProgram(p);
+    gl.uniformMatrix4fv(p.u('u_m'), false, m32);
+    gl.uniform1f(p.u('u_t'), this.t);
+    gl.uniform1f(p.u('u_k'), k);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
+    const sz = FLOATS * 4;
+    [[0, 3, 0], [1, 3, 12], [2, 4, 24], [3, 4, 40]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, sz, off); });
+    for (const [mirror, alpha] of [[1, 0.16], [0, 1]]) {
+      gl.uniform1f(p.u('u_mirror'), mirror);
+      gl.uniform1f(p.u('u_alpha'), alpha);
+      gl.drawArrays(gl.POINTS, 0, SHELLS * PER);
+    }
+    for (const loc of [1, 2, 3]) gl.disableVertexAttribArray(loc);
+    // sight line
+    if (this.line) {
+      const q = this.sl;
+      gl.useProgram(q);
+      gl.uniformMatrix4fv(q.u('u_m'), false, m32);
+      gl.uniform3fv(q.u('u_a'), this.line[0]);
+      gl.uniform3fv(q.u('u_b'), this.line[1]);
+      gl.uniform3fv(q.u('u_col'), this.lineCol);
+      gl.uniform1f(q.u('u_t'), reduceMotion ? 0 : this.t);
+      gl.uniform1f(q.u('u_k'), k);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.tbuf);
+      gl.enableVertexAttribArray(0);
+      gl.vertexAttribPointer(0, 1, gl.FLOAT, false, 4, 0);
+      gl.disable(gl.DEPTH_TEST);
+      gl.drawArrays(gl.POINTS, 0, 160);
+    }
+    gl.depthMask(true);
+    // Sky glow: a soft light over the bay that swells with each burst.
+    const cz = Z, cx = M[8] * cz + M[12], cy = M[9] * cz + M[13], cw = M[11] * cz + M[15];
+    let glow = 0;
+    for (let i = 0; i < SHELLS; i++) {
+      const tau = this.t - this.data[i * PER * FLOATS + 13] - RISE;
+      if (tau > -0.2 && tau < 3) glow += tau < 0 ? 0 : Math.exp(-tau * 2.2);
+    }
+    if (cw > 0) {
+      const W = this.map.getCanvas().clientWidth, H = this.map.getCanvas().clientHeight;
+      flashEl.style.transform = `translate(${(cx / cw * 0.5 + 0.5) * W}px, ${(0.5 - cy / cw * 0.5) * H}px)`;
+      flashEl.style.opacity = Math.min(0.85, glow * 0.5).toFixed(3);
+    } else flashEl.style.opacity = '0';
+    if (!reduceMotion && !document.hidden) this.map.triggerRepaint();
+  },
+};
+
+/* ---------- data ---------- */
+async function loadData() {
+  const r = await fetch('data/day05/buildings.json');
+  if (!r.ok) throw new Error(`buildings.json: HTTP ${r.status}`);
+  return r.json();
+}
+
+function decode(json) {
+  const { meta, b } = json, q = meta.q;
+  const feats = [], glow = [];
+  b.forEach((row, i) => {
+    // Short rows [ring, h] are low buildings with no view and no name: context only.
+    const [ring, h, floors = Math.max(1, Math.round(h / 3.3)), storey = h / Math.max(1, Math.round(h / 3.3)), units = 0, label = '', f1 = 0, ex1 = 0, ey1 = 0, b1 = -1, f2 = 0, ex2 = 0, ey2 = 0, b2 = -1] = row;
+    let x = 0, y = 0;
+    const coords = [];
+    for (let k = 0; k < ring.length; k += 2) { x += ring[k]; y += ring[k + 1]; coords.push([BARGE[0] + x / q, BARGE[1] + y / q]); }
+    coords.push(coords[0]);
+    let sx = 0, sy = 0;
+    for (let k = 0; k < coords.length - 1; k++) { sx += coords[k][0]; sy += coords[k][1]; }
+    const c = [sx / (coords.length - 1), sy / (coords.length - 1)];
+    const short = row.length === 2;
+    const eye = (ex, ey) => (short ? c : [BARGE[0] + (ring[0] + ex) / q, BARGE[1] + (ring[1] + ey) / q]);   // relative to the first vertex
+    const v = { 150: { f: f1, eye: eye(ex1, ey1), blk: b1 }, 250: { f: f2, eye: eye(ex2, ey2), blk: b2 } };
+    B.push({ h, floors, storey, units, label, c, v });
+    const vb = f => (f ? Math.min((f - 1) * storey, h - 0.5) : -1);
+    feats.push({ type: 'Feature', id: i, properties: { h, a: vb(f1), b: vb(f2) }, geometry: { type: 'Polygon', coordinates: [coords] } });
+    const share = f => (f ? (floors - f + 1) / floors : 0);
+    if (f1 || f2) glow.push({ type: 'Feature', properties: { a: share(f1) * Math.min(h, 120) / 60, b: share(f2) * Math.min(h, 120) / 60 }, geometry: { type: 'Point', coordinates: c } });
+  });
+  return { meta, fc: { type: 'FeatureCollection', features: feats }, glow: { type: 'FeatureCollection', features: glow } };
+}
+
+/* ---------- layers ---------- */
+const VB = () => (Z === 150 ? 'a' : 'b');
+const darkHeight = () => ['case', ['>=', ['get', VB()], 0], ['get', VB()], ['get', 'h']];
+const DARK = ['interpolate', ['linear'], ['get', 'h'], 0, '#10141D', 30, '#171D2A', 90, '#212A3B', 200, '#2E3950'];
+const stateColor = (base, sel, blk) => ['case', ['boolean', ['feature-state', 'sel'], false], sel, ['boolean', ['feature-state', 'blk'], false], blk, base];
+function addLayers() {
+  map.addSource('bld', { type: 'geojson', data: D.fc, promoteId: undefined });
+  map.addSource('glow', { type: 'geojson', data: D.glow });
+  map.addSource('ring', { type: 'geojson', data: ringGeo() });
+  map.addSource('sight', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'ring', type: 'line', source: 'ring', paint: { 'line-color': '#FFC15E', 'line-opacity': 0.28, 'line-width': 1, 'line-dasharray': [3, 4] } });
+  map.addLayer({ id: 'glow', type: 'heatmap', source: 'glow', maxzoom: 17,
+    paint: {
+      'heatmap-weight': ['get', VB()],
+      'heatmap-intensity': ['interpolate', ['linear'], ['zoom'], 11, 0.35, 15, 0.9],
+      'heatmap-radius': ['interpolate', ['exponential', 2], ['zoom'], 11, 6, 14, 30, 16, 90],
+      'heatmap-color': ['interpolate', ['linear'], ['heatmap-density'], 0, 'rgba(255,150,40,0)', 0.3, 'rgba(255,150,40,0.18)', 0.7, 'rgba(255,190,90,0.35)', 1, 'rgba(255,220,150,0.5)'],
+      'heatmap-opacity': 0.8,
+    } });
+  map.addLayer({ id: 'sight-ground', type: 'line', source: 'sight', layout: { 'line-cap': 'round' },
+    paint: { 'line-color': ['get', 'col'], 'line-width': 2, 'line-opacity': 0.9, 'line-dasharray': [1, 2] } });
+  map.addLayer({ id: 'bld-dark', type: 'fill-extrusion', source: 'bld',
+    paint: {
+      'fill-extrusion-color': stateColor(DARK, '#8A9AC0', '#C0505E'),
+      'fill-extrusion-height': darkHeight(),
+      'fill-extrusion-base': 0,
+      'fill-extrusion-opacity': 1,
+      'fill-extrusion-vertical-gradient': true,
+    } });
+  map.addLayer({ id: 'bld-gold', type: 'fill-extrusion', source: 'bld', filter: ['>=', ['get', VB()], 0],
+    paint: {
+      'fill-extrusion-color': stateColor(['interpolate', ['linear'], ['get', 'h'], 0, '#F08A1C', 40, '#FFA42E', 120, '#FFB846', 250, '#FFC65E'], '#FFF6DE', '#FF8A7A'),
+      'fill-extrusion-height': ['get', 'h'],
+      'fill-extrusion-base': ['get', VB()],
+      'fill-extrusion-opacity': 1,
+      'fill-extrusion-vertical-gradient': true,
+    } });
+  map.addLayer(fireworks);
+}
+function ringGeo() {
+  const pts = [], R = D.meta.radius;
+  for (let i = 0; i <= 180; i++) { const a = i / 180 * Math.PI * 2; pts.push([BARGE[0] + Math.cos(a) * R / MX, BARGE[1] + Math.sin(a) * R / MY]); }
+  return { type: 'Feature', properties: {}, geometry: { type: 'LineString', coordinates: pts } };
+}
+function applyBurst() {
+  if (!map.getLayer('bld-gold')) return;
+  map.setPaintProperty('bld-dark', 'fill-extrusion-height', darkHeight());
+  map.setFilter('bld-gold', ['>=', ['get', VB()], 0]);
+  map.setPaintProperty('bld-gold', 'fill-extrusion-base', ['get', VB()]);
+  map.setPaintProperty('glow', 'heatmap-weight', ['get', VB()]);
+  fireworks.reset();
+  summary();
+  if (sel >= 0) select(sel, false);
+}
+
+/* ---------- summary ---------- */
+function summary() {
+  const s = D.meta.stats[String(Z)];
+  const pct = s.units ? Math.round(100 * s.units_view / s.units) : 0;
+  $('hero').textContent = `${pct}%`;
+  $('lede').innerHTML = `of HDB flats within 8 km sit on a floor with a clear line to the <b>${Z} m</b> shells: about <b>${nf.format(Math.round(s.units_view / 100) * 100)}</b> homes, in <b>${nf.format(s.blocks_view)}</b> of ${nf.format(s.blocks)} blocks.`;
+  for (const b of document.querySelectorAll('#burst button')) b.setAttribute('aria-pressed', String(+b.dataset.z === Z));
+}
+for (const b of document.querySelectorAll('#burst button')) b.addEventListener('click', () => {
+  const z = +b.dataset.z;
+  if (z === Z) return;
+  Z = z;
+  applyBurst();
+  const u = new URL(location.href);
+  if (Z === 250) u.searchParams.set('burst', '250'); else u.searchParams.delete('burst');
+  history.replaceState(null, '', u);
+});
+
+/* ---------- the ticket ---------- */
+const ticket = $('ticket');
+const km = i => { const [x, y] = toM(B[i].c); return Math.hypot(x, y) / 1000; };
+const nameOf = i => B[i].label || (B[i].units ? 'HDB block' : `Unnamed ${Math.round(B[i].h)} m building`);
+function floorsText(b, f) {
+  if (!f) return 'No floor sees the show';
+  if (b.floors === 1) return 'Sees the show';
+  if (f === 1) return `All ${b.floors} floors see it`;
+  if (f === b.floors) return `Top floor (${f}) sees it`;
+  return `Floors ${f}–${b.floors} see it`;
+}
+function select(i, fromUser = true) {
+  if (sel >= 0) map.setFeatureState({ source: 'bld', id: sel }, { sel: false });
+  if (blocker >= 0) map.setFeatureState({ source: 'bld', id: blocker }, { blk: false });
+  sel = i; blocker = -1;
+  const b = B[i], v = b.v[Z], other = b.v[Z === 150 ? 250 : 150];
+  map.setFeatureState({ source: 'bld', id: i }, { sel: true });
+  if (v.blk >= 0 && v.f !== 1) { blocker = v.blk; map.setFeatureState({ source: 'bld', id: blocker }, { blk: true }); }
+  ticket.classList.toggle('none', !v.f);
+  $('t-admit').textContent = v.f ? (v.f === 1 ? 'Admit all floors' : `Admit · floor ${v.f} and up`) : 'Restricted view';
+  $('t-name').textContent = nameOf(i);
+  $('t-big').textContent = floorsText(b, v.f);
+  let why = '';
+  if (v.f !== 1) {
+    const what = v.blk >= 0 ? `<b>${esc(nameOf(v.blk))}</b>` : v.blk === -1 ? 'the lie of the land' : 'a low building close by';
+    why = v.f ? `Lower down, the view is blocked by ${what}.` : `Every floor’s line to the bursts runs into ${what}.`;
+  }
+  const otherZ = Z === 150 ? 250 : 150;
+  const otherTxt = other.f ? (other.f === 1 ? `every floor sees them` : `from floor ${other.f}`) : 'no view';
+  $('t-sub').innerHTML = `${why}${why ? ' ' : ''}${otherZ} m shells: ${otherTxt}.`;
+  const share = v.f ? (b.floors - v.f + 1) / b.floors : 0;
+  const meta = [`<span><b>${km(i).toFixed(1)} km</b> from the barge</span>`, `<span><b>${b.floors}</b> floors</span>`];
+  if (b.units) meta.push(share ? `<span><b>≈${nf.format(Math.round(b.units * share))}</b> of ${nf.format(b.units)} flats</span>` : `<span><b>none</b> of ${nf.format(b.units)} flats</span>`);
+  $('t-meta').innerHTML = meta.join('');
+  ticket.hidden = false;
+  // The sight line: from the window on the lowest floor that sees (or the roof) to the burst.
+  const [ex, ey] = toM(v.eye);
+  const zEye = v.f ? (v.f - 1) * b.storey + 1.5 : b.h;
+  fireworks.line = [[ex, ey, zEye], [0, 0, Z]];
+  fireworks.lineCol = v.f ? [1, 0.76, 0.37] : [0.55, 0.62, 0.8];
+  map.getSource('sight').setData({ type: 'Feature', properties: { col: v.f ? '#FFC15E' : '#8C9AB8' }, geometry: { type: 'LineString', coordinates: [v.eye, BARGE] } });
+  placeTicket();
+  map.triggerRepaint();
+  if (fromUser) {
+    const u = new URL(location.href);
+    u.searchParams.set('b', String(i));
+    history.replaceState(null, '', u);
+  }
+}
+function clearSel() {
+  if (sel < 0) return;
+  map.setFeatureState({ source: 'bld', id: sel }, { sel: false });
+  if (blocker >= 0) map.setFeatureState({ source: 'bld', id: blocker }, { blk: false });
+  sel = blocker = -1;
+  ticket.hidden = true;
+  fireworks.line = null;
+  map.getSource('sight').setData({ type: 'FeatureCollection', features: [] });
+  const u = new URL(location.href);
+  u.searchParams.delete('b');
+  history.replaceState(null, '', u);
+}
+function placeTicket() {
+  if (sel < 0 || ticket.hidden) return;
+  const docked = PHONE.matches;
+  ticket.classList.toggle('docked', docked);
+  if (docked) { document.documentElement.style.setProperty('--sheet-h', `${innerHeight - $('bar').getBoundingClientRect().top}px`); return; }
+  // Beside the building, not over it: right of it if there is room, else left.
+  const p = map.project(B[sel].c), w = ticket.offsetWidth, h = ticket.offsetHeight, g = 12;
+  const barTop = $('bar').getBoundingClientRect().top;
+  let x = p.x + 34, left = false;
+  if (x + w > innerWidth - 58) { x = p.x - w - 34; left = true; }
+  x = Math.max(g, Math.min(innerWidth - w - 58, x));
+  const y = Math.max(g + 70, Math.min(barTop - h - 10, p.y - h * 0.7));
+  ticket.style.left = `${x}px`;
+  ticket.style.top = `${y}px`;
+  ticket.style.setProperty('--tip-y', `${Math.max(16, Math.min(h - 16, p.y - y))}px`);
+  ticket.classList.toggle('left', left);
+}
+map.on('move', placeTicket);
+addEventListener('resize', placeTicket);
+$('t-close').addEventListener('click', clearSel);
+addEventListener('keydown', e => { if (e.key === 'Escape' && sel >= 0 && !document.querySelector('.dmc-stamp.open')) clearSel(); });
+const esc = s => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+map.on('click', e => {
+  if (!D) return;
+  const f = map.queryRenderedFeatures(e.point, { layers: ['bld-gold', 'bld-dark'] })[0];
+  if (f) select(f.id); else clearSel();
+});
+map.on('mousemove', e => {
+  if (!D) return;
+  map.getCanvas().style.cursor = map.queryRenderedFeatures(e.point, { layers: ['bld-gold', 'bld-dark'] }).length ? 'pointer' : '';
+});
+
+/* ---------- find my block ---------- */
+const ABBR = { avenue: 'ave', road: 'rd', street: 'st', drive: 'dr', crescent: 'cres', bukit: 'bt', north: 'nth', south: 'sth', central: 'ctrl', lorong: 'lor', jalan: 'jln', close: 'cl', upper: 'upp', park: 'pk', place: 'pl', garden: 'gdn', gardens: 'gdns', terrace: 'ter', heights: 'hts', kampong: 'kg', tanjong: 'tg', square: 'sq', block: 'blk' };
+const toks = s => s.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/).filter(Boolean).map(t => ABBR[t] || t);
+let INDEX = [];
+function buildIndex() {
+  INDEX = B.map((b, i) => b.label ? { i, t: toks(b.label), l: b.label } : null).filter(Boolean);
+}
+const q = $('q'), list = $('list');
+let hits = [], active = -1;
+function search() {
+  const qt = toks(q.value).filter(t => t !== 'blk');
+  if (!qt.length) { closeList(); return; }
+  hits = [];
+  for (const e of INDEX) {
+    if (qt.every(t => e.t.some(w => w.startsWith(t)))) {
+      // Exact block number first, then bigger buildings.
+      const exact = e.t.includes(qt[0]) ? 0 : 1;
+      hits.push({ ...e, score: exact * 1e6 - (B[e.i].units || B[e.i].h) });
+      if (hits.length > 400) break;
+    }
+  }
+  hits.sort((a, b) => a.score - b.score);
+  hits = hits.slice(0, 8);
+  active = hits.length ? 0 : -1;
+  renderList();
+}
+function renderList() {
+  list.replaceChildren();
+  if (!hits.length) {
+    const li = document.createElement('li'); li.className = 'none'; li.textContent = 'No match inside the 8 km circle';
+    list.append(li);
+  }
+  hits.forEach((h, k) => {
+    const li = document.createElement('li'), b = B[h.i], v = b.v[Z];
+    li.id = `opt-${k}`; li.setAttribute('role', 'option'); li.setAttribute('aria-selected', String(k === active));
+    const s = document.createElement('small');
+    s.textContent = v.f ? (v.f === 1 ? 'all floors' : `floor ${v.f}+`) : 'no view';
+    if (v.f) s.className = 'y';
+    li.append(document.createTextNode(h.l), s);
+    li.addEventListener('mousedown', ev => { ev.preventDefault(); pick(k); });
+    list.append(li);
+  });
+  list.hidden = false;
+  q.setAttribute('aria-expanded', 'true');
+  q.setAttribute('aria-activedescendant', active >= 0 ? `opt-${active}` : '');
+}
+function closeList() { list.hidden = true; q.setAttribute('aria-expanded', 'false'); q.removeAttribute('aria-activedescendant'); hits = []; active = -1; }
+function pick(k) {
+  const h = hits[k];
+  if (!h) return;
+  q.value = h.l;
+  closeList();
+  fly(h.i);
+}
+q.addEventListener('input', search);
+q.addEventListener('keydown', e => {
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!hits.length) return;
+    e.preventDefault();
+    active = (active + (e.key === 'ArrowDown' ? 1 : -1) + hits.length) % hits.length;
+    renderList();
+  } else if (e.key === 'Enter') { e.preventDefault(); if (active >= 0) pick(active); }
+  else if (e.key === 'Escape') { closeList(); }
+});
+q.addEventListener('blur', () => setTimeout(closeList, 120));
+// Stand behind the block, facing the bay: the camera looks along the sight line.
+function fly(i) {
+  stopOrbit();
+  const b = B[i], [x, y] = toM(b.c);
+  const bearing = (Math.atan2(-x, -y) * 180 / Math.PI + 360) % 360;
+  const d = Math.hypot(x, y);
+  // Centre a little way along the line towards the bay, so both the block and the show fit.
+  const k = Math.min(0.35, 700 / Math.max(d, 1));
+  const center = [b.c[0] - x * k / MX, b.c[1] - y * k / MY];
+  const zoom = Math.max(13.9, Math.min(15.6, 17 - Math.log2(Math.max(d, 600) / 400)));
+  select(i);
+  map.flyTo({ center, zoom, bearing, pitch: 66, duration: reduceMotion ? 0 : 2600, essential: true, padding: { top: 140, bottom: COMPACT.matches ? 120 : 130, left: 0, right: 0 } });
+}
+
+/* ---------- camera: a slow orbit round the bay until someone touches the map ---------- */
+let orbiting = false, lastT = 0;
+const orbitBtn = $('orbit');
+function orbitStep(now) {
+  if (!orbiting) return;
+  const dt = Math.min(0.1, (now - lastT) / 1000);
+  lastT = now;
+  if (!document.hidden) map.setBearing((map.getBearing() + dt * 2.2) % 360);
+  requestAnimationFrame(orbitStep);
+}
+function startOrbit() {
+  if (reduceMotion || orbiting) { orbitBtn.setAttribute('aria-pressed', 'false'); return; }
+  orbiting = true;
+  orbitBtn.setAttribute('aria-pressed', 'true');
+  lastT = performance.now();
+  requestAnimationFrame(orbitStep);
+}
+function stopOrbit() { orbiting = false; orbitBtn.setAttribute('aria-pressed', 'false'); }
+orbitBtn.addEventListener('click', () => {
+  if (orbiting) { stopOrbit(); return; }
+  if (reduceMotion) return;
+  map.easeTo({ center: BARGE, pitch: 70, zoom: openingZoom(), duration: 1600, padding: barPadding() });
+  map.once('moveend', startOrbit);
+});
+// Any touch on the map or its buttons (zoom, compass, 3D) hands the camera back.
+for (const ev of ['pointerdown', 'touchstart', 'wheel', 'keydown']) map.getContainer().addEventListener(ev, stopOrbit, { passive: true });
+const openingZoom = () => (COMPACT.matches ? 13.3 : 14.1);
+// Lift the bay above the middle so the foreground city fills the lower half.
+const barPadding = () => ({ top: 0, left: 0, right: 0, bottom: Math.round(innerHeight * 0.22 + (innerHeight - $('bar').getBoundingClientRect().top) * 0.5) });
+
+/* ---------- place names ---------- */
+const PLACES = [['Toa Payoh', 103.8476, 1.3343], ['Bishan', 103.8485, 1.3508], ['Queenstown', 103.8060, 1.2942], ['Tiong Bahru', 103.8270, 1.2850],
+  ['Bukit Merah', 103.8195, 1.2805], ['Telok Blangah', 103.8100, 1.2730], ['Kallang', 103.8640, 1.3110], ['Geylang', 103.8870, 1.3150],
+  ['Marine Parade', 103.9060, 1.3030], ['Whampoa', 103.8530, 1.3260], ['Sentosa', 103.8300, 1.2490], ['MacPherson', 103.8890, 1.3270],
+  ['Holland Village', 103.7960, 1.3110], ['Outram', 103.8390, 1.2800], ['Bugis', 103.8560, 1.3000]];
+function addPlaces() {
+  for (const [name, lng, lat] of PLACES) {
+    const el = document.createElement('div'); el.className = 'place'; el.textContent = name;
+    new maplibregl.Marker({ element: el, anchor: 'center', pitchAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+  }
+  const el = document.createElement('div'); el.className = 'place barge'; el.textContent = 'Fireworks barge';
+  new maplibregl.Marker({ element: el, anchor: 'top', offset: [0, -4] }).setLngLat(BARGE).addTo(map);
+}
+
+/* ---------- start ---------- */
+const dataP = loadData();
+map.on('load', async () => {
+  map.setLight({ anchor: 'viewport', color: '#E4E9FF', intensity: 0.22, position: [1.2, 200, 35] });
+  try {
+    D = decode(await dataP);
+  } catch (err) {
+    $('load').textContent = 'Could not load the buildings.';
+    console.error(err);
+    return;
+  }
+  buildIndex();
+  addLayers();
+  addPlaces();
+  summary();
+  $('load').hidden = true;
+  const want = params.get('b');
+  const ownView = params.has('view');
+  if (want != null && B[+want]) {
+    if (ownView) select(+want, false); else fly(+want);
+  } else if (!ownView) {
+    map.jumpTo({ center: BARGE, zoom: openingZoom(), pitch: 70, bearing: 165, padding: barPadding() });
+    startOrbit();
+  }
+  if (reduceMotion) { orbitBtn.setAttribute('aria-pressed', 'false'); orbitBtn.disabled = true; orbitBtn.title = 'Off: your system asks for reduced motion'; }
+  map.once('idle', () => { window.__ready = true; });
+});
+dataP.catch(() => {});
+document.addEventListener('visibilitychange', () => { if (!document.hidden) map.triggerRepaint(); });
+</script>
+</body>
+</html>
