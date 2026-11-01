@@ -1,0 +1,279 @@
+{
+  "_about": "Hand-written notes for Day 15. Every fact carries its source. 'shore': true means a source says the place was on the shore; process.py otherwise relies on distances. 'island': true marks a Pulau name that is still an island although OSM maps it as a point. 'from' names the street or point to measure from when the nearest one is a port road on new land.",
+  "alias": {
+    "Tanjong Pasir Laba": "Pasir Laba",
+    "Tanjong Paagar": "Tanjong Pagar"
+  },
+  "drop": [
+    "Pulau Ubin Estate",
+    "Potong Pasir",
+    "Pulau Tekong Camp"
+  ],
+  "drop_names": [
+    "Potong Pasir",
+    "Pasir Ris Street 21 Park",
+    "Pasir Ris Atlantis Park",
+    "^Beach Area"
+  ],
+  "words": {
+    "Tanjong": {
+      "m": "cape",
+      "dbp": "the tip of land that juts out into the sea",
+      "src": "https://prpm.dbp.gov.my/Cari1?keyword=tanjung"
+    },
+    "Telok": {
+      "m": "bay",
+      "dbp": "the part of the sea that reaches into the land",
+      "src": "https://prpm.dbp.gov.my/Cari1?keyword=teluk"
+    },
+    "Pasir": {
+      "m": "sand",
+      "dbp": "finely crushed stone, like that seen on the beach",
+      "src": "https://prpm.dbp.gov.my/Cari1?keyword=pasir"
+    },
+    "Pantai": {
+      "m": "beach, coast",
+      "dbp": "the bank or edge of the sea, covered in sand",
+      "src": "https://prpm.dbp.gov.my/Cari1?keyword=pantai"
+    },
+    "Kuala": {
+      "m": "river mouth",
+      "dbp": "where a river flows into the sea or a lake",
+      "src": "https://prpm.dbp.gov.my/Cari1?keyword=kuala"
+    },
+    "Pulau": {
+      "m": "island",
+      "dbp": "land surrounded by water",
+      "src": "https://prpm.dbp.gov.my/Cari1?keyword=pulau"
+    },
+    "Beach": {
+      "m": "beach",
+      "dbp": "",
+      "src": ""
+    }
+  },
+  "zones": {
+    "Jurong Island": {
+      "story": "Jurong Island was built from 1993 to 2003 by joining seven islands in the south-west, among them Pulau Ayer Chawan, Pulau Ayer Merbau, Pulau Merlimau, Pulau Seraya and Pulau Pesek.",
+      "src": [
+        [
+          "BiblioAsia, Land from Sand (2017)",
+          "https://biblioasia.nlb.gov.sg/vol-13/issue-1/apr-jun-2017/land-from-sand/"
+        ]
+      ]
+    },
+    "Pulau Tekong Camp": {
+      "story": "Pulau Tekong was enlarged by 540 hectares in 1981 to 1985, and a further 3,310 hectares was approved in 2000, joining the smaller Pulau Tekong Kechil to it.",
+      "src": [
+        [
+          "BiblioAsia, Land from Sand (2017)",
+          "https://biblioasia.nlb.gov.sg/vol-13/issue-1/apr-jun-2017/land-from-sand/"
+        ]
+      ]
+    }
+  },
+  "names": {
+    "Beach Road": {
+      "shore": true,
+      "meaning": "the road along the beach",
+      "story": "In the 19th century this was a seafront road lined with houses, one of which became Raffles Hotel. Reclamation began here in 1843, and the land for Marina Centre, reclaimed from 1971, pushed the road further inland.",
+      "src": [
+        [
+          "National Archives, SG101: Origins of street names",
+          "https://www.sg101.gov.sg/resources/archives/infrastructure-origins-singapore-street-names/"
+        ]
+      ]
+    },
+    "Telok Ayer": {
+      "shore": true,
+      "meaning": "water bay",
+      "story": "Telok Ayer Street once faced the sea, and immigrants' boats and sampans docked along it. Reclaiming Telok Ayer Bay in the 1880s made the land for Cecil Street and Robinson Road, and later works added Shenton Way.",
+      "src": [
+        [
+          "Infopedia, Telok Ayer Street",
+          "https://www.nlb.gov.sg/main/article-detail?cmsuuid=0ecf8d78-e17f-44e4-a4a2-6de00e03bc54"
+        ],
+        [
+          "BiblioAsia, Land from Sand (2017)",
+          "https://biblioasia.nlb.gov.sg/vol-13/issue-1/apr-jun-2017/land-from-sand/"
+        ]
+      ]
+    },
+    "Tanjong Pagar": {
+      "meaning": "cape of stakes",
+      "story": "A fishing village on a former promontory, probably named after the fishing stakes set up along its coast. The Tanjong Pagar Dock Company was formed in 1864, and the shore here is still a port.",
+      "src": [
+        [
+          "Infopedia, Tanjong Pagar",
+          "https://www.nlb.gov.sg/main/article-detail?cmsuuid=5fbe63df-0d44-4e2a-b6c2-36fab71294dd"
+        ],
+        [
+          "BiblioAsia, Shipyards of Keppel and Sembawang (2019)",
+          "https://biblioasia.nlb.gov.sg/all-sections/vol-15-issue-2-jul-sep-2019-shipyards-keppel-sembawang/"
+        ]
+      ],
+      "from": "Tanjong Pagar"
+    },
+    "Tanjong Katong": {
+      "shore": true,
+      "meaning": "turtle point",
+      "story": "Before the land at Marine Parade was reclaimed, Tanjong Katong fronted the sea and was known for its boathouses and beachside retreats. Today the southern end of Tanjong Katong Road South stops about 170 m short of the water.",
+      "src": [
+        [
+          "Roots, History of Katong and Joo Chiat",
+          "https://www.roots.gov.sg/han/Neighborhoods/Katong-Joo-Chiat/HAN-Resources-Folder/History-of-Katong-Joo-Chiat"
+        ],
+        [
+          "Infopedia, Katong",
+          "https://www.nlb.gov.sg/main/article-detail?cmsuuid=b07a0dea-48c0-4969-a1d5-9b3eab25021d"
+        ]
+      ]
+    },
+    "Tanjong Rhu": {
+      "shore": true,
+      "meaning": "casuarina cape",
+      "story": "Named after the casuarina trees, pokok rhu in Malay, that lined the beach. The East Coast reclamation reached the tip of Tanjong Rhu by 1971, and 67 more hectares were added in front of it by 1975.",
+      "src": [
+        [
+          "NParks, Streets of Singapore walk (2024)",
+          "https://www.nparks.gov.sg/docs/default-source/activities-doc/hortpark-streets-singapore-walk092024.pdf"
+        ],
+        [
+          "BiblioAsia, Land from Sand (2017)",
+          "https://biblioasia.nlb.gov.sg/vol-13/issue-1/apr-jun-2017/land-from-sand/"
+        ]
+      ]
+    },
+    "Telok Kurau": {
+      "meaning": "bay of the kurau, or mango fish",
+      "story": "The road is named after a Malay fishing village on East Coast Road. From the mid-1960s, reclamation along this coast cleared the last fishing villages nearby.",
+      "src": [
+        [
+          "Infopedia, Telok Kurau Road",
+          "https://www.nlb.gov.sg/main/article-detail?cmsuuid=822e7b38-aec2-4205-ba9b-14a3021a6909"
+        ],
+        [
+          "Infopedia, Siglap",
+          "https://eresources.nlb.gov.sg/infopedia/articles/SIP_2016-08-18_134004.html"
+        ]
+      ]
+    },
+    "Telok Blangah": {
+      "meaning": "bay of the clay pot (blanga may be a cooking pot)",
+      "story": "The bay is still here: Telok Blangah Road runs about 190 m from the water of Keppel Bay. Its coastal mangroves and mudflats were cleared and leased out for coal sheds and wharves.",
+      "src": [
+        [
+          "Roots, The story of Keppel Bay",
+          "https://www.roots.gov.sg/stories-landing/stories/the-story-of-keppel-bay/story"
+        ],
+        [
+          "Roots, Telok Blangah: testament to Singapore's history",
+          "https://www.roots.gov.sg/en/stories-landing/stories/telok-blangah-testament-to-singapores-history/story"
+        ]
+      ]
+    },
+    "Pasir Panjang": {
+      "meaning": "long sand",
+      "story": "Named after the long sandy beach that once ran along this coast. Since the late 1960s the shore has been reclaimed for wharves, so the sea is still close, but the sand is now a container port.",
+      "src": [
+        [
+          "URA, Pasir Panjang conservation area",
+          "https://www.ura.gov.sg/conservation/find-a-building/conservation-portal/ppjg01-00002/"
+        ]
+      ],
+      "from": "Pasir Panjang Road"
+    },
+    "Pasir Ris": {
+      "meaning": "sand, plus a word no one is sure of",
+      "story": "No one knows for certain where the name comes from; one guess from 1889 is pasir (sand) and hiris (to shred). The beach is still here, though it too was extended by reclamation from 1979.",
+      "src": [
+        [
+          "BiblioAsia, Bridging past and present in Pasir Ris (2023)",
+          "https://biblioasia.nlb.gov.sg/all-sections/vol-19-issue-2-jul-sep-2023-history-pasir-ris/"
+        ],
+        [
+          "Roots, Pasir Ris: written in the sand",
+          "https://www.roots.gov.sg/stories-landing/stories/pasir-ris-written-in-the-sand/story"
+        ]
+      ]
+    },
+    "Pasir Laba": {
+      "meaning": "sand, plus a word we found no source for",
+      "story": "We found no source for what laba means here. Pasir Laba was on the coast: in 1942 troops fell back from the Pasir Laba gun battery by sea, and its road still ends at the water.",
+      "src": [
+        [
+          "Infopedia, Battle of Pasir Panjang and the west coast, 1942",
+          "https://www.nlb.gov.sg/main/article-detail?cmsuuid=f2d8feab-1269-4caa-b7ab-0dbc3e272773"
+        ]
+      ]
+    },
+    "Tanjong Penjuru": {
+      "meaning": "Penjuru cape",
+      "story": "The land between Sungei Jurong and Sungei Pandan was called Tanjong Penjuru (Cape Penjuru).",
+      "src": [
+        [
+          "NLB Curiocity, Early Jurong",
+          "https://curiocity.nlb.gov.sg/digital-stories/jurong/early-jurong/"
+        ]
+      ]
+    },
+    "Telok Paku": {
+      "meaning": "Paku bay",
+      "story": "Building Changi Airport from 1975 to 1981 reclaimed the coast from Telok Paku to Telok Mata Ikan and moved five kampongs. The road named after the bay still runs along the shore.",
+      "src": [
+        [
+          "Roots, Changi Heritage Trail: Changi Airport",
+          "https://www.roots.gov.sg/places/places-landing/places/landmarks/changi-heritage-trail/changi-airport"
+        ]
+      ]
+    },
+    "Pulau Saigon": {
+      "meaning": "Saigon island",
+      "story": "A small island that once sat in the middle of the Singapore River. It was enlarged in 1884 and joined to the mainland by reclamation in the 1980s.",
+      "src": [
+        [
+          "BiblioAsia, Bridging history (2019)",
+          "https://biblioasia.nlb.gov.sg/vol-14/issue-4/jan-mar-2019/bridging-history-wtr/"
+        ]
+      ]
+    },
+    "Pulau Tekong Kechil": {
+      "meaning": "little Tekong island",
+      "story": "Once a separate island beside Pulau Tekong. Reclamation merged the two.",
+      "src": [
+        [
+          "BiblioAsia, Land from Sand (2017)",
+          "https://biblioasia.nlb.gov.sg/vol-13/issue-1/apr-jun-2017/land-from-sand/"
+        ]
+      ]
+    },
+    "Pulau Tekong": {
+      "island": true,
+      "meaning": "Tekong island",
+      "story": "Still an island, and a much bigger one: 540 hectares were added in 1981 to 1985, and 3,310 more were approved in 2000.",
+      "src": [
+        [
+          "BiblioAsia, Land from Sand (2017)",
+          "https://biblioasia.nlb.gov.sg/vol-13/issue-1/apr-jun-2017/land-from-sand/"
+        ]
+      ]
+    },
+    "Pulau Brani": {
+      "meaning": "isle of the brave",
+      "story": "Still an island, beside Sentosa.",
+      "src": [
+        [
+          "National Archives, SG101: Pulau Brani",
+          "https://www.sg101.gov.sg/resources/archives/islandsofsingapore-pulau-brani/"
+        ]
+      ]
+    }
+  },
+  "left_out": [
+    {
+      "n": "Potong Pasir",
+      "why": "named after sand quarries (potong pasir: cut sand), not a beach",
+      "src": "https://www.nlb.gov.sg/main/article-detail?cmsuuid=B-99b8d74a-c610-46c1-a223-cc4478b11640"
+    }
+  ]
+}

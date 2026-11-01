@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#070C14">
+<title>Day 15 · Beach Road has no beach</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 15, Inside out: Singapore's capes, bays, beaches and islands that land reclamation has left inland, each tied to the sea it was named for, over a Landsat picture of the coast in October 1973.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23070C14'/%3E%3Cpath d='M5 22c3-2 5-2 7 0s4 2 7 0 5-2 8 0' fill='none' stroke='%235CC8FF' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M9 9h14' stroke='%23FFE9CF' stroke-width='2.4' stroke-linecap='round'/%3E%3Cpath d='M16 9v8' stroke='%23FFE9CF' stroke-width='1.4' stroke-dasharray='2 2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400..700;1,6..72,400..600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 15: the wrong names are the map ===== */
+:root {
+  --serif: "Newsreader", Georgia, "Times New Roman", serif;
+  --sea: #5CC8FF; --sea-rgb: 92, 200, 255;
+  --wrong: #FFE9CF; --joined: #F0BE73; --unsure: #B3BDCB; --right: #A9E0F7;
+  --shore73: #E9C998;
+  --panel-w: 318px;
+}
+.dmc-map { background: #070C14; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- names on the map ---- */
+.nm { position: absolute; left: 0; top: 0; pointer-events: auto; cursor: pointer; white-space: nowrap; text-align: center; line-height: 1;
+  transition: opacity .35s; will-change: transform; }
+.nm.off { opacity: 0; pointer-events: none; }
+.nm b { display: block; font-family: var(--serif); font-weight: 560; font-size: var(--fs, 15px); letter-spacing: .005em; color: var(--c);
+  text-shadow: 0 0 2px rgba(4, 7, 12, .95), 0 0 6px rgba(4, 7, 12, .85), 0 1px 14px rgba(4, 7, 12, .7); font-variation-settings: "opsz" 48; }
+.nm i { display: block; margin-top: 2px; font-style: normal; font-family: var(--font); font-size: 10px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--c); opacity: .86; text-shadow: 0 0 2px rgba(4, 7, 12, .95), 0 0 6px rgba(4, 7, 12, .9); }
+.nm.s-wrong { --c: var(--wrong); }
+.nm.s-joined { --c: var(--joined); }
+.nm.s-joined b, .nm.s-unsure b, .nm.s-right b { font-style: italic; font-weight: 500; }
+.nm.s-unsure { --c: var(--unsure); }
+.nm.s-right { --c: var(--right); }
+.nm.s-right b { font-size: 11.5px; font-variation-settings: "opsz" 12; }
+.nm.s-right i { display: none; }
+.nm:hover b, .nm.sel b { color: #fff; }
+.nm.sel { z-index: 3; }
+.nm.sel b { text-decoration: underline; text-decoration-color: var(--sea); text-decoration-thickness: 1.5px; text-underline-offset: 3px; }
+
+/* ---- the right-hand panel: the tide table ---- */
+.io-panel { top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  right: calc(var(--gutter) + 50px + env(safe-area-inset-right, 0px)); width: var(--panel-w); display: flex; flex-direction: column; overflow: hidden; }
+.io-top { padding: 12px 14px 10px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.io-kick { font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--sea); }
+.io-hero { font-family: var(--serif); font-size: 19px; line-height: 1.18; font-weight: 500; letter-spacing: -.003em; text-wrap: balance; }
+.io-hero em { font-style: italic; color: var(--wrong); }
+.io-hero b { font-weight: 600; color: var(--sea); white-space: nowrap; }
+.io-sub { font-size: 12px; line-height: 1.45; color: var(--text-2); }
+.io-sub b { color: var(--text); font-weight: 600; }
+.io-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.io-filters button { position: relative; display: inline-flex; align-items: center; gap: 5px; min-height: 26px; padding: 3px 9px 3px 7px; font: inherit; font-size: 11px; font-weight: 600;
+  color: var(--text-2); background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 999px; cursor: pointer; }
+.io-filters button::after { content: ""; position: absolute; inset: -6px -2px; }
+.io-filters button:hover { color: var(--text); }
+.io-filters button[aria-pressed="false"] { opacity: .55; }
+.io-filters button[aria-pressed="false"] .dot { background: transparent !important; box-shadow: inset 0 0 0 1.5px currentColor; }
+.io-filters em { font-style: normal; color: var(--text); font-variant-numeric: tabular-nums; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; }
+.d-wrong { background: var(--wrong); } .d-joined { background: var(--joined); } .d-unsure { background: var(--unsure); } .d-right { background: var(--right); }
+
+.io-scroll { flex: 1; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent; }
+.io-list { list-style: none; margin: 0; padding: 4px 6px 8px; }
+.io-list li { margin: 0; }
+.io-row { position: relative; width: 100%; display: grid; grid-template-columns: 1fr auto; align-items: baseline; gap: 0 8px; padding: 6px 8px 7px; text-align: left;
+  font: inherit; color: var(--text); background: transparent; border: 0; border-radius: 9px; cursor: pointer; }
+.io-row:hover, .io-row.hot { background: rgba(255, 255, 255, .06); }
+.io-row[aria-current="true"] { background: rgba(var(--sea-rgb), .12); box-shadow: inset 0 0 0 1px rgba(var(--sea-rgb), .35); }
+.io-row .n { font-family: var(--serif); font-size: 15px; font-weight: 520; line-height: 1.15; display: flex; align-items: center; gap: 7px; min-width: 0; }
+.io-row .n span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.io-row .v { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--text); }
+.io-row .m { grid-column: 1 / -1; font-size: 11px; color: var(--text-2); padding-left: 15px; line-height: 1.3; }
+.io-row .bar { grid-column: 1 / -1; height: 3px; margin: 4px 0 0 15px; border-radius: 2px; background: rgba(255, 255, 255, .07); overflow: hidden; }
+.io-row .bar i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg, var(--c), var(--sea)); }
+.io-row.s-right .n, .io-row.s-unsure .n, .io-row.s-joined .n { font-style: italic; }
+.io-sep { padding: 10px 8px 3px; font-size: 10px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; color: var(--text-2); }
+
+/* ---- detail ---- */
+.io-det { padding: 12px 14px 12px; display: grid; gap: 8px; border-bottom: 1px solid var(--line); }
+.io-det[hidden] { display: none; }
+.io-det .row1 { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; font-size: 10.5px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase; color: var(--c); }
+.io-back { position: relative; font: inherit; font-size: 11px; font-weight: 600; color: var(--text-2); background: rgba(255, 255, 255, .07); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; min-height: 26px; cursor: pointer; }
+.io-back::after { content: ""; position: absolute; inset: -8px -4px; }
+.io-back:hover { color: var(--text); }
+.io-det h2 { margin: 0; font-family: var(--serif); font-size: 25px; font-weight: 560; line-height: 1.05; color: var(--c); letter-spacing: -.005em; }
+.io-det .mean { font-size: 12.5px; color: var(--text-2); line-height: 1.4; }
+.io-det .mean b { color: var(--text); font-weight: 600; }
+.io-det .mean q { font-family: var(--serif); font-style: italic; font-size: 14px; color: var(--text); quotes: "\201C" "\201D"; }
+.io-nums { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.io-nums div { padding: 6px 8px; border-radius: 9px; background: rgba(255, 255, 255, .05); display: grid; gap: 1px; }
+.io-nums b { font-family: var(--display); font-size: 21px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; color: var(--text); }
+.io-nums div:first-child b { color: var(--sea); }
+.io-nums div:last-child b { color: var(--shore73); }
+.io-nums span { font-size: 10.5px; color: var(--text-2); line-height: 1.25; }
+.io-det p { font-size: 12.5px; line-height: 1.5; color: var(--text-2); }
+.io-det p.story { color: var(--text); }
+.io-det .mem { font-size: 11.5px; }
+.io-det .src { font-size: 10.5px; line-height: 1.5; }
+.io-det a, .io-foot a { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.io-det a:hover { color: var(--text); }
+.c-wrong { --c: var(--wrong); } .c-joined { --c: var(--joined); } .c-unsure { --c: var(--unsure); } .c-right { --c: var(--right); }
+
+.io-foot { padding: 9px 14px 11px; border-top: 1px solid var(--line); display: grid; gap: 6px; }
+.io-foot .how { font-size: 10.5px; line-height: 1.45; color: var(--text-2); }
+.io-foot .how b { color: var(--text); font-weight: 600; }
+
+/* ---- the tide: blend 1973 and today ---- */
+.io-tide { left: 50%; transform: translateX(calc(-50% - (var(--panel-w) + 50px) / 2)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: min(470px, calc(100vw - var(--panel-w) - 110px)); padding: 9px 13px 9px; display: grid; gap: 7px; }
+.io-tide .yrs { display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px; }
+.io-tide .yr { display: grid; gap: 0; line-height: 1.05; }
+.io-tide .yr b { font-family: var(--display); font-size: 19px; font-weight: 800; letter-spacing: .01em; }
+.io-tide .yr span { font-size: 10px; color: var(--text-2); }
+.io-tide .yr.then b { color: var(--shore73); }
+.io-tide .yr.now { text-align: right; }
+.io-tide .yr.now b { color: var(--sea); }
+.io-tide input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 26px; background: transparent; cursor: pointer; margin: 0; }
+.io-tide input[type="range"]::-webkit-slider-runnable-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #8B6A45, #E9C998 35%, #9BD9F2 65%, var(--sea)); }
+.io-tide input[type="range"]::-moz-range-track { height: 6px; border-radius: 3px; background: linear-gradient(90deg, #8B6A45, #E9C998 35%, #9BD9F2 65%, var(--sea)); }
+.io-tide input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 20px; height: 20px; margin-top: -7px; border-radius: 50%; background: #F4F7FB; border: 0; box-shadow: 0 0 0 3px rgba(9, 14, 24, .75), 0 2px 8px rgba(0, 0, 0, .5); }
+.io-tide input[type="range"]::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: #F4F7FB; border: 0; box-shadow: 0 0 0 3px rgba(9, 14, 24, .75), 0 2px 8px rgba(0, 0, 0, .5); }
+.io-tide input[type="range"]:focus-visible { outline: 2px solid var(--sea); outline-offset: 2px; border-radius: 6px; }
+.io-play { position: relative; width: 30px; height: 30px; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, .08); color: var(--text); display: grid; place-items: center; cursor: pointer; }
+.io-play::after { content: ""; position: absolute; inset: -7px; }
+.io-play:hover { background: rgba(255, 255, 255, .15); }
+.io-play svg { width: 13px; height: 13px; fill: currentColor; }
+.io-keys { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+.io-keys button { position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 24px; padding: 2px 8px 2px 6px; font: inherit; font-size: 10.5px; font-weight: 600; color: var(--text-2);
+  background: transparent; border: 1px solid transparent; border-radius: 999px; cursor: pointer; }
+.io-keys button::after { content: ""; position: absolute; inset: -6px -2px; }
+.io-keys button:hover { color: var(--text); background: rgba(255, 255, 255, .05); }
+.io-keys button[aria-pressed="false"] { opacity: .45; text-decoration: line-through; }
+.io-keys svg { width: 22px; height: 10px; flex: none; }
+.io-keys em { font-style: normal; color: var(--text); }
+.io-up { font-size: 10px; color: var(--text-2); text-align: center; }
+
+.io-tip { position: fixed; z-index: 5; pointer-events: none; padding: 5px 9px; border-radius: 8px; background: rgba(9, 14, 24, .92); border: 1px solid var(--line);
+  font-size: 11.5px; line-height: 1.35; color: var(--text); max-width: 240px; box-shadow: 0 8px 22px rgba(0, 0, 0, .45); }
+.io-tip[hidden] { display: none; }
+.io-tip small { display: block; color: var(--text-2); font-size: 10.5px; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.loading[hidden] { display: none; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .io-hero { font-size: 16.5px; }
+  .io-top { padding: 10px 12px 8px; gap: 6px; }
+  .io-det { padding: 10px 12px; gap: 6px; }
+  .io-det h2 { font-size: 21px; }
+  .nm b { font-size: calc(var(--fs, 15px) * .88); }
+  .nm.s-right b { font-size: 10.5px; }
+  .nm i { font-size: 9px; }
+}
+/* phones held upright: the panel is a bottom sheet, the tide sits on top of it */
+@media (max-width: 640px) and (orientation: portrait) {
+  :root { --sheet-h: 41vh; }
+  .io-panel { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: var(--sheet-h); border-bottom: 0; border-radius: 16px 16px 0 0; }
+  .io-sub, .io-foot .how.long { display: none; }
+  .io-hero { font-size: 15.5px; }
+  .io-tide { left: 8px; right: 8px; width: auto; transform: none; bottom: calc(var(--sheet-h) + 8px); padding: 6px 10px 6px; gap: 4px; }
+  .io-tide .yr b { font-size: 16px; }
+  .io-tide .yr span { display: none; }
+  .io-keys, .io-up { display: none; }
+  .io-foot { padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .picked .io-top { display: none; }
+}
+/* phones held sideways: the panel is a right-hand column, the tide bottom-left */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --panel-w: min(300px, 40vw); }
+  .io-panel { right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); }
+  .io-sub { display: none; }
+  .io-tide { left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); transform: none; width: min(330px, calc(100vw - var(--panel-w) - 90px)); padding: 6px 10px; gap: 4px; }
+  .io-tide .yr b { font-size: 15px; }
+  .io-tide .yr span, .io-keys, .io-up { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore turned to face the sea, south at the top: place names that mean cape, bay, sand, beach or island, each set at its spot with a line to today's coast, over a Landsat picture from October 1973"></div>
+<div id="labels" aria-hidden="true"></div>
+<p id="loading" class="loading dmc-chrome">Measuring the distance to the sea&hellip;</p>
+<div id="tip" class="io-tip dmc-chrome" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="panel" class="dmc-glass io-panel" data-dmc-overlay aria-label="The names, ranked by distance to the sea">
+  <div class="io-top">
+    <p class="io-kick">Names that lost the sea</p>
+    <p id="hero" class="io-hero">&hellip;</p>
+    <p id="sub" class="io-sub"></p>
+    <div id="filters" class="io-filters" role="group" aria-label="Show names that are"></div>
+  </div>
+  <div class="io-scroll" id="scroll">
+    <section id="det" class="io-det" hidden aria-live="polite"></section>
+    <ol id="list" class="io-list" aria-label="Names, furthest from the sea first"></ol>
+    <div class="io-foot">
+      <p class="how"><b>How it&rsquo;s measured.</b> From the part of each name nearest the sea (its streets, station, park or point) to today&rsquo;s OpenStreetMap coastline. Marina Bay and Kallang Basin are fresh water behind <a href="https://www.pub.gov.sg/public/places-of-interest/marina-barrage" target="_blank" rel="noopener noreferrer">Marina Barrage</a>, so they don&rsquo;t count as sea. &ldquo;Still by the sea&rdquo; means within <span id="near">250</span> m.</p>
+      <p class="how long" id="how73"></p>
+      <p class="how long" id="left"></p>
+      <p id="credits" class="dmc-credits"></p>
+    </div>
+  </div>
+</aside>
+
+<section id="tide" class="dmc-glass io-tide" data-dmc-overlay aria-label="Blend the 1973 picture with today's">
+  <div class="yrs">
+    <div class="yr then"><b>1973</b><span>Landsat 1</span></div>
+    <label class="sr" for="blend">Blend between October 1973 and today</label>
+    <input id="blend" type="range" min="0" max="100" step="1" value="0" aria-valuetext="October 1973">
+    <div class="yr now"><b>Today</b><span>satellite</span></div>
+    <button id="play" class="io-play" type="button" aria-label="Play from 1973 to today"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg></button>
+  </div>
+  <div class="io-keys" role="group" aria-label="Map layers">
+    <button type="button" data-k="coast" aria-pressed="true"><svg viewBox="0 0 22 10" aria-hidden="true"><path d="M1 5h20" stroke="#5CC8FF" stroke-width="2.2"/></svg>Today&rsquo;s coast</button>
+    <button type="button" data-k="c73" aria-pressed="true"><svg viewBox="0 0 22 10" aria-hidden="true"><path d="M1 5h20" stroke="#E9C998" stroke-width="1.6" stroke-dasharray="3 2.4"/></svg>Shore in 1973</button>
+    <button type="button" data-k="added" aria-pressed="true"><svg viewBox="0 0 22 10" aria-hidden="true"><rect x="1" y="1" width="20" height="8" rx="2" fill="rgba(92,200,255,.16)" stroke="rgba(92,200,255,.5)"/><path d="M4 9l6-8M10 9l6-8M16 9l5-6.7" stroke="#5CC8FF" stroke-width="1"/></svg>New land since 1973: <em id="k-added">&hellip;</em></button>
+  </div>
+  <p class="io-up">South is up: the map faces the sea, the way these names did.</p>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const A = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const DAY = {
+  n: 15,
+  title: 'Beach Road has no beach',
+  deck: 'Singapore still names capes, bays, beaches and islands that land reclamation has left inland. Each name sits where it is today, tied by a thin line to the nearest sea. Slide back to October 1973, when Landsat 1 saw a smaller island.',
+  accent: '#5CC8FF',
+  basemap: 'esri-imagery',
+  basemapPaint: { 'raster-saturation': -0.3, 'raster-brightness-max': 0.74, 'raster-contrast': 0.06 },
+  basemapBg: '#070C14',
+  bounds: [[103.61, 1.2], [104.11, 1.465]],
+  maxBounds: [[103.2, 0.7], [104.5, 1.95]],
+  minZoom: 8.6, maxZoom: 16.5,
+  camera: { pitch: 0, bearing: 180, tiltPitch: 45 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Names and today&rsquo;s coastline: ' + DMC.OSM_CREDIT + ' (ODbL), Singapore extract of 1 Nov 2026 from ' + A('https://download.openstreetmap.fr/extracts/asia/', 'openstreetmap.fr'),
+    '1973 picture and shore: ' + A('https://planetarycomputer.microsoft.com/dataset/landsat-c2-l1', 'Landsat 1 MSS') + ', 17 Oct 1973, scene LM01_L1TP_134059_19731017, courtesy of the U.S. Geological Survey, via Microsoft Planetary Computer',
+    'Land area: ' + A('https://tablebuilder.singstat.gov.sg/table/TS/M890151', 'SingStat M890151') + ' and ' + A('https://tablebuilder.singstat.gov.sg/table/TS/M890621', 'M890621') + ' (SLA)',
+    'Word meanings: ' + A('https://prpm.dbp.gov.my/', 'Dewan Bahasa dan Pustaka, PRPM') + '. Stories: NLB Infopedia, BiblioAsia, Roots, URA, NParks and SG101, linked with each name',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+/* ---------- framing, south up ----------
+   With the map turned 180 degrees, MapLibre 4.7's cameraForBounds shifts the centre the wrong
+   way for uneven padding, so the kit's framing lands the island under the panels. After every
+   kit framing, this re-frames: the zoom from the bounds' size on screen, the centre from the
+   bounds, and the panels' space handed to the map as padding (screen space, so it's right at
+   any bearing). The kit's own flag keeps this from counting as the viewer moving the map. */
+const boundsCenter = b => [(b[0][0] + b[1][0]) / 2, (b[0][1] + b[1][1]) / 2];
+function fitZoom(b, pad) {   // the zoom at which b fills the box left by pad, at the current bearing
+  const pts = [[b[0][0], b[0][1]], [b[1][0], b[0][1]], [b[1][0], b[1][1]], [b[0][0], b[1][1]]].map(c => map.project(c));
+  const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+  const w = Math.max(1, Math.max(...xs) - Math.min(...xs)), h = Math.max(1, Math.max(...ys) - Math.min(...ys));
+  const el = map.getContainer();
+  const aw = Math.max(40, el.clientWidth - pad.left - pad.right), ah = Math.max(40, el.clientHeight - pad.top - pad.bottom);
+  return Math.max(map.getMinZoom(), Math.min(map.getMaxZoom(), map.getZoom() + Math.log2(Math.min(aw / w, ah / h))));
+}
+let reframing = false;
+function frameSouthUp() {
+  const pad = DMC.overlayPadding();
+  reframing = true; map.__dmcFraming = true;
+  map.jumpTo({ center: boundsCenter(DAY.bounds), zoom: fitZoom(DAY.bounds, pad), bearing: map.getBearing(), pitch: map.getPitch(), padding: pad });
+  map.__dmcFraming = false; reframing = false;
+}
+if (!params0().has('view')) frameSouthUp();
+map.on('moveend', () => { if (map.__dmcFraming && !reframing) requestAnimationFrame(frameSouthUp); });
+function params0() { return new URLSearchParams(location.search); }
+
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = params0();
+const nf = new Intl.NumberFormat('en-SG');
+const COLORS = { wrong: '#FFE9CF', joined: '#F0BE73', unsure: '#B3BDCB', right: '#A9E0F7' };
+const STATUS = {
+  wrong: { label: 'Now inland', long: 'The sea it was named for has moved away.' },
+  joined: { label: 'No longer an island', long: 'The spot that carries this island&rsquo;s name is now inside other land.' },
+  unsure: { label: 'Can&rsquo;t tell', long: '' },
+  right: { label: 'Still by the sea', long: '' },
+};
+const ORDER = ['wrong', 'joined', 'unsure', 'right'];
+const km = m => m >= 995 ? `${(m / 1000).toFixed(1)} km` : `${nf.format(Math.round(m / 10) * 10)} m`;
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+/* ---------- data ---------- */
+function decode(a) {   // delta-encoded integers, 1e-5 degrees
+  const out = []; let x = 0, y = 0;
+  for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / 1e5, y / 1e5]); }
+  return out;
+}
+let D = null, G = [];
+const show = { wrong: true, joined: true, unsure: true, right: true };
+let selected = null;
+
+const dataP = fetch('data/day15/inside-out.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+
+/* ---------- map layers ---------- */
+function hatch() {   // diagonal aqua hatching for land made since 1973
+  const s = 24, c = document.createElement('canvas'); c.width = c.height = s;
+  const g = c.getContext('2d');
+  g.fillStyle = 'rgba(92,200,255,0.10)'; g.fillRect(0, 0, s, s);
+  g.strokeStyle = 'rgba(92,200,255,0.62)'; g.lineWidth = 1.6;
+  for (const o of [-s, 0, s]) { g.beginPath(); g.moveTo(o, s); g.lineTo(o + s, 0); g.stroke(); }
+  return g.getImageData(0, 0, s, s);
+}
+function addLayers() {
+  const geo = D.geo;
+  map.addSource('l73', { type: 'image', url: D.img.url, coordinates: D.img.coords });
+  map.addLayer({ id: 'l73', type: 'raster', source: 'l73', paint: { 'raster-opacity': 1, 'raster-fade-duration': 0, 'raster-resampling': 'linear', 'raster-brightness-max': .9, 'raster-contrast': .05 } });
+  // a thin frame round the old picture, so its edge reads as a photo, not a glitch
+  const [nw, ne, se, sw] = D.img.coords;
+  map.addSource('frame', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'LineString', coordinates: [nw, ne, se, sw, nw] } } });
+  map.addLayer({ id: 'frame', type: 'line', source: 'frame', paint: { 'line-color': '#E9C998', 'line-opacity': .45, 'line-width': 1 } });
+  map.addImage('hatch', hatch(), { pixelRatio: 2 });
+  map.addSource('added', { type: 'geojson', data: { type: 'FeatureCollection', features: geo.added.map(rings => ({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: rings.map(decode) } })) } });
+  map.addLayer({ id: 'added', type: 'fill', source: 'added', paint: { 'fill-pattern': 'hatch', 'fill-opacity': .85 } });
+  map.addSource('c73', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: geo.c73.map(decode) } } });
+  map.addLayer({ id: 'c73', type: 'line', source: 'c73', layout: { 'line-join': 'round' }, paint: { 'line-color': '#E9C998', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, .9, 14, 1.6], 'line-dasharray': [2.4, 1.8], 'line-opacity': .9 } });
+  map.addSource('coast', { type: 'geojson', data: { type: 'Feature', geometry: { type: 'MultiLineString', coordinates: geo.coast.map(decode) } } });
+  map.addLayer({ id: 'coast-glow', type: 'line', source: 'coast', layout: { 'line-join': 'round' }, paint: { 'line-color': '#5CC8FF', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 3, 14, 7], 'line-blur': 4, 'line-opacity': .35 } });
+  map.addLayer({ id: 'coast', type: 'line', source: 'coast', layout: { 'line-join': 'round' }, paint: { 'line-color': '#7FD8FF', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 14, 1.8] } });
+
+  // tethers: from each name to the nearest sea
+  const teth = G.filter(g => g.d > 0).map(g => ({ type: 'Feature', id: g.i, properties: { s: g.s, d: g.d }, geometry: { type: 'LineString', coordinates: [g.a, g.c] } }));
+  map.addSource('teth', { type: 'geojson', data: { type: 'FeatureCollection', features: teth } });
+  map.addSource('ends', { type: 'geojson', data: { type: 'FeatureCollection', features: G.flatMap(g => g.d > 0 ? [
+    { type: 'Feature', id: g.i * 2, properties: { s: g.s, e: 'sea' }, geometry: { type: 'Point', coordinates: g.c } },
+    { type: 'Feature', id: g.i * 2 + 1, properties: { s: g.s, e: 'name' }, geometry: { type: 'Point', coordinates: g.a } }] : [
+    { type: 'Feature', id: g.i * 2 + 1, properties: { s: g.s, e: 'name' }, geometry: { type: 'Point', coordinates: g.a } }]) } });
+  const col = ['match', ['get', 's'], 'wrong', COLORS.wrong, 'joined', COLORS.joined, 'unsure', COLORS.unsure, COLORS.right];
+  const hot = ['any', ['boolean', ['feature-state', 'hot'], false], ['boolean', ['feature-state', 'sel'], false]];
+  map.addLayer({ id: 'teth-glow', type: 'line', source: 'teth', layout: { 'line-cap': 'round' }, paint: { 'line-color': '#5CC8FF', 'line-width': 9, 'line-blur': 6, 'line-opacity': ['case', hot, .55, 0] } });
+  map.addLayer({ id: 'teth', type: 'line', source: 'teth', layout: { 'line-cap': 'round' }, paint: {
+    'line-color': col, 'line-width': ['case', hot, 2.2, ['match', ['get', 's'], 'wrong', 1.3, 'joined', 1.1, .9]],
+    'line-opacity': ['case', hot, 1, ['match', ['get', 's'], 'right', .55, .85]], 'line-opacity-transition': { duration: 700 } } });
+  map.addLayer({ id: 'teth-dash', type: 'line', source: 'teth', filter: ['==', ['get', 's'], 'unsure'], paint: { 'line-color': '#070C14', 'line-width': 1, 'line-dasharray': [1.5, 2.5], 'line-opacity': .9 } });
+  map.addLayer({ id: 'ends', type: 'circle', source: 'ends', paint: {
+    'circle-radius': ['case', hot, 4.5, ['==', ['get', 'e'], 'sea'], 2.6, ['==', ['get', 's'], 'right'], 2, 2.8],
+    'circle-color': ['case', ['==', ['get', 'e'], 'sea'], '#5CC8FF', col],
+    'circle-stroke-color': '#070C14', 'circle-stroke-width': 1.2 } });
+  setVisibility();
+}
+
+/* ---------- names: DOM labels, so the type can be a proper serif ---------- */
+const layer = $('labels');
+map.getCanvasContainer().after(layer);   // inside the map, under the controls
+layer.style.cssText = 'position:absolute;inset:0;pointer-events:none;overflow:hidden;z-index:1';
+function fontSize(g) {   // further inland, bigger: the most wrong names shout loudest
+  if (g.s === 'right') return 11.5;
+  return Math.round(12.5 + 9 * Math.sqrt(Math.min(g.d, 2200) / 2200));
+}
+function caption(g) {
+  if (g.s === 'joined') return g.d > 0 ? `island · now ${km(g.d)} inland` : 'island no more';
+  if (g.s === 'unsure') return `${km(g.d)} from the sea · ?`;
+  if (g.s === 'wrong') return `${km(g.d)} from the sea`;
+  return '';
+}
+function buildLabels() {
+  for (const g of G) {
+    const el = document.createElement('div');
+    el.className = `nm s-${g.s} off`;
+    el.style.setProperty('--fs', fontSize(g) + 'px');
+    el.innerHTML = `<b>${esc(g.n)}</b>${caption(g) ? `<i>${caption(g)}</i>` : ''}`;
+    el.addEventListener('click', e => { e.stopPropagation(); select(g.i, true); });
+    el.addEventListener('mouseenter', () => hotOn(g.i));
+    el.addEventListener('mouseleave', () => hotOff(g.i));
+    layer.append(el);
+    g.el = el;
+  }
+  requestAnimationFrame(() => {   // measure once; sizes don't change with the map
+    for (const g of G) { g.w = g.el.offsetWidth; g.h = g.el.offsetHeight; }
+    place();
+  });
+}
+// Each label sits beside its point, on the side away from its line to the sea.
+// Then labels are placed in rank order, and any that would overlap one already placed hide.
+let placeQueued = false;
+function queuePlace() { if (!placeQueued) { placeQueued = true; requestAnimationFrame(() => { placeQueued = false; place(); }); } }
+function place() {
+  if (!G.length || G[0].w == null) return;
+  const W = layer.clientWidth, H = layer.clientHeight, z = map.getZoom();
+  const boxes = [];
+  const hit = b => boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+  const order = G.slice().sort((p, q) => (p.i === selected ? -1 : q.i === selected ? 1 : 0) || p.prio - q.prio);
+  // the panels are obstacles: no name hides under them
+  const mr = layer.getBoundingClientRect();
+  for (const e of document.querySelectorAll('[data-dmc-overlay]')) {
+    const r = e.getBoundingClientRect();
+    if (r.width && getComputedStyle(e).visibility !== 'hidden') boxes.push([r.left - mr.left - 4, r.top - mr.top - 4, r.right - mr.left + 4, r.bottom - mr.top + 4]);
+  }
+  for (const g of order) {
+    const vis = show[g.s] && (g.s !== 'right' || g.major || z >= 11.4 || g.i === selected);
+    if (!vis) { g.el.classList.add('off'); continue; }
+    const p = map.project(g.a), c = map.project(g.c);
+    let dx = p.x - c.x, dy = p.y - c.y;
+    const len = Math.hypot(dx, dy);
+    if (len < 6) { dx = 0; dy = -1; } else { dx /= len; dy /= len; }
+    // offset the box centre away from the sea by half its size plus a gap
+    const gap = 6, hw = g.w / 2, hh = g.h / 2;
+    const ox = dx * (hw + gap), oy = dy * (hh + gap);
+    const cx = p.x + ox, cy = p.y + oy;
+    const b = [cx - hw - 2, cy - hh - 1, cx + hw + 2, cy + hh + 1];
+    const inView = b[0] >= 2 && b[2] <= W - 2 && b[1] >= 2 && b[3] <= H - 2;   // whole label on screen
+    if (!inView || (g.i !== selected && hit(b))) { g.el.classList.add('off'); continue; }
+    boxes.push(b);
+    g.el.style.transform = `translate(${Math.round(cx - hw)}px, ${Math.round(cy - hh)}px)`;
+    g.el.classList.remove('off');
+  }
+}
+map.on('move', queuePlace);
+map.on('resize', queuePlace);
+
+/* ---------- hover and select ---------- */
+const tip = $('tip');
+function state(i, k, v) {
+  if (!map.getSource('teth')) return;
+  map.setFeatureState({ source: 'teth', id: i }, { [k]: v });
+  map.setFeatureState({ source: 'ends', id: i * 2 }, { [k]: v });
+  map.setFeatureState({ source: 'ends', id: i * 2 + 1 }, { [k]: v });
+}
+function hotOn(i) { state(i, 'hot', true); rowOf(i)?.classList.add('hot'); }
+function hotOff(i) { state(i, 'hot', false); rowOf(i)?.classList.remove('hot'); }
+const rowOf = i => $('list').querySelector(`[data-i="${i}"]`);
+
+function wordNote(g) {
+  const w = D.words[g.w];
+  return w && w.src ? `<b>${g.w}</b> means <b>${w.m}</b> in Malay: &ldquo;${w.dbp}&rdquo; (${A(w.src, 'Kamus Dewan')}, our translation).` : '';
+}
+function detail(g) {
+  const note = D.notes[g.n] || {}, zone = g.z && D.zones[g.z];
+  const srcs = [...(note.src || []), ...(zone && !note.src ? zone.src : [])];
+  const mem = g.m.filter(r => r[0] !== g.via);
+  const kindWord = { street: 'street', station: 'MRT station', place: 'place', park: 'park', cape: 'cape', beach: 'beach', island: 'island' };
+  let nums = '';
+  if (g.d > 0) {
+    const then = g.d73 == null ? '&ndash;' : g.sea73 ? 'in the sea' : g.d73 <= 60 ? 'at the edge' : km(g.d73);
+    nums = `<div class="io-nums"><div><b>${km(g.d)}</b><span>to the sea today</span></div><div><b>${then}</b><span>${g.d73 == null ? 'outside the 1973 picture' : g.sea73 ? 'this spot was water in Oct 1973, or too small to see' : g.d73 <= 60 ? 'of the water in Oct 1973' : 'to the water in Oct 1973'}</span></div></div>`;
+  }
+  let why = STATUS[g.s].long;
+  if (g.s === 'unsure') why = `It&rsquo;s inland now, but we found no source saying it was ever on the shore${g.d73 != null ? `, and in 1973 the water was already ${km(g.d73)} away` : ''}. It may be named after something else.`;
+  if (g.s === 'right' && g.d > 0) why = `It still comes within ${km(g.d)} of the water.`;
+  if (g.s === 'right' && g.d === 0 && g.w === 'Pulau') why = 'Still an island.';
+  if (g.s === 'right' && g.d === 0 && g.w !== 'Pulau') why = 'Still on the shore.';
+  const story = note.story || (zone ? zone.story : '');
+  $('det').innerHTML = `
+    <div class="row1"><span class="pill c-${g.s}"><span class="dot d-${g.s}"></span>${STATUS[g.s].label}</span><button id="back" class="io-back" type="button">All names</button></div>
+    <h2 class="c-${g.s}">${esc(g.n)}</h2>
+    <p class="mean">${note.meaning ? `<q>${esc(note.meaning)}</q><br>` : ''}${wordNote(g)}</p>
+    ${nums}
+    ${why ? `<p>${why}</p>` : ''}
+    ${story ? `<p class="story">${esc(story)}</p>` : (g.s !== 'right' ? '<p>We found no published history for this name.</p>' : '')}
+    <p class="mem">Measured from <b>${esc(g.via)}</b> (${kindWord[g.m.find(r => r[0] === g.via)?.[1]] || 'place'})${mem.length ? `. Also carrying the name: ${mem.slice(0, 6).map(r => `${esc(r[0])} ${km(r[2])}`).join(', ')}${mem.length > 6 ? `, and ${mem.length - 6} more` : ''}` : ''}.</p>
+    ${srcs.length ? `<p class="src">Sources: ${srcs.map(s => A(s[1], esc(s[0]))).join('; ')}</p>` : ''}`;
+  $('det').hidden = false;
+  $('back').addEventListener('click', () => select(null));
+}
+function select(i, fly) {
+  if (selected != null) state(selected, 'sel', false);
+  G.forEach(g => g.el.classList.toggle('sel', g.i === i));
+  $('list').querySelectorAll('[aria-current]').forEach(r => r.removeAttribute('aria-current'));
+  selected = i;
+  document.documentElement.classList.toggle('picked', i != null);
+  if (i == null) { $('det').hidden = true; queuePlace(); return; }
+  const g = G[i];
+  state(i, 'sel', true);
+  rowOf(i)?.setAttribute('aria-current', 'true');
+  detail(g);
+  $('scroll').scrollTo({ top: 0, behavior: reduceMotion ? 'auto' : 'smooth' });
+  if (fly) {   // the name and its sea in the free part of the screen (see frameSouthUp)
+    const o = DMC.overlayPadding(), pad = { top: o.top + 50, bottom: o.bottom + 50, left: o.left + 80, right: o.right + 80 };
+    const b = [[Math.min(g.a[0], g.c[0]), Math.min(g.a[1], g.c[1])], [Math.max(g.a[0], g.c[0]), Math.max(g.a[1], g.c[1])]];
+    map.flyTo({ center: boundsCenter(b), zoom: Math.min(fitZoom(b, pad), 15), padding: pad, bearing: map.getBearing(), pitch: map.getPitch(), duration: reduceMotion ? 0 : 1600, essential: true });
+  }
+  queuePlace();
+}
+map.on('click', () => { if (selected != null) select(null); });
+
+/* ---------- the list ---------- */
+function buildList() {
+  const maxD = Math.max(...G.map(g => g.d));
+  const rows = [];
+  let lastGroup = null;
+  for (const g of G.slice().sort((p, q) => p.rank - q.rank)) {
+    if (!show[g.s]) continue;
+    const grp = g.s === 'right' ? 'right' : 'inland';
+    if (grp !== lastGroup && grp === 'right') rows.push(`<li class="io-sep" aria-hidden="true">Still by the sea</li>`);
+    lastGroup = grp;
+    const note = D.notes[g.n], w = D.words[g.w];
+    const sub = note && note.meaning ? note.meaning : (w ? w.m : '');
+    rows.push(`<li><button class="io-row s-${g.s}" type="button" data-i="${g.i}" style="--c:${COLORS[g.s]}">
+      <span class="n"><span class="dot d-${g.s}" aria-hidden="true"></span><span>${esc(g.n)}</span></span>
+      <span class="v">${g.d > 0 ? km(g.d) : g.w === 'Pulau' ? 'island' : 'at the sea'}</span>
+      <span class="m">${esc(sub)}${g.s === 'joined' ? ' · no longer an island' : g.s === 'unsure' ? ' · was it ever on the shore?' : ''}</span>
+      ${g.s !== 'right' ? `<span class="bar" aria-hidden="true"><i style="width:${Math.max(2, 100 * g.d / maxD)}%"></i></span>` : ''}
+      <span class="sr">${STATUS[g.s].label.replace('&rsquo;', '’')}</span></button></li>`);
+  }
+  $('list').innerHTML = rows.join('');
+  $('list').querySelectorAll('.io-row').forEach(b => {
+    const i = +b.dataset.i;
+    b.addEventListener('click', () => select(i, true));
+    b.addEventListener('mouseenter', () => hotOn(i));
+    b.addEventListener('mouseleave', () => hotOff(i));
+    b.addEventListener('focus', () => hotOn(i));
+    b.addEventListener('blur', () => hotOff(i));
+  });
+  if (selected != null) rowOf(selected)?.setAttribute('aria-current', 'true');
+}
+function buildFilters() {
+  const n = s => G.filter(g => g.s === s).length;
+  $('filters').innerHTML = ORDER.map(s => `<button type="button" data-s="${s}" aria-pressed="${show[s]}"><span class="dot d-${s}"></span>${STATUS[s].label} <em>${n(s)}</em></button>`).join('');
+  $('filters').querySelectorAll('button').forEach(b => b.addEventListener('click', () => {
+    const s = b.dataset.s;
+    show[s] = !show[s];
+    b.setAttribute('aria-pressed', String(show[s]));
+    setVisibility(); buildList(); queuePlace();
+  }));
+}
+function setVisibility() {
+  if (!map.getLayer('teth')) return;
+  const on = ORDER.filter(s => show[s]);
+  const f = ['in', ['get', 's'], ['literal', on]];
+  for (const id of ['teth', 'teth-glow', 'ends']) map.setFilter(id, f);
+  map.setFilter('teth-dash', ['all', f, ['==', ['get', 's'], 'unsure']]);
+}
+
+/* ---------- the tide: 1973 to today ---------- */
+const blend = $('blend');
+function setBlend(v) {
+  blend.value = v;
+  const t = v / 100;
+  if (map.getLayer('l73')) { map.setPaintProperty('l73', 'raster-opacity', 1 - t); map.setPaintProperty('frame', 'line-opacity', .45 * (1 - t)); }
+  blend.setAttribute('aria-valuetext', v <= 0 ? 'October 1973' : v >= 100 ? 'Today' : `${100 - v}% 1973, ${v}% today`);
+}
+blend.addEventListener('input', () => { stopPlay(); setBlend(+blend.value); });
+let playRaf = 0;
+function stopPlay() { if (playRaf) { cancelAnimationFrame(playRaf); playRaf = 0; } }
+$('play').addEventListener('click', () => {
+  stopPlay();
+  const from = +blend.value >= 100 ? 100 : +blend.value, to = from >= 100 ? 0 : 100;
+  if (reduceMotion) { setBlend(to); return; }
+  const t0 = performance.now(), dur = 3600 * Math.abs(to - from) / 100;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;
+    setBlend(Math.round(from + (to - from) * e));
+    if (k < 1) playRaf = requestAnimationFrame(step); else playRaf = 0;
+  };
+  playRaf = requestAnimationFrame(step);
+});
+document.querySelectorAll('.io-keys button').forEach(b => b.addEventListener('click', () => {
+  const on = b.getAttribute('aria-pressed') !== 'true';
+  b.setAttribute('aria-pressed', String(on));
+  const ids = { coast: ['coast', 'coast-glow'], c73: ['c73'], added: ['added'] }[b.dataset.k];
+  for (const id of ids) if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
+}));
+
+/* ---------- hover the map's lines ---------- */
+const canHover = matchMedia('(hover: hover)').matches;
+let tipFor = null;
+if (canHover) map.on('mousemove', e => {
+  const f = map.getLayer('teth') && map.queryRenderedFeatures([[e.point.x - 4, e.point.y - 4], [e.point.x + 4, e.point.y + 4]], { layers: ['teth', 'added'] });
+  const t = f && f.find(x => x.layer.id === 'teth'), a = f && f.find(x => x.layer.id === 'added');
+  if (tipFor != null && (!t || t.id !== tipFor)) { hotOff(tipFor); tipFor = null; }
+  if (t) { const g = G[t.id]; hotOn(g.i); tipFor = g.i; tip.innerHTML = `<b>${esc(g.n)}</b> &rarr; the sea<small>${km(g.d)} in a straight line</small>`; }
+  else if (a) tip.innerHTML = `Land made since October 1973<small>sea in the Landsat picture, dry land inside today&rsquo;s coastline</small>`;
+  tip.hidden = !(t || a);
+  if (!tip.hidden) { tip.style.left = `${Math.min(innerWidth - 250, e.originalEvent.clientX + 14)}px`; tip.style.top = `${e.originalEvent.clientY + 14}px`; }
+  map.getCanvas().style.cursor = t ? 'pointer' : '';
+});
+if (canHover) map.getCanvas().addEventListener('mouseleave', () => { tip.hidden = true; });
+map.on('click', e => {
+  const f = map.getLayer('teth') && map.queryRenderedFeatures([[e.point.x - 6, e.point.y - 6], [e.point.x + 6, e.point.y + 6]], { layers: ['teth'] })[0];
+  if (f) setTimeout(() => select(f.id, false), 0);
+});
+
+/* ---------- text from the data ---------- */
+function fillText() {
+  const s = D.stats, wrong = G.filter(g => g.s === 'wrong'), joined = G.filter(g => g.s === 'joined');
+  const top = wrong.slice().sort((p, q) => q.d - p.d)[0];
+  $('hero').innerHTML = `<em>${esc(top.n)}</em> is <b>${km(top.d)}</b> from the sea. ${wrong.length - 1} more names now stand inland, and ${joined.length} islands are islands no more.`;
+  $('sub').innerHTML = `Since October 1973 Singapore has made about <b>${Math.round(s.added)} km&sup2;</b> of new dry land, by our measure from Landsat. The names stayed where they were.`;
+  $('k-added').textContent = `${Math.round(s.added)} km²`;
+  $('near').textContent = s.near;
+  $('how73').innerHTML = `<b>1973 shore.</b> Landsat 1 near-infrared band, 17 Oct 1973, 60 m pixels: water is dark in it, so pixels at or below ${s.waterDN} of 255 joined to the open sea count as sea. The shore is good to about one pixel (USGS puts the picture&rsquo;s positional error at ${s.rmse} m). New dry land: <b>${Math.round(s.added)} km&sup2;</b> (${Math.round(s.addedLo)}&ndash;${Math.round(s.addedHi)} km&sup2; if the water line moves a step either way), plus ${Math.round(s.dammed)} km&sup2; of 1973 sea that is now fresh water behind dams, such as ${A('https://www.pub.gov.sg/public/places-of-interest/marina-barrage', 'Marina Barrage')}. Strips under 90 m wide are left out as noise; cloud hid ${s.cloudCoastPct}% of the coast. For comparison, the official land area rose from ${A('https://tablebuilder.singstat.gov.sg/table/TS/M890151', '586.4 km&sup2; in 1973')} to ${A('https://tablebuilder.singstat.gov.sg/table/TS/M890621', '745.1 km&sup2; in June 2026')}: 158.7 km&sup2;.`;
+  $('left').innerHTML = `<b>Left out.</b> ${D.left.map(l => `${esc(l.n)}, ${esc(l.why)} (${A(l.src, 'NLB')})`).join('; ')}. Islands that are still islands are shown small.`;
+}
+
+/* ---------- start ---------- */
+Promise.all([dataP, styleP]).then(([d]) => {
+  D = d;
+  // rank: inland names first, furthest first; then islands no more; then the rest
+  G = d.groups.map((g, i) => ({ ...g, i }));
+  // list rank: inland names first, furthest first; then the rest
+  const pri = { wrong: 0, joined: 0, unsure: 0, right: 1 };
+  G.slice().sort((p, q) => pri[p.s] - pri[q.s] || q.d - p.d || p.n.localeCompare(q.n)).forEach((g, r) => { g.rank = r; });
+  // label priority on the map: names with a sourced story first, then by how wrong they are
+  const lp = { wrong: 0, joined: 1, unsure: 2, right: 3 };
+  for (const g of G) g.major = !!d.notes[g.n] || g.k.some(k => k === 'street' || k === 'station' || k === 'place');
+  G.slice().sort((p, q) => (q.major && q.s !== 'right') - (p.major && p.s !== 'right') || lp[p.s] - lp[q.s] || (q.major - p.major) || q.d - p.d).forEach((g, r) => { g.prio = r; });
+  addLayers();
+  buildLabels();
+  buildFilters();
+  buildList();
+  fillText();
+  setBlend(params.has('today') ? 100 : +(params.get('blend') || 0));
+  const q = params.get('name');
+  if (q) { const g = G.find(x => x.n.toLowerCase() === q.toLowerCase()); if (g) select(g.i, true); }
+  map.once('idle', () => { $('loading').hidden = true; queuePlace(); });
+  if (document.fonts) document.fonts.ready.then(() => { for (const g of G) { g.w = g.el.offsetWidth; g.h = g.el.offsetHeight; } queuePlace(); });
+}).catch(err => {
+  $('loading').textContent = 'The names could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
