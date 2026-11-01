@@ -1,0 +1,916 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07040F">
+<title>Day 12 · Where the aircon runs hardest</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 12, Power: Singapore's household electricity use by planning area, home type and month since 2005, seen through a thermal camera, with the Tengeh floating solar farm.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Cdefs%3E%3CradialGradient id='g' cx='.42' cy='.4' r='.6'%3E%3Cstop offset='0' stop-color='%23FCFFA4'/%3E%3Cstop offset='.3' stop-color='%23F37819'/%3E%3Cstop offset='.62' stop-color='%23932667'/%3E%3Cstop offset='1' stop-color='%23160B39'/%3E%3C/radialGradient%3E%3C/defs%3E%3Crect width='32' height='32' rx='7' fill='url(%23g)'/%3E%3Cpath d='M6 11V6h5M21 6h5v5M26 21v5h-5M11 26H6v-5' fill='none' stroke='%23FF5FA2' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 12: a thermal camera over the planning areas ===== */
+:root {
+  --mono: "Share Tech Mono", ui-monospace, Consolas, monospace;
+  --hot: #FF5FA2; --hot-rgb: 255, 95, 162;
+  --ctl-top: 104px;
+  --ctl-w: 288px;
+  --rank-w: 236px;
+  --fx: 0px; --fy: 0px; --fw: 100vw; --fh: 100vh;   /* the free map area, set from JS */
+  --glass: rgba(11, 7, 22, .8);
+}
+.dmc-map { background: #07040F; }
+.mono { font-family: var(--mono); letter-spacing: .02em; }
+
+/* ---- the lens: vignette, scanlines and a viewfinder over the free map area ---- */
+.lens { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+.lens::before { content: ""; position: absolute; inset: 0;
+  background: radial-gradient(130% 100% at 50% 50%, transparent 55%, rgba(4, 1, 10, .72) 100%); }
+.lens::after { content: ""; position: absolute; inset: 0; opacity: .5; mix-blend-mode: overlay;
+  background: repeating-linear-gradient(to bottom, rgba(255, 255, 255, .05) 0 1px, transparent 1px 3px); }
+.finder { position: absolute; left: calc(var(--fx) + 14px); top: calc(var(--fy) + 14px); width: calc(var(--fw) - 28px); height: calc(var(--fh) - 28px); }
+.finder i { position: absolute; width: 22px; height: 22px; border: 0 solid rgba(255, 255, 255, .55); }
+.finder i:nth-child(1) { left: 0; top: 0; border-width: 1.5px 0 0 1.5px; }
+.finder i:nth-child(2) { right: 0; top: 0; border-width: 1.5px 1.5px 0 0; }
+.finder i:nth-child(3) { right: 0; bottom: 0; border-width: 0 1.5px 1.5px 0; }
+.finder i:nth-child(4) { left: 0; bottom: 0; border-width: 0 0 1.5px 1.5px; }
+
+/* HUD line along the top of the finder */
+.hud { position: fixed; z-index: 2; left: calc(var(--fx) + var(--fw) / 2); top: calc(var(--fy) + 16px); transform: translateX(-50%);
+  display: flex; align-items: center; gap: 10px; white-space: nowrap; pointer-events: none;
+  font-family: var(--mono); font-size: 11.5px; letter-spacing: .06em; color: rgba(255, 255, 255, .82); text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+.hud .rec { display: inline-flex; align-items: center; gap: 5px; color: var(--hot); }
+.hud .rec::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--hot); box-shadow: 0 0 8px var(--hot); animation: blink 1.6s steps(2, start) infinite; }
+@keyframes blink { to { visibility: hidden; } }
+.hud b { color: #fff; font-weight: 400; }
+
+/* the spot meter in the middle of the finder */
+.reticle { position: fixed; z-index: 2; left: calc(var(--fx) + var(--fw) / 2); top: calc(var(--fy) + var(--fh) / 2); width: 0; height: 0; pointer-events: none; }
+.reticle svg { position: absolute; left: -17px; top: -17px; width: 34px; height: 34px; overflow: visible; }
+.reticle svg path { fill: none; stroke: #fff; stroke-width: 1.5; filter: drop-shadow(0 0 2px rgba(0, 0, 0, .9)); }
+.spot { position: absolute; left: 22px; top: -9px; white-space: nowrap; max-width: calc(var(--fw) / 2 - 30px); overflow: hidden; text-overflow: ellipsis; font-family: var(--mono); font-size: 12px; line-height: 1.25; color: #fff; text-shadow: 0 1px 3px #000, 0 0 6px rgba(0, 0, 0, .8); }
+.spot small { display: block; overflow: hidden; text-overflow: ellipsis; font-size: 10.5px; color: rgba(255, 255, 255, .75); letter-spacing: .04em; }
+.spot b { font-weight: 400; font-size: 14px; }
+
+/* FLIR-style max / min spot markers */
+.mk { pointer-events: none; transition: opacity .3s; display: flex; align-items: center; gap: 5px; font-family: var(--mono); font-size: 11px; color: #fff; text-shadow: 0 1px 3px #000, 0 0 5px #000; white-space: nowrap; }
+.mk svg { width: 18px; height: 18px; flex: none; overflow: visible; }
+.mk svg path { fill: none; stroke: currentColor; stroke-width: 1.6; }
+.mk.max { color: #FFF6C8; }
+.mk.min { color: #C9B8FF; }
+.mk.flip { flex-direction: row-reverse; }
+.mk span { padding: 1px 5px; border-radius: 3px; background: rgba(7, 4, 15, .55); }
+.mk.farm { color: #FFD6E8; font-size: 11.5px; }
+.mk.farm span { background: rgba(60, 10, 35, .7); box-shadow: 0 0 0 1px rgba(var(--hot-rgb), .5); }
+
+/* ---- panels ---- */
+.ctl { left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); top: var(--ctl-top); width: var(--ctl-w);
+  max-height: calc(100% - var(--ctl-top) - var(--gutter)); overflow-y: auto; scrollbar-width: thin;
+  padding: 11px 13px 10px; display: grid; gap: 9px; }
+.rank { right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); top: var(--gutter); bottom: var(--gutter); width: var(--rank-w);
+  padding: 11px 12px 8px; display: flex; flex-direction: column; gap: 8px; }
+.kick { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--hot); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.kick span { font-family: var(--mono); font-size: 11.5px; letter-spacing: .04em; text-transform: none; color: var(--text); font-weight: 400; }
+.sect { display: grid; gap: 6px; }
+.note { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--text-2); }
+.note b { color: var(--text); font-weight: 600; }
+
+/* home type switch */
+.types { display: grid; gap: 5px; }
+.types .grp { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.types .lbl { width: 46px; font-size: 10px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.chip { position: relative; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: rgba(255, 255, 255, .06); border: 1px solid var(--line);
+  border-radius: 999px; padding: 3px 9px; min-height: 26px; cursor: pointer; white-space: nowrap; }
+.chip::after { content: ""; position: absolute; inset: -6px -2px; }
+.chip:hover { color: var(--text); background: rgba(255, 255, 255, .11); }
+.chip[aria-pressed="true"] { color: #1A0611; background: var(--hot); border-color: var(--hot); box-shadow: 0 0 12px rgba(var(--hot-rgb), .45); }
+
+/* the heat calendar: every month since 2005, the time control */
+.cal { position: relative; display: block; border-radius: 6px; cursor: crosshair; touch-action: none; }
+.cal:focus-visible { outline: 2px solid var(--hot); outline-offset: 3px; }
+.cal svg { display: block; width: 100%; height: auto; overflow: visible; }
+.cal text { font-family: var(--mono); font-size: 9.5px; fill: rgba(238, 242, 247, .62); }
+.cal text.on { fill: #fff; }
+.calread { min-height: 1.4em; font-family: var(--mono); font-size: 11px; color: var(--text-2); }
+.row { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.play svg { width: 11px; height: 11px; vertical-align: -1px; margin-right: 5px; fill: currentColor; }
+.tengeh-btn { position: relative; display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 12px; font-weight: 600; color: #1A0611; cursor: pointer;
+  background: linear-gradient(180deg, #FF8DBE, var(--hot)); border: 0; border-radius: 999px; padding: 5px 13px 5px 10px; min-height: 30px;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .3) inset, 0 4px 16px rgba(var(--hot-rgb), .4); }
+.tengeh-btn::after { content: ""; position: absolute; inset: -7px -3px; }
+.tengeh-btn svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linejoin: round; }
+.tengeh-btn:hover { filter: brightness(1.07); }
+.method { margin: 0; font-size: 10.5px; line-height: 1.45; color: var(--text-2); border-top: 1px solid var(--line); padding-top: 7px; }
+.only-compact { display: none !important; }
+
+/* legend: the camera's scale */
+.scale { display: grid; gap: 3px; }
+.scale .bar { position: relative; height: 9px; border-radius: 2px; }
+.scale .ticks { position: relative; height: 12px; font-family: var(--mono); font-size: 10px; color: var(--text-2); }
+.scale .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.scale .ticks span:first-child { transform: none; }
+.scale .ticks span:last-child { transform: translateX(-100%); }
+.scale .pin { position: absolute; top: -4px; bottom: -4px; width: 2px; margin-left: -1px; background: #fff; box-shadow: 0 0 0 1px rgba(0, 0, 0, .6); border-radius: 1px; }
+.scale .pin.nat { background: transparent; box-shadow: none; border-left: 2px dotted rgba(255, 255, 255, .85); }
+.scale .pin[hidden] { display: none; }
+.scale .cap { font-size: 10.5px; line-height: 1.4; color: var(--text-2); }
+.natkey { display: inline-block; width: 0; height: 9px; margin: 0 5px -1px 2px; border-left: 2px dotted rgba(255, 255, 255, .85); }
+
+/* ranked list */
+.rank h2 { margin: 0; font-size: 12px; font-weight: 600; display: flex; justify-content: space-between; gap: 6px; }
+.rank h2 span { font-family: var(--mono); font-weight: 400; color: var(--text-2); font-size: 11px; }
+.list { list-style: none; margin: 0 -4px; padding: 0 4px; overflow-y: auto; flex: 1; min-height: 0; scrollbar-width: thin; }
+.list li + li { margin-top: 1px; }
+.list button { position: relative; display: grid; grid-template-columns: 20px 8px 1fr auto; align-items: center; gap: 6px; width: 100%; padding: 3px 6px 3px 4px;
+  font: inherit; font-size: 11.5px; color: var(--text); text-align: left; background: transparent; border: 0; border-radius: 5px; cursor: pointer; overflow: hidden; }
+.list button::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: var(--w, 0%); background: var(--c, transparent); opacity: .16; }
+.list button:hover, .list button.on { background: rgba(255, 255, 255, .08); }
+.list button.sel { box-shadow: inset 0 0 0 1px var(--hot); }
+.list .rk { font-family: var(--mono); font-size: 10.5px; color: var(--text-2); text-align: right; }
+.list i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); box-shadow: 0 0 6px var(--c); }
+.list .kv { font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.nodata { margin: 0; font-size: 10.5px; line-height: 1.4; color: var(--text-2); }
+.nodata .hatch { display: inline-block; width: 10px; height: 9px; vertical-align: -1px; margin-right: 4px; border-radius: 2px; border: 1px solid rgba(220, 210, 245, .45);
+  background: repeating-linear-gradient(135deg, rgba(220, 210, 245, .5) 0 1.5px, transparent 1.5px 4px); }
+
+/* ---- Tengeh card ---- */
+.tcard { bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  left: calc(var(--gutter) + var(--ctl-w) + 16px); right: calc(var(--gutter) + 46px + var(--rank-w) + 16px); margin-inline: auto; width: auto; max-width: 470px;
+  padding: 12px 14px 11px; display: grid; gap: 8px; border-color: rgba(var(--hot-rgb), .4);
+  background: linear-gradient(165deg, rgba(48, 10, 32, .86), rgba(12, 6, 20, .86)); }
+.tcard[hidden] { display: none; }
+.tcard h2 { margin: 0; font-family: var(--display); font-size: 21px; font-weight: 800; line-height: 1; letter-spacing: .01em; }
+.facts { margin: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.facts div { padding: 5px 7px 4px; border-radius: 7px; background: rgba(255, 255, 255, .055); }
+.facts dt { font-size: 10px; color: var(--text-2); }
+.facts dd { margin: 0; font-family: var(--display); font-size: 20px; font-weight: 800; line-height: 1.05; color: #FFD6E8; font-variant-numeric: tabular-nums; }
+.facts dd small { font-size: 12px; font-weight: 700; }
+.eq { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; align-items: baseline; padding: 7px 9px; border-radius: 9px; background: rgba(var(--hot-rgb), .09); box-shadow: inset 0 0 0 1px rgba(var(--hot-rgb), .25); }
+.eq b { font-family: var(--display); font-size: 24px; font-weight: 800; line-height: 1; color: #FFE7F1; font-variant-numeric: tabular-nums; text-shadow: 0 0 14px rgba(var(--hot-rgb), .6); }
+.eq span { font-size: 11.5px; line-height: 1.35; color: var(--text-2); }
+.eq span b { font-family: inherit; font-size: inherit; font-weight: 600; color: var(--text); text-shadow: none; }
+.tsrc { margin: 0; font-size: 10px; line-height: 1.45; color: var(--text-2); }
+.tsrc a { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.trow { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+
+/* ---- tooltip ---- */
+.tip { position: fixed; z-index: 5; left: 0; top: 0; width: 220px; pointer-events: none; padding: 9px 11px 8px;
+  background: rgba(9, 5, 18, .93); border: 1px solid var(--line); border-radius: 9px; box-shadow: 0 10px 26px rgba(0, 0, 0, .5); display: grid; gap: 4px; }
+.tip[hidden] { display: none; }
+.tip .t1 { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.tip .t1 small { display: block; font-size: 10.5px; font-weight: 400; color: var(--text-2); }
+.tip .t2 { display: flex; align-items: baseline; gap: 6px; font-family: var(--mono); }
+.tip .t2 b { font-size: 22px; font-weight: 400; line-height: 1; font-variant-numeric: tabular-nums; }
+.tip .t2 span { font-size: 11px; color: var(--text-2); }
+.tip .t3 { font-size: 11px; line-height: 1.4; color: var(--text-2); }
+.tip .t3 b { color: var(--text); font-weight: 600; }
+.tip svg { display: block; width: 100%; height: 34px; overflow: visible; }
+.tip .sk { font-family: var(--mono); font-size: 9.5px; fill: rgba(238, 242, 247, .55); }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--text-2); }
+.loading[hidden] { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* Tengeh mode: true-colour lens, no thermal chrome */
+.tengeh .hud, .tengeh .reticle, .tengeh .mk.max, .tengeh .mk.min { display: none; }
+.tengeh .lens::after { opacity: 0; }
+
+/* ---- compact screens: one panel at a time, with a tab to switch ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .only-compact { display: inline-flex !important; }
+  .hud { display: none; }
+  .ctl, .rank { padding: 9px 11px 8px; gap: 7px; }
+  .view-rank .ctl, .view-ctl .rank { display: none; }
+  .tengeh .ctl, .tengeh .rank { display: none; }
+  .tabbtn { font-size: 11px; min-height: 26px; padding: 3px 10px; }
+  .spot { font-size: 11px; }
+  .spot b { font-size: 12.5px; }
+  .facts dd { font-size: 17px; }
+  .eq b { font-size: 20px; }
+  .tcard h2 { font-size: 18px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .ctl, .rank, .tcard { left: 0; right: 0; top: auto; bottom: 0; width: auto; max-width: none; margin: 0; max-height: 44vh; border-bottom: 0; border-radius: 16px 16px 0 0;
+    padding-bottom: calc(9px + env(safe-area-inset-bottom, 0px)); }
+  .ctl { overflow-y: auto; }
+  .rank { height: 44vh; }
+  .types { grid-auto-flow: column; overflow-x: auto; justify-content: start; scrollbar-width: none; padding-bottom: 2px; }
+  .types::-webkit-scrollbar { display: none; }
+  .types .grp { flex-wrap: nowrap; }
+  .types .lbl { width: auto; padding: 0 2px 0 6px; }
+  .facts { grid-template-columns: repeat(2, 1fr); }
+  .tcard { overflow-y: auto; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --side-w: min(330px, 46vw); }
+  .ctl, .rank, .tcard { left: auto; right: calc(var(--gutter) + 44px + env(safe-area-inset-right, 0px)); top: var(--gutter); bottom: var(--gutter); width: var(--side-w); max-width: none; margin: 0; max-height: none; overflow-y: auto; }
+  .rank { overflow: hidden; }
+  .facts { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Thermal-camera map of Singapore's planning areas, coloured by the average household electricity use for the chosen month and home type"></div>
+<div class="lens" aria-hidden="true"><div class="finder dmc-chrome"><i></i><i></i><i></i><i></i></div></div>
+<p id="hud" class="hud dmc-chrome" aria-hidden="true"><span class="rec">Rec</span><span>Household power</span><b id="hud-when">&ndash;</b><span id="hud-type">&ndash;</span></p>
+<div id="reticle" class="reticle dmc-chrome" aria-hidden="true">
+  <svg viewBox="-17 -17 34 34"><path d="M-14 0h8M6 0h8M0-14v8M0 6v8"/><path d="M-4-4h8v8h-8z" stroke-width="1"/></svg>
+  <p id="spot" class="spot"></p>
+</div>
+<div id="tip" class="tip dmc-chrome" hidden></div>
+<p id="loading" class="loading dmc-chrome">Warming up the camera&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="ctl" class="dmc-glass ctl" data-dmc-overlay aria-label="Home type, month and Tengeh">
+  <div class="sect">
+    <p class="kick">Home type <button class="dmc-btn tabbtn only-compact" type="button" data-view="rank">Ranking &rsaquo;</button></p>
+    <div id="types" class="types" role="group" aria-label="Home type"></div>
+  </div>
+  <div class="sect">
+    <p class="kick">Month <span id="cal-now">&ndash;</span></p>
+    <div id="cal" class="cal" tabindex="0" role="slider" aria-label="Month: use the arrow keys, left and right for months, up and down for years"></div>
+    <p id="calread" class="calread" aria-hidden="true">&nbsp;</p>
+    <p id="season" class="note"></p>
+  </div>
+  <div class="row">
+    <button id="play" class="dmc-btn play" type="button" aria-pressed="false"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 1l7 4-7 4z"/></svg>Play the last 12 months</button>
+    <button id="go-tengeh" class="tengeh-btn" type="button"><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M2 13l4-6h12l-4 6zM6 7l2 6M10 7l2 6M14 7l2 6M4 10h12"/></svg>Fly to Tengeh</button>
+  </div>
+  <p class="method">Colour: EMA&rsquo;s average kWh per household account that month (Jan 2005 to Jun 2026, the latest), on a log scale fixed for each home type. Hatched: no figure. Boundaries slightly simplified.</p>
+  <p id="credits" class="dmc-credits"></p>
+</section>
+
+<section id="rank" class="dmc-glass rank" data-dmc-overlay aria-label="Planning areas ranked by household electricity use">
+  <p class="kick">The camera&rsquo;s scale <button class="dmc-btn tabbtn only-compact" type="button" data-view="ctl">&lsaquo; Controls</button></p>
+  <div class="scale" aria-hidden="true">
+    <div id="bar" class="bar"><span id="pin-nat" class="pin nat"></span><span id="pin-hov" class="pin" hidden></span></div>
+    <div id="ticks" class="ticks"></div>
+    <p id="cap" class="cap">kWh per household a month</p>
+  </div>
+  <h2>Hottest to coolest <span id="rank-when">&ndash;</span></h2>
+  <ol id="list" class="list" aria-label="Planning areas, highest use first"></ol>
+  <p id="nodata" class="nodata"></p>
+</section>
+
+<section id="tcard" class="dmc-glass tcard" data-dmc-overlay hidden aria-label="Tengeh floating solar farm" aria-live="polite">
+  <p class="kick">Tengeh Reservoir, Tuas <span>floating solar</span></p>
+  <h2>A power station on the water</h2>
+  <dl class="facts">
+    <div><dt>Peak power</dt><dd id="f-mwp">&ndash;</dd></div>
+    <div><dt>Solar panels</dt><dd id="f-panels">&ndash;</dd></div>
+    <div><dt>Area</dt><dd id="f-ha">&ndash;</dd></div>
+    <div><dt>Opened</dt><dd id="f-open">&ndash;</dd></div>
+  </dl>
+  <p id="t-lede" class="note"></p>
+  <div class="eq"><b id="t-homes">&ndash;</b><span id="t-eq"></span></div>
+  <p id="t-src" class="tsrc"></p>
+  <div class="trow"><button id="back" class="dmc-btn" type="button">Back to the heat map</button></div>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const A = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const DAY = {
+  n: 12,
+  title: 'Where the aircon runs hardest',
+  deck: 'Every planning area seen through a thermal camera: the hotter the glow, the more electricity the average home used that month. Pick a month on the heat calendar (EMA has figures for every month since 2005) and a type of home, then fly to Tengeh, where 122,000 solar panels float on a reservoir.',
+  accent: '#FF5FA2',
+  basemap: 'Satellite', underlay: 'esri-imagery', basemapBg: '#07040F',
+  basemapPaint: { 'raster-saturation': -1, 'raster-brightness-max': .46, 'raster-contrast': .18 },
+  underlayPaint: { 'raster-saturation': -1, 'raster-brightness-max': .46, 'raster-contrast': .18 },
+  bounds: [[103.6, 1.22], [104.03, 1.47]],
+  maxBounds: [[102.9, 0.8], [104.8, 1.9]], minZoom: 8.5, maxZoom: 18.5,
+  camera: { pitch: 50, bearing: 70, tiltPitch: 50 },
+  buildings: false,
+  creditsEl: 'credits',
+  author: '', nav: null,
+  attribution: [
+    'Household electricity: ' + A('https://www.ema.gov.sg/resources/singapore-energy-statistics/chapter3', 'Energy Market Authority, Singapore Energy Statistics 2026') + ', table 3.5 (' + A('https://www.ema.gov.sg/content/dam/corporate/resources/singapore-energy-statistics/excel/SES_tidy.xlsx.coredownload.xlsx', 'data') + ')',
+    'Planning areas: ' + A('https://data.gov.sg/datasets/d_4765db0e87b9c86336792efe8a1f7a66/view', 'URA Master Plan 2019 Planning Area Boundary') + ' via data.gov.sg, ' + A('https://data.gov.sg/open-data-licence', 'Singapore Open Data Licence'),
+    'Tengeh facts: ' + A('https://www.pub.gov.sg/Public/WaterLoop/Sustainability/Solar/Floating', 'PUB') + ', ' + A('https://sembcorp.com/sg/our-solutions-in-singapore/renewable-energy/solar/floating-solar/', 'Sembcorp') + '. Outline: ' + DMC.OSM_CREDIT + ' (ODbL), via Overpass',
+  ],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY, { fadeDuration: 0 });
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+const PORTRAIT = matchMedia('(max-width: 640px) and (orientation: portrait)');
+const nf1 = new Intl.NumberFormat('en-SG', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const nf0 = new Intl.NumberFormat('en-SG', { maximumFractionDigits: 0 });
+const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const MONTH = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const CAM = { bearing: DAY.camera.bearing, pitch: DAY.camera.pitch };
+
+/* ---------- colour: inferno, single direction, on a log scale per home type ---------- */
+const INF = ['#000004', '#160b39', '#420a68', '#6a176e', '#932667', '#bc3754', '#dd513a', '#f37819', '#fca50a', '#f6d746', '#fcffa4'];
+const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const INFR = INF.map(hex);
+function inferno(u) {
+  u = clamp(u, 0, 1) * 10;
+  const k = Math.min(9, Math.floor(u)), f = u - k, a = INFR[k], b = INFR[k + 1];
+  return '#' + a.map((x, i) => Math.round(x + (b[i] - x) * f).toString(16).padStart(2, '0')).join('');
+}
+const T0 = .14;   // the darkest end of inferno vanishes on night imagery: start a little in
+let D = null;
+const S = { t: 0, i: 0, mode: 'heat', hover: null, sel: null };
+const uOf = (v, t = S.t) => { const [lo, hi] = D.dom[t]; return clamp((Math.log(v) - Math.log(lo)) / (Math.log(hi) - Math.log(lo)), 0, 1); };
+const colorOf = (v, t = S.t) => inferno(T0 + (1 - T0) * uOf(v, t));
+// the heat calendar shows the national average stretched over its own range, so the seasons stand out
+const calColor = (v, t = S.t) => { const [lo, hi] = D.caldom[t]; return inferno(T0 + (1 - T0) * clamp((v - lo) / (hi - lo), 0, 1)); };
+function colorExpr(t) {
+  const [lo, hi] = D.dom[t], L0 = Math.log(lo), L1 = Math.log(hi), stops = [];
+  for (let k = 0; k <= 12; k++) { const u = k / 12; stops.push(L0 + u * (L1 - L0), inferno(T0 + (1 - T0) * u)); }
+  return ['interpolate', ['linear'], ['ln', ['max', .1, ['to-number', ['feature-state', 'v'], .1]]], ...stops];
+}
+// hotter areas bloom wider, like heat flaring on a thermal sensor
+function glowExpr(t, k) {
+  const [lo, hi] = D.dom[t], L0 = Math.log(lo), L1 = Math.log(hi);
+  const u = ['max', 0, ['min', 1, ['/', ['-', ['ln', ['max', .1, ['to-number', ['feature-state', 'v'], .1]]], L0], L1 - L0]]];
+  return ['interpolate', ['linear'], ['zoom'], 9, ['+', 2 * k, ['*', 16 * k, u]], 12, ['+', 4 * k, ['*', 30 * k, u]], 15, ['+', 8 * k, ['*', 56 * k, u]]];
+}
+
+/* ---------- data ---------- */
+const decodeRing = a => { const out = []; let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / 1e5, y / 1e5]); } return out; };
+const toGeom = polys => polys.length === 1 ? { type: 'Polygon', coordinates: polys[0].map(decodeRing) } : { type: 'MultiPolygon', coordinates: polys.map(p => p.map(decodeRing)) };
+const monthOf = i => { const [y0, m0] = D.m0.split('-').map(Number), k = (m0 - 1) + i; return [y0 + Math.floor(k / 12), k % 12]; };   // [year, month 0-11]
+const idxOf = (y, m) => { const [y0, m0] = D.m0.split('-').map(Number); return (y - y0) * 12 + m - (m0 - 1); };
+const label = i => { const [y, m] = monthOf(i); return `${MON[m]} ${y}`; };
+function value(t, a, i) {   // {st: 1, v} a figure, {st: 2} suppressed, {st: 0} none
+  const s = D.v[t][a];
+  if (!s || !s.length) return { st: 0, v: 0 };
+  const x = s[i];
+  return x >= 0 ? { st: 1, v: x / 10 } : { st: x === -2 ? 2 : 0, v: 0 };
+}
+const natOf = (t, i) => { const x = D.nat[t][i]; return x >= 0 ? x / 10 : null; };
+const typeLabel = (t = S.t) => D.types[t][1];
+const typeNoun = (t = S.t) => ['homes', 'HDB 1–2 room flats', 'HDB 3-room flats', 'HDB 4-room flats', 'HDB 5-room & Executive flats', 'condos & private flats', 'landed homes'][t];
+
+/* ---------- map layers ---------- */
+let HULL = [];
+function hatch() {
+  const N = 14, c = document.createElement('canvas'); c.width = c.height = N;
+  const g = c.getContext('2d');
+  g.strokeStyle = 'rgba(214, 204, 240, .7)'; g.lineWidth = 1.1;
+  for (const o of [-N, 0, N]) { g.beginPath(); g.moveTo(o, N); g.lineTo(o + N, 0); g.stroke(); }
+  return g.getImageData(0, 0, N, N);
+}
+function hullOf(pts) {   // monotone chain convex hull
+  pts = pts.slice().sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of pts) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = pts.length - 1; i >= 0; i--) { const p = pts[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  return lo.slice(0, -1).concat(up.slice(0, -1));
+}
+function addLayers() {
+  const feats = D.areas.map((a, k) => ({ type: 'Feature', id: k, properties: { k, name: a[0] }, geometry: toGeom(D.geo[k]) }));
+  // framing: the areas with figures (Sentosa but not the far-flung islands), the central
+  // catchment between them, and the Tengeh farm, so it shows as a teaser at the edge
+  const pts = ringPts(D.tengeh.outline);
+  feats.forEach((f, k) => {
+    if (!D.areas[k][2] && f.properties.name !== 'Central Water Catchment') return;
+    const polys = f.geometry.type === 'Polygon' ? [f.geometry.coordinates] : f.geometry.coordinates;
+    for (const p of polys) for (const [x, y] of p[0]) if (y > 1.236) pts.push([x, y]);
+  });
+  HULL = hullOf(pts);
+  map.addImage('hatch', hatch(), { pixelRatio: 2 });
+  map.addSource('tint', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[100, -4], [108, -4], [108, 6], [100, 6], [100, -4]]] } } });
+  map.addSource('pa', { type: 'geojson', data: { type: 'FeatureCollection', features: feats }, tolerance: .25 });
+  const T = D.tengeh;
+  map.addSource('solar', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: toGeom(T.outline) } });
+  if (T.water.length) map.addSource('water', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: toGeom(T.water) } });
+  const tr = { duration: reduceMotion ? 0 : 1200 };
+  map.addLayer({ id: 'tint', type: 'fill', source: 'tint', paint: { 'fill-color': '#0B0522', 'fill-opacity': .42, 'fill-opacity-transition': tr } });
+  map.addLayer({ id: 'pa-glow', type: 'line', source: 'pa', layout: { 'line-join': 'round' }, paint: {
+    'line-color': colorExpr(0), 'line-width': glowExpr(0, 1), 'line-blur': glowExpr(0, .9),
+    'line-opacity': ['case', ['==', ['feature-state', 'st'], 1], GLOW, 0], 'line-opacity-transition': tr } });
+  map.addLayer({ id: 'pa-fill', type: 'fill', source: 'pa', paint: {
+    'fill-color': colorExpr(0), 'fill-opacity': fillOpacity(.84), 'fill-opacity-transition': tr } });
+  map.addLayer({ id: 'pa-hatch', type: 'fill', source: 'pa', paint: { 'fill-pattern': 'hatch', 'fill-opacity': ['case', ['==', ['feature-state', 'st'], 1], 0, HATCH], 'fill-opacity-transition': tr } });
+  map.addLayer({ id: 'pa-line', type: 'line', source: 'pa', layout: { 'line-join': 'round' }, paint: { 'line-color': '#07030F', 'line-opacity': .7, 'line-width': ['interpolate', ['linear'], ['zoom'], 9, .5, 14, 1.4], 'line-opacity-transition': tr } });
+  map.addLayer({ id: 'pa-sel-glow', type: 'line', source: 'pa', filter: ['==', ['id'], -1], layout: { 'line-join': 'round' }, paint: { 'line-color': DAY.accent, 'line-width': 9, 'line-blur': 6, 'line-opacity': .7 } });
+  map.addLayer({ id: 'pa-sel', type: 'line', source: 'pa', filter: ['==', ['id'], -1], layout: { 'line-join': 'round' }, paint: { 'line-color': '#FFE3F0', 'line-width': 1.8 } });
+  map.addLayer({ id: 'pa-hover', type: 'line', source: 'pa', layout: { 'line-join': 'round' }, paint: { 'line-color': '#FFFFFF', 'line-width': 2, 'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], .95, 0] } });
+  if (T.water.length) map.addLayer({ id: 'water-line', type: 'line', source: 'water', paint: { 'line-color': '#9FE3FF', 'line-width': 1.2, 'line-opacity': 0, 'line-dasharray': [2, 2], 'line-opacity-transition': tr } });
+  map.addLayer({ id: 'sol-fill', type: 'fill', source: 'solar', paint: { 'fill-color': DAY.accent, 'fill-opacity': 0, 'fill-opacity-transition': tr } });
+  map.addLayer({ id: 'sol-glow', type: 'line', source: 'solar', layout: { 'line-join': 'round' }, paint: { 'line-color': DAY.accent, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 6, 15, 18], 'line-blur': ['interpolate', ['linear'], ['zoom'], 10, 5, 15, 14], 'line-opacity': .65 } });
+  map.addLayer({ id: 'sol-line', type: 'line', source: 'solar', layout: { 'line-join': 'round' }, paint: { 'line-color': '#FFE0EE', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 15, 2.2] } });
+  // OneMap's satellite tiles only from z12.5 (their outer tiles carry black no-data edges); Esri below that
+  if (map.getLayer('basemap-Satellite')) map.setLayerZoomRange('basemap-Satellite', 12.5, 24);
+  if (map.getLayer('basemap-Satellite-lo')) map.setLayoutProperty('basemap-Satellite-lo', 'visibility', 'none');
+  for (const id of ['basemap-Satellite', 'underlay']) for (const p of ['raster-saturation', 'raster-brightness-max', 'raster-contrast'])
+    if (map.getLayer(id)) map.setPaintProperty(id, `${p}-transition`, { duration: reduceMotion ? 0 : 1600 });
+}
+const HATCH = .2, GLOW = .7;
+function fillOpacity(a) { return ['case', ['==', ['feature-state', 'st'], 1], a, 0]; }
+
+/* ---------- applying a month and a home type ---------- */
+let ranked = [];
+function apply() {
+  if (!map.getSource('pa')) return;
+  const t = S.t, i = S.i;
+  D.areas.forEach((a, k) => { const r = value(t, k, i); map.setFeatureState({ source: 'pa', id: k }, { v: r.v, st: r.st }); });
+  ranked = [];
+  D.areas.forEach((a, k) => { const r = value(t, k, i); if (r.st === 1) ranked.push([k, r.v]); });
+  ranked.sort((p, q) => q[1] - p[1]);
+  drawList(); drawScale(); drawCal(); drawMarkers(); readSpot();
+  if (calHover == null) calRead(null);
+  const when = label(i), nat = natOf(t, i);
+  $('hud-when').textContent = when;
+  $('hud-type').textContent = `${typeLabel()} · national ${nat != null ? nf1.format(nat) + ' kWh' : 'n/a'}`;
+  $('cal-now').textContent = when;
+  $('rank-when').textContent = when;
+  $('cal').setAttribute('aria-valuetext', `${MONTH[monthOf(i)[1]]} ${monthOf(i)[0]}: national average ${nat != null ? nf1.format(nat) + ' kWh' : 'not published'} for ${typeLabel().toLowerCase()}`);
+  if (S.mode === 'tengeh') fillTengeh();
+  if (tipFor != null) showTip(tipFor, tipPt);
+}
+function setType(t) {
+  S.t = t;
+  document.querySelectorAll('#types .chip').forEach(b => b.setAttribute('aria-pressed', String(+b.dataset.t === t)));
+  map.setPaintProperty('pa-fill', 'fill-color', colorExpr(t));
+  map.setPaintProperty('pa-glow', 'line-color', colorExpr(t));
+  map.setPaintProperty('pa-glow', 'line-width', glowExpr(t, 1));
+  map.setPaintProperty('pa-glow', 'line-blur', glowExpr(t, .9));
+  apply();
+}
+function setMonth(i) { S.i = clamp(i, 0, D.nm - 1); apply(); }
+
+/* ---------- the home type switch ---------- */
+function drawTypes() {
+  const groups = [[null, [0]], ['HDB', [1, 2, 3, 4]], ['Private', [5, 6]]];
+  const short = ['All homes', '1–2 room', '3-room', '4-room', '5-room & Exec', 'Condos & flats', 'Landed'];
+  const box = $('types');
+  for (const [name, ts] of groups) {
+    const g = document.createElement('div'); g.className = 'grp';
+    if (name) { const l = document.createElement('span'); l.className = 'lbl'; l.textContent = name; g.append(l); }
+    for (const t of ts) {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'chip'; b.dataset.t = t; b.textContent = short[t];
+      b.setAttribute('aria-pressed', String(t === S.t));
+      b.setAttribute('aria-label', D.types[t][1] + ` (EMA: ${D.types[t][0]})`);
+      b.title = `EMA category: ${D.types[t][0]}`;
+      b.addEventListener('click', () => setType(t));
+      g.append(b);
+    }
+    box.append(g);
+  }
+}
+
+/* ---------- the heat calendar ---------- */
+let calHover = null;
+function calGeom() {
+  const w = $('cal').clientWidth || 260, [y0] = monthOf(0), [y1] = monthOf(D.nm - 1);
+  const rows = y1 - y0 + 1, lx = 30, top = 12, rh = COMPACT.matches ? 4.4 : 6.6;
+  const cw = (w - lx) / 12;
+  return { w, h: top + rows * rh + 2, lx, top, rh, cw, y0, y1, rows };
+}
+function drawCal() {
+  const G = calGeom(), t = S.t, [sy, sm] = monthOf(S.i);
+  let s = `<svg viewBox="0 0 ${G.w} ${G.h}" aria-hidden="true">`;
+  MON.forEach((m, k) => { s += `<text x="${G.lx + (k + .5) * G.cw}" y="8" text-anchor="middle" class="${k === sm ? 'on' : ''}">${m[0]}</text>`; });
+  for (let y = G.y0; y <= G.y1; y++) {
+    const ry = G.top + (y - G.y0) * G.rh;
+    if (y % 5 === 0 || (y === G.y1 && y % 5 > 1)) s += `<text x="${G.lx - 5}" y="${ry + G.rh - .6}" text-anchor="end" class="${y === sy ? 'on' : ''}">${y}</text>`;
+    for (let m = 0; m < 12; m++) {
+      const i = idxOf(y, m), v = i >= 0 && i < D.nm ? natOf(t, i) : null;
+      const x = G.lx + m * G.cw;
+      s += v != null ? `<rect x="${x + .4}" y="${ry + .4}" width="${G.cw - .8}" height="${G.rh - .8}" fill="${calColor(v)}"/>`
+        : `<rect x="${x + .9}" y="${ry + .9}" width="${G.cw - 1.8}" height="${G.rh - 1.8}" fill="none" stroke="rgba(255,255,255,.12)" stroke-width=".6"/>`;
+    }
+  }
+  if (calHover != null && calHover !== S.i) { const [hy, hm] = monthOf(calHover); s += `<rect x="${G.lx + hm * G.cw}" y="${G.top + (hy - G.y0) * G.rh}" width="${G.cw}" height="${G.rh}" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1"/>`; }
+  s += `<rect x="${G.lx + sm * G.cw - .6}" y="${G.top + (sy - G.y0) * G.rh - .6}" width="${G.cw + 1.2}" height="${G.rh + 1.2}" fill="none" stroke="#fff" stroke-width="1.6" style="filter:drop-shadow(0 0 3px #FF5FA2)"/>`;
+  s += '</svg>';
+  $('cal').innerHTML = s;
+}
+function calIndexAt(ev) {
+  const G = calGeom(), r = $('cal').getBoundingClientRect(), sc = G.w / r.width;
+  const x = (ev.clientX - r.left) * sc, y = (ev.clientY - r.top) * sc;
+  const m = Math.floor((x - G.lx) / G.cw), row = Math.floor((y - G.top) / G.rh);
+  if (m < 0 || m > 11 || row < 0 || row >= G.rows) return null;
+  const i = idxOf(G.y0 + row, m);
+  return i >= 0 && i < D.nm ? i : null;
+}
+function calRead(i) {
+  if (i == null) {
+    const [lo, hi] = D.caldom[S.t], g = Array.from({ length: 6 }, (_, k) => inferno(T0 + (1 - T0) * k / 5)).join(',');
+    $('calread').innerHTML = `National average · ${nf0.format(lo)} <i style="display:inline-block;width:48px;height:7px;border-radius:2px;vertical-align:0;background:linear-gradient(90deg,${g})"></i> ${nf0.format(hi)} kWh`;
+    return;
+  }
+  const v = natOf(S.t, i);
+  $('calread').textContent = `${label(i)} · national ${v != null ? nf1.format(v) + ' kWh' : 'n/a'}`;
+}
+function wireCal() {
+  const el = $('cal');
+  let down = false;
+  el.addEventListener('pointerdown', e => { const i = calIndexAt(e); if (i == null) return; down = true; el.setPointerCapture(e.pointerId); stopPlay(); setMonth(i); calRead(i); e.preventDefault(); });
+  el.addEventListener('pointermove', e => {
+    const i = calIndexAt(e);
+    if (down && i != null && i !== S.i) setMonth(i);
+    if (i !== calHover) { calHover = i; drawCal(); }
+    calRead(i);
+  });
+  const up = () => { down = false; };
+  el.addEventListener('pointerup', up); el.addEventListener('pointercancel', up);
+  el.addEventListener('pointerleave', () => { calHover = null; drawCal(); calRead(null); });
+  el.addEventListener('keydown', e => {
+    const d = { ArrowLeft: -1, ArrowRight: 1, ArrowUp: -12, ArrowDown: 12, PageUp: -12, PageDown: 12 }[e.key];
+    if (d != null) { stopPlay(); setMonth(S.i + d); calRead(S.i); e.preventDefault(); }
+    else if (e.key === 'Home') { stopPlay(); setMonth(0); e.preventDefault(); }
+    else if (e.key === 'End') { stopPlay(); setMonth(D.nm - 1); e.preventDefault(); }
+  });
+}
+
+/* ---------- play the last 12 months ---------- */
+let playT = 0;
+function stopPlay() { if (!playT) return; clearInterval(playT); playT = 0; $('play').setAttribute('aria-pressed', 'false'); }
+function play() {
+  if (playT) { stopPlay(); return; }
+  const first = D.nm - 12;
+  if (S.i < first || S.i >= D.nm - 1) setMonth(first); else setMonth(S.i + 1);
+  $('play').setAttribute('aria-pressed', 'true');
+  playT = setInterval(() => { if (S.i >= D.nm - 1) { stopPlay(); return; } setMonth(S.i + 1); }, reduceMotion ? 1500 : 850);
+}
+
+/* ---------- scale (legend) ---------- */
+function drawScale() {
+  const [lo, hi] = D.dom[S.t];
+  $('bar').style.background = `linear-gradient(90deg, ${Array.from({ length: 11 }, (_, k) => inferno(T0 + (1 - T0) * k / 10)).join(', ')})`;
+  const C = [50, 75, 100, 150, 200, 250, 300, 400, 500, 600, 800, 1000, 1500, 2000, 3000, 4000, 5000];
+  let ticks = [lo, ...C.filter(c => c > lo * 1.12 && c < hi / 1.12), hi];
+  const out = [ticks[0]];   // keep ticks at least 17% of the bar apart
+  for (const c of ticks.slice(1, -1)) if (uOf(c) - uOf(out[out.length - 1]) > .17 && uOf(hi) - uOf(c) > .17) out.push(c);
+  out.push(hi);
+  $('ticks').innerHTML = out.map((c, k) => `<span style="left:${(100 * uOf(c)).toFixed(1)}%">${k === 0 ? '≤' : k === out.length - 1 ? '≥' : ''}${nf0.format(c)}</span>`).join('');
+  const nat = natOf(S.t, S.i), pin = $('pin-nat');
+  pin.hidden = nat == null;
+  if (nat != null) { pin.style.left = `${100 * uOf(nat)}%`; pin.title = `National ${nf1.format(nat)} kWh`; }
+  $('cap').innerHTML = `kWh per household a month, log scale<br><span class="natkey"></span>national average ${nat != null ? nf1.format(nat) : 'n/a'}`;
+}
+function pinHover(v) { const p = $('pin-hov'); p.hidden = v == null; if (v != null) p.style.left = `${100 * uOf(v)}%`; }
+
+/* ---------- ranked list ---------- */
+function drawList() {
+  const max = ranked.length ? ranked[0][1] : 1;
+  $('list').innerHTML = ranked.map(([k, v], n) => `<li><button type="button" data-k="${k}" class="${k === S.sel ? 'sel' : ''}" style="--c:${colorOf(v)};--w:${(100 * v / max).toFixed(1)}%" aria-label="${n + 1}. ${D.areas[k][0]}: ${nf1.format(v)} kWh">
+    <span class="rk">${n + 1}</span><i></i><span>${D.areas[k][0]}</span><span class="kv">${nf1.format(v)}</span></button></li>`).join('');
+  const supp = [], none = [];
+  D.areas.forEach((a, k) => { const r = value(S.t, k, S.i); if (r.st === 2) supp.push(a[0]); else if (r.st === 0) none.push(a[0]); });
+  $('nodata').innerHTML = `<span class="hatch"></span>${ranked.length} of ${D.areas.length} planning areas have a figure. `
+    + (supp.length ? `Suppressed by EMA: ${supp.join(', ')}. ` : '')
+    + `No figure: ${none.length} areas. EMA publishes none at all for ${D.areas.filter(a => !a[2]).length} of the 55, such as Tuas, the water catchments and the offshore islands.`;
+}
+function wireList() {
+  const list = $('list');
+  const at = e => { const b = e.target.closest('button[data-k]'); return b ? +b.dataset.k : null; };
+  list.addEventListener('mouseover', e => { const k = at(e); if (k != null) hoverArea(k, null, true); });
+  list.addEventListener('mouseleave', () => hoverArea(null));
+  list.addEventListener('focusin', e => { const k = at(e); if (k != null) hoverArea(k, null, true); });
+  list.addEventListener('focusout', () => hoverArea(null));
+  list.addEventListener('click', e => { const k = at(e); if (k != null) select(k, true); });
+}
+
+/* ---------- hover, tooltip, selection ---------- */
+let tipFor = null, tipPt = null;
+const tip = $('tip');
+function hoverArea(k, pt, fromList) {
+  if (S.hover != null && S.hover !== k) map.setFeatureState({ source: 'pa', id: S.hover }, { hover: false });
+  S.hover = k;
+  document.querySelectorAll('#list button.on').forEach(b => b.classList.remove('on'));
+  if (k == null) { hideTip(); pinHover(null); return; }
+  map.setFeatureState({ source: 'pa', id: k }, { hover: true });
+  const b = document.querySelector(`#list button[data-k="${k}"]`);
+  if (b) { b.classList.add('on'); if (!fromList) b.scrollIntoView({ block: 'nearest' }); }
+  const r = value(S.t, k, S.i);
+  pinHover(r.st === 1 ? r.v : null);
+  if (fromList) { const p = map.project(D.lab[k]); pt = { x: p.x, y: p.y }; }
+  showTip(k, pt);
+}
+function hideTip() { tip.hidden = true; tipFor = null; }
+function spark(k) {   // the 12 months ending at the chosen one, for this area and home type
+  const W = 196, H = 30, i1 = S.i, i0 = Math.max(0, i1 - 11), pts = [];
+  for (let i = i0; i <= i1; i++) { const r = value(S.t, k, i); if (r.st === 1) pts.push([i, r.v]); }
+  if (pts.length < 2) return '';
+  const vs = pts.map(p => p[1]), lo = Math.min(...vs), hi = Math.max(...vs), sx = i => 4 + (i - i0) / Math.max(1, i1 - i0) * (W - 8), sy = v => 4 + (1 - (v - lo) / Math.max(1e-6, hi - lo)) * (H - 12);
+  const line = pts.map(([i, v]) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const dots = pts.map(([i, v]) => `<circle cx="${sx(i).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="${i === i1 ? 3 : 1.6}" fill="${colorOf(v)}" ${i === i1 ? 'stroke="#fff" stroke-width="1"' : ''}/>`).join('');
+  return `<svg viewBox="0 0 ${W} ${H + 8}" aria-hidden="true"><polyline points="${line}" fill="none" stroke="rgba(255,255,255,.35)" stroke-width="1"/>${dots}
+    <text class="sk" x="4" y="${H + 7}">${label(i0)}</text><text class="sk" x="${W - 4}" y="${H + 7}" text-anchor="end">${label(i1)}</text></svg>`;
+}
+function showTip(k, pt) {
+  tipFor = k; tipPt = pt;
+  const a = D.areas[k], r = value(S.t, k, S.i), nat = natOf(S.t, S.i);
+  let body;
+  if (r.st === 1) {
+    const rank = ranked.findIndex(x => x[0] === k) + 1, diff = nat ? (r.v / nat - 1) * 100 : null;
+    body = `<div class="t2"><b style="color:${colorOf(r.v)}">${nf1.format(r.v)}</b><span>kWh a month</span></div>
+      <div class="t3">Average ${typeNoun()} in ${label(S.i)}. <b>#${rank} of ${ranked.length}</b>${diff != null ? `, ${Math.abs(diff) < .5 ? 'level with' : `${nf0.format(Math.abs(diff))}% ${diff > 0 ? 'above' : 'below'}`} the national ${nf1.format(nat)}` : ''}.</div>${spark(k)}`;
+  } else if (r.st === 2) body = `<div class="t3">EMA suppressed this figure for ${label(S.i)}: too few ${typeNoun()} to publish safely.</div>`;
+  else body = `<div class="t3">${a[2] ? `No figure for ${typeNoun()} here in ${label(S.i)}.` : 'EMA publishes no household figures for this planning area.'}</div>`;
+  tip.innerHTML = `<div class="t1">${a[0]}<small>${a[1]} region · ${typeLabel()}</small></div>${body}`;
+  tip.hidden = false;
+  if (!pt) return;
+  const W = innerWidth, H = innerHeight, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = pt.x + 16, y = pt.y + 16;
+  if (x + w > W - 8) x = pt.x - w - 16;
+  if (y + h > H - 8) y = pt.y - h - 16;
+  tip.style.left = `${clamp(x, 8, W - w - 8)}px`; tip.style.top = `${clamp(y, 8, H - h - 8)}px`;
+}
+function select(k, fly) {
+  S.sel = k;
+  const f = ['==', ['id'], k == null ? -1 : k];
+  map.setFilter('pa-sel', f); map.setFilter('pa-sel-glow', f);
+  document.querySelectorAll('#list button').forEach(b => b.classList.toggle('sel', +b.dataset.k === k));
+  if (k == null || !fly) return;
+  const pts = ringPts(D.geo[k]), fr = freeRect(), pad = 40;
+  const z = zoomToFit(pts, map.getBearing(), fr.R - fr.L - 2 * pad, fr.B - fr.T - 2 * pad) - (map.getPitch() > 20 ? .45 : 0);
+  const opts = { center: midOf(pts), zoom: clamp(z, 10, 14), bearing: map.getBearing(), pitch: map.getPitch(), padding: { left: fr.L, right: innerWidth - fr.R, top: fr.T, bottom: innerHeight - fr.B } };
+  reduceMotion ? map.jumpTo(opts) : map.easeTo({ ...opts, duration: 1600, essential: true });
+}
+
+/* map pointer */
+const canHover = matchMedia('(hover: hover)').matches;
+function probe(e) {
+  if (!map.getLayer('pa-fill') || S.mode !== 'heat') return;
+  const f = map.queryRenderedFeatures(e.point, { layers: ['pa-fill'] })[0];
+  map.getCanvas().style.cursor = f ? 'crosshair' : '';
+  if (!f) { hoverArea(null); return; }
+  hoverArea(f.id, e.point);
+}
+if (canHover) { map.on('mousemove', probe); map.on('mouseout', () => hoverArea(null)); }
+map.on('click', e => {
+  if (S.mode !== 'heat' || !map.getLayer('pa-fill')) return;
+  const f = map.queryRenderedFeatures(e.point, { layers: ['pa-fill'] })[0];
+  if (!f) { select(null); hoverArea(null); return; }
+  select(f.id); hoverArea(f.id, e.point);
+});
+map.on('movestart', e => { if (e.originalEvent && !canHover) hideTip(); });
+
+/* ---------- the spot meter and the max / min markers ---------- */
+let spotQ = false;
+function readSpot() {
+  spotQ = false;
+  if (!D || !map.getLayer('pa-fill')) return;
+  flipMarkers();
+  const fr = freeRect(), x = (fr.L + fr.R) / 2, y = (fr.T + fr.B) / 2;
+  const f = map.queryRenderedFeatures([x, y], { layers: ['pa-fill'] })[0];
+  const el = $('spot');
+  if (!f) { el.innerHTML = `<small>SP1</small><b>sea / no data</b>`; return; }
+  const r = value(S.t, f.id, S.i);
+  el.innerHTML = `<small>SP1 · ${D.areas[f.id][0]}</small><b>${r.st === 1 ? nf1.format(r.v) + ' kWh' : r.st === 2 ? 'suppressed' : 'no figure'}</b>`;
+}
+map.on('move', () => { if (!spotQ) { spotQ = true; requestAnimationFrame(readSpot); } });
+map.on('idle', readSpot);
+
+const XH = '<svg viewBox="-9 -9 18 18" aria-hidden="true"><path d="M-8 0h5M3 0h5M0-8v5M0 3v5"/></svg>';
+let mkMax = null, mkMin = null, mkFarm = null;
+function marker(cls) {
+  const el = document.createElement('div');
+  el.className = `mk ${cls} dmc-chrome`;
+  return { el, m: new maplibregl.Marker({ element: el, anchor: 'left', offset: [-9, 0] }) };
+}
+function drawMarkers() {
+  if (!mkMax) { mkMax = marker('max'); mkMin = marker('min'); }
+  if (ranked.length < 2) { mkMax.m.remove(); mkMin.m.remove(); return; }
+  const [kx, vx] = ranked[0], [kn, vn] = ranked[ranked.length - 1];
+  const named = !COMPACT.matches;   // phones: just the reading, the name is one tap away
+  mkMax.el.innerHTML = `${XH}<span>MAX ${nf1.format(vx)}${named ? ' · ' + D.areas[kx][0] : ''}</span>`;
+  mkMin.el.innerHTML = `${XH}<span>MIN ${nf1.format(vn)}${named ? ' · ' + D.areas[kn][0] : ''}</span>`;
+  mkMax.m.setLngLat(D.lab[kx]).addTo(map);
+  mkMin.m.setLngLat(D.lab[kn]).addTo(map);
+  flipMarkers();
+}
+// a label that would run under the right-hand panel goes on the left of its crosshair;
+// one that sits on the spot meter's reading steps aside (it fades out)
+function flipMarkers() {
+  const fr = freeRect(), cx = (fr.L + fr.R) / 2, cy = (fr.T + fr.B) / 2;
+  for (const mk of [mkMax, mkMin, mkFarm]) {
+    if (!mk || !mk.el.isConnected) continue;
+    const p = map.project(mk.m.getLngLat()), w = mk.el.offsetWidth;
+    const flip = p.x + w > fr.R - 6;
+    const x0 = flip ? p.x - w : p.x - 9, x1 = flip ? p.x + 9 : p.x + w;
+    mk.el.style.opacity = mk !== mkFarm && x1 > cx - 20 && x0 < cx + 150 && Math.abs(p.y - cy) < 34 ? '0' : '';
+    if (flip !== mk.el.classList.contains('flip')) {
+      const at = mk.m.getLngLat();
+      mk.m.remove();
+      mk.el.classList.toggle('flip', flip);
+      mk.m = new maplibregl.Marker({ element: mk.el, anchor: flip ? 'right' : 'left', offset: flip ? [9, 0] : [-9, 0] }).setLngLat(at).addTo(map);
+    }
+  }
+}
+
+/* ---------- framing: the free part of the screen, and an oblique fit ---------- */
+// zoom that fits these points into w x h pixels at a bearing (flat; callers pull back for tilt).
+// MapLibre's cameraForBounds adds the map's current padding to the one given, so it is not used.
+function zoomToFit(pts, bearing, w, h) {
+  const a = -bearing * Math.PI / 180, ca = Math.cos(a), sa = Math.sin(a);
+  const r = pts.map(([x, y]) => { const mx = (x + 180) / 360, my = (1 - Math.log(Math.tan(Math.PI / 4 + y * Math.PI / 360)) / Math.PI) / 2; return [mx * ca - my * sa, mx * sa + my * ca]; });
+  const dx = Math.max(...r.map(p => p[0])) - Math.min(...r.map(p => p[0])), dy = Math.max(...r.map(p => p[1])) - Math.min(...r.map(p => p[1]));
+  return Math.log2(Math.min(w / (dx * 512), h / (dy * 512)));
+}
+const ringPts = polys => { const pts = []; for (const p of polys) for (const xy of decodeRing(p[0])) pts.push(xy); return pts; };
+const midOf = pts => [(Math.min(...pts.map(p => p[0])) + Math.max(...pts.map(p => p[0]))) / 2, (Math.min(...pts.map(p => p[1])) + Math.max(...pts.map(p => p[1]))) / 2];
+function freeRect() {
+  const W = innerWidth, H = innerHeight;
+  let L = 0, R = W, T = 0, B = H;
+  if (root.classList.contains('dmc-focus')) return { L, R, T, B };
+  const vis = el => { const r = el.getBoundingClientRect(); return r.width && r.height && getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden' ? r : null; };
+  for (const id of ['ctl', 'rank', 'tcard']) {
+    const r = vis($(id)); if (!r) continue;
+    if (r.width > W * .7) B = Math.min(B, r.top);                 // bottom sheet
+    else if (r.left < W * .3) L = Math.max(L, r.right);           // left column
+    else if (r.right > W * .7 && r.height > H * .5) R = Math.min(R, r.left);   // right column
+    else if (r.top > H * .5) B = Math.min(B, r.top);              // a card at the bottom
+  }
+  const st = vis($('dmc-stamp'));
+  if (st && st.right > L + 10 && (st.right - L) > (R - L) * .3) T = Math.max(T, st.bottom);
+  const ctrl = document.querySelector('.maplibregl-ctrl-top-right');
+  if (ctrl && R > W - 60) R = Math.min(R, W - 52);
+  return { L, R, T, B };
+}
+function syncFinder() {
+  const fr = freeRect();
+  root.style.setProperty('--fx', `${fr.L}px`); root.style.setProperty('--fy', `${fr.T}px`);
+  root.style.setProperty('--fw', `${fr.R - fr.L}px`); root.style.setProperty('--fh', `${fr.B - fr.T}px`);
+}
+function cameraFit(bearing, pitch) {   // iterate: MapLibre's cameraForBounds ignores pitch
+  const fr = freeRect(), pad = COMPACT.matches ? 10 : 34, W = innerWidth, H = innerHeight;
+  // padding puts the camera's centre in the middle of the free area, so zooming scales about it
+  const padding = { left: fr.L + pad, right: W - fr.R + pad, top: fr.T + pad, bottom: H - fr.B + pad };
+  const fw = fr.R - fr.L - 2 * pad, fh = fr.B - fr.T - 2 * pad;
+  const before = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch(), padding: map.getPadding() };
+  framing = true;
+  map.jumpTo({ center: [103.82, 1.355], zoom: 10, bearing, pitch, padding });
+  const box = () => { const P = HULL.map(p => map.project(p)), xs = P.map(p => p.x), ys = P.map(p => p.y); return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]; };
+  for (let k = 0; k < 5; k++) {
+    let [x0, y0, x1, y1] = box();
+    const c = map.project(map.getCenter());
+    map.jumpTo({ center: map.unproject([c.x + (x0 + x1) / 2 - (padding.left + (W - padding.left - padding.right) / 2), c.y + (y0 + y1) / 2 - (padding.top + (H - padding.top - padding.bottom) / 2)]) });
+    [x0, y0, x1, y1] = box();
+    map.jumpTo({ zoom: clamp(map.getZoom() + Math.log2(Math.min(fw / (x1 - x0), fh / (y1 - y0))), 7, 14) });
+  }
+  // If the spot meter would open on an area with no figure (the central catchment, say), nudge the
+  // camera a little so it opens on the nearest planning area that has one.
+  if (D && S.i != null) {
+    const c = map.project(map.getCenter()), hit = map.queryRenderedFeatures([c.x, c.y], { layers: ['pa-fill'] })[0];
+    if (!hit || value(S.t, hit.id, S.i).st !== 1) {
+      let best = null;
+      D.lab.forEach((ll, k) => { if (value(S.t, k, S.i).st !== 1) return; const q = map.project(ll), d = Math.hypot(q.x - c.x, q.y - c.y); if (!best || d < best.d) best = { d, q }; });
+      if (best && Math.abs(best.q.x - c.x) < fw * .14 && Math.abs(best.q.y - c.y) < fh * .14) map.jumpTo({ center: map.unproject([best.q.x, best.q.y]) });
+    }
+  }
+  const cam = { center: map.getCenter().toArray(), zoom: map.getZoom(), bearing, pitch, padding };
+  map.jumpTo(before);
+  framing = false;
+  return cam;
+}
+let framing = false, viewerMoved = params.has('view');
+map.on('movestart', e => { if (e.originalEvent) viewerMoved = true; });
+function frameIsland(animate) {
+  if (!HULL.length) return;
+  syncFinder();
+  const cam = cameraFit(CAM.bearing, CAM.pitch);
+  if (animate && !reduceMotion) map.flyTo({ ...cam, duration: 3200, curve: 1.3, essential: true });
+  else { framing = true; map.jumpTo(cam); framing = false; }
+}
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { syncFinder(); if (D) { drawCal(); if (!viewerMoved && S.mode === 'heat') frameIsland(false); readSpot(); } }, 180); });
+document.addEventListener('dmc:focus', () => setTimeout(() => { syncFinder(); readSpot(); }, 300));
+
+/* ---------- Tengeh ---------- */
+const fmtMonthYear = s => { const [y, m] = s.split('-').map(Number); return `${MON[m - 1]} ${y}`; };
+function fillTengeh() {
+  const T = D.tengeh, F = T.facts, t = S.t;
+  $('f-mwp').innerHTML = `${F.mwp}<small> MWp</small>`;
+  $('f-panels').innerHTML = `${nf0.format(F.panels / 1000)}k<small>+</small>`;
+  $('f-ha').innerHTML = `${F.ha}<small> ha</small>`;
+  $('f-open').innerHTML = `${fmtMonthYear(F.launched).replace(' ', '<small> </small>')}`;
+  $('t-lede').innerHTML = `Over ${nf0.format(F.panels)} panels on ${F.islands} floating islands cover about a third of Tengeh Reservoir. PUB says the farm makes enough electricity for about <b>${nf0.format(F.flats4)} four-room HDB flats</b> a year.`;
+  const w = T.window.map(fmtMonthYear).join('–');
+  $('t-homes').textContent = `≈ ${nf0.format(T.homes[t])}`;
+  $('t-eq').innerHTML = t === 0
+    ? `average Singapore homes’ worth, at EMA’s averages for ${w}. That is about <b>1 home in ${T.oneIn}</b> (${T.pct}% of ${nf0.format(T.accounts[1])} household accounts, ${T.accAsOf}).`
+    : `${typeNoun(t)}, at this data’s ${w} averages (${nf1.format(T.avg12[t])} kWh a month, against ${nf1.format(T.avg12[3])} for a 4-room flat). Switch the home type to compare.`;
+  $('t-src').innerHTML = `Facts: ${A('https://www.pub.gov.sg/Public/WaterLoop/Sustainability/Solar/Floating', 'PUB')}, ${A('https://sembcorp.com/sg/our-solutions-in-singapore/renewable-energy/solar/floating-solar/', 'Sembcorp')}. The equivalence scales PUB’s 16,000 four-room flats by EMA’s averages; it implies about ${nf1.format(T.gwh)} GWh a year. Outline: OpenStreetMap.`;
+}
+let pulseRaf = 0;
+function pulse(on) {
+  cancelAnimationFrame(pulseRaf);
+  if (!on || reduceMotion) { map.setPaintProperty('sol-glow', 'line-opacity', on ? .85 : .65); return; }
+  const t0 = performance.now();
+  const tick = now => { const k = (Math.sin((now - t0) / 520) + 1) / 2; map.setPaintProperty('sol-glow', 'line-opacity', .45 + .5 * k); pulseRaf = requestAnimationFrame(tick); };
+  pulseRaf = requestAnimationFrame(tick);
+}
+function setLook(sat) {   // thermal greyscale, or true colour for the close-up
+  for (const id of ['basemap-Satellite', 'underlay']) if (map.getLayer(id)) {
+    map.setPaintProperty(id, 'raster-saturation', sat ? .05 : -1);
+    map.setPaintProperty(id, 'raster-brightness-max', sat ? 1 : .46);
+    map.setPaintProperty(id, 'raster-contrast', sat ? .04 : .18);
+  }
+  map.setPaintProperty('tint', 'fill-opacity', sat ? 0 : .42);
+  map.setPaintProperty('pa-fill', 'fill-opacity', fillOpacity(sat ? .1 : .84));
+  map.setPaintProperty('pa-glow', 'line-opacity', ['case', ['==', ['feature-state', 'st'], 1], sat ? 0 : GLOW, 0]);
+  map.setPaintProperty('pa-hatch', 'fill-opacity', ['case', ['==', ['feature-state', 'st'], 1], 0, sat ? 0 : HATCH]);
+  map.setPaintProperty('pa-line', 'line-opacity', sat ? .25 : .7);
+  map.setPaintProperty('sol-fill', 'fill-opacity', sat ? .2 : 0);
+  if (map.getLayer('water-line')) map.setPaintProperty('water-line', 'line-opacity', sat ? .55 : 0);
+}
+function goTengeh() {
+  if (!D) return;
+  stopPlay(); hoverArea(null); select(null);
+  S.mode = 'tengeh';
+  root.classList.add('tengeh');
+  $('tcard').hidden = false;
+  fillTengeh();
+  setLook(true); pulse(true);
+  if (!mkFarm) { mkFarm = marker('farm'); mkFarm.el.innerHTML = `${XH}<span>${COMPACT.matches ? 'Solar farm' : 'Tengeh floating solar farm'} · ${D.tengeh.facts.mwp} MWp</span>`; }
+  requestAnimationFrame(() => {
+    syncFinder();
+    const fr = freeRect(), W = innerWidth, H = innerHeight, bearing = CAM.bearing - 10;
+    const padding = { left: fr.L, right: W - fr.R, top: fr.T, bottom: H - fr.B };
+    // fit the farm's outline into the free area, then pull back a little for the tilt
+    const pts = ringPts(D.tengeh.outline);
+    const z = zoomToFit(pts, bearing, fr.R - fr.L - 40, fr.B - fr.T - 40) - (COMPACT.matches ? .15 : .35);
+    const cam = { center: midOf(pts), zoom: clamp(z, 13.4, 16.2), pitch: 56, bearing, padding };
+    const done = () => { if (S.mode === 'tengeh') { mkFarm.m.setLngLat(D.tengeh.center).addTo(map); flipMarkers(); } };
+    if (reduceMotion) { map.jumpTo(cam); done(); }
+    else { map.flyTo({ ...cam, duration: 5200, curve: 1.5, essential: true }); map.once('moveend', done); }
+    $('back').focus({ preventScroll: true });
+  });
+}
+function leaveTengeh() {
+  S.mode = 'heat';
+  root.classList.remove('tengeh');
+  $('tcard').hidden = true;
+  if (mkFarm) mkFarm.m.remove();
+  setLook(false); pulse(false);
+  requestAnimationFrame(() => { frameIsland(true); $('go-tengeh').focus({ preventScroll: true }); });
+}
+$('go-tengeh').addEventListener('click', goTengeh);
+$('back').addEventListener('click', leaveTengeh);
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && S.mode === 'tengeh' && !root.classList.contains('dmc-focus')) leaveTengeh(); });
+
+/* ---------- compact screens: panel tabs ---------- */
+function setView(v) {
+  root.classList.toggle('view-rank', v === 'rank');
+  root.classList.toggle('view-ctl', v !== 'rank');
+  requestAnimationFrame(() => { syncFinder(); readSpot(); });
+}
+document.querySelectorAll('[data-view]').forEach(b => b.addEventListener('click', () => { setView(b.dataset.view); const other = document.querySelector(`[data-view="${b.dataset.view === 'rank' ? 'ctl' : 'rank'}"]`); if (other) other.focus({ preventScroll: true }); }));
+setView('ctl');
+
+/* ---------- layout: the controls start under the stamp ---------- */
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open') && !COMPACT.matches) root.style.setProperty('--ctl-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+  syncFinder();
+}
+layout();
+if (document.fonts) document.fonts.ready.then(() => { layout(); if (D && !viewerMoved && S.mode === 'heat') frameIsland(false); });
+addEventListener('resize', layout);
+new ResizeObserver(() => { layout(); }).observe($('dmc-stamp'));
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day12/power.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([d]) => {
+  D = d;
+  const qt = parseInt(params.get('type') || '0', 10);
+  S.t = qt >= 0 && qt < D.types.length ? qt : 0;
+  S.i = D.nm - 1;
+  const qm = params.get('month');
+  if (qm && /^\d{4}-\d{2}$/.test(qm)) { const [y, m] = qm.split('-').map(Number), i = idxOf(y, m - 1); if (i >= 0 && i < D.nm) S.i = i; }
+  drawTypes(); wireCal(); wireList();
+  addLayers();
+  map.setPaintProperty('pa-fill', 'fill-color', colorExpr(S.t));
+  map.setPaintProperty('pa-glow', 'line-color', colorExpr(S.t));
+  map.setPaintProperty('pa-glow', 'line-width', glowExpr(S.t, 1));
+  map.setPaintProperty('pa-glow', 'line-blur', glowExpr(S.t, .9));
+  const sn = D.season, n = sn.peak.length;
+  $('season').innerHTML = `Across all homes, use climbs from April and peaks around June: June was the top month in <b>${sn.juneTop} of the ${n} years</b> ${sn.years[0]}&ndash;${sn.years[1]}. The lowest month fell between December and March in <b>${sn.decMarLow === n ? 'every one of them' : `${sn.decMarLow} of them`}</b>. The brightest cell of all is ${fmtMonthYear(sn.record[0])}, at ${nf1.format(sn.record[1])} kWh.`;
+  layout();
+  apply();
+  if (!viewerMoved) frameIsland(false);
+  $('play').addEventListener('click', play);
+  if (params.has('tengeh')) goTengeh();
+  map.once('idle', () => { $('loading').hidden = true; readSpot(); });
+}).catch(err => {
+  $('loading').textContent = 'The electricity data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
