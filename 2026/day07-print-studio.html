@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B1220">
+<title>Day 07 · Print your own Singapore</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 7, 10 minute map: a poster studio. Frame any corner of Singapore in OneMap aerial imagery (or anywhere on Earth), pick a frame, set the words and download a print-ready poster in under ten minutes.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400..900&family=Big+Shoulders+Display:wght@400..900&family=Caveat:wght@400..700&family=Cormorant+Garamond:ital,wght@0,400..700;1,400..700&family=IBM+Plex+Mono:wght@400;500;600;700&family=Instrument+Sans:ital,wght@0,400..700;1,400..700&family=Playfair+Display:ital,wght@0,400..900;1,400..900&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 07: a poster studio. A sheet of paper on a lit wall, an editor on the side. ===== */
+:root { --side-w: 340px; --ink: #16120b; }
+body { background: #1b1916; }
+
+/* ---- the wall / desk ---- */
+.pr-stage { position: fixed; inset: 0; overflow: hidden; transition: background .4s; }
+.pr-stage[data-backdrop="wall"] { background: radial-gradient(75% 65% at 46% 12%, #5a5249 0%, #37322d 46%, #1d1a17 100%); }
+.pr-stage[data-backdrop="desk"] { background: radial-gradient(80% 70% at 40% 20%, #d8d0c2 0%, #b9ae9c 55%, #8e8371 100%); }
+.pr-stage[data-backdrop="studio"] { background: radial-gradient(80% 70% at 50% 30%, #4a5058 0%, #2c3036 55%, #15181c 100%); }
+.pr-stage::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: overlay;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .5 0 0 0 0 .5 0 0 0 0 .5 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.pr-stage[data-backdrop="desk"]::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .18;
+  background: repeating-linear-gradient(91deg, rgba(90, 60, 30, .0) 0 7px, rgba(90, 60, 30, .35) 8px, rgba(90, 60, 30, 0) 11px 23px); }
+
+.pr-sheet { position: absolute; z-index: 1; background: #fff;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .22), 0 3px 6px rgba(0, 0, 0, .2), 0 14px 26px -8px rgba(0, 0, 0, .38), 0 42px 80px -24px rgba(0, 0, 0, .62); }
+.pr-stage[data-backdrop="desk"] .pr-sheet { box-shadow: 0 1px 1px rgba(40, 25, 10, .25), 0 4px 8px rgba(40, 25, 10, .18), 0 18px 30px -12px rgba(40, 25, 10, .45); }
+.pr-sheet > canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+#over { pointer-events: none; }
+#map { position: absolute; overflow: hidden; background: #1c2526; }
+#map .maplibregl-canvas-container.fx { filter: url(#fx); }
+.pr-sheen { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: soft-light;
+  background: linear-gradient(118deg, rgba(255, 255, 255, .22) 0%, rgba(255, 255, 255, 0) 36%, rgba(0, 0, 0, 0) 66%, rgba(0, 0, 0, .16) 100%); }
+.pr-spot { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(45% 40% at 46% 30%, rgba(255, 236, 205, .10), transparent 70%); }
+
+/* map buttons, moved beside the sheet */
+.pr-rail { position: absolute; z-index: 2; }
+.pr-rail .maplibregl-ctrl-top-right { position: static; display: grid; gap: 8px; }
+.pr-fx { position: absolute; width: 0; height: 0; }
+
+/* caption toolbar under the sheet */
+.pr-toolbar { position: absolute; z-index: 2; display: flex; align-items: center; gap: 6px; padding: 5px 6px 5px 6px; border-radius: 999px; white-space: nowrap; }
+.pr-toolbar .dmc-btn { display: inline-flex; align-items: center; gap: 6px; padding: 4px 11px; min-height: 30px; }
+.pr-toolbar svg, .pr-big svg, .pr-act svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.pr-toolbar .pr-go { background: var(--day-accent); color: var(--ink); border-color: transparent; }
+.pr-toolbar .pr-go:hover { background: #ffd894; }
+.pr-size { font-size: 11px; color: var(--text-2); padding: 0 8px 0 4px; font-variant-numeric: tabular-nums; }
+.pr-toast { position: absolute; z-index: 4; left: 50%; top: 18px; transform: translateX(-50%); padding: 8px 14px; font-size: 12px; border-radius: 999px; max-width: min(520px, 90vw); text-align: center; }
+.pr-toast[hidden] { display: none; }
+
+/* ---- editor ---- */
+.pr-editor { position: fixed; z-index: 3; top: var(--gutter); right: var(--gutter); bottom: var(--gutter); width: var(--side-w);
+  display: flex; flex-direction: column; overflow: hidden; transition: transform .32s ease, height .32s ease; }
+.pr-editor.collapsed { transform: translateX(calc(100% + 2 * var(--gutter))); }
+.pr-ed-head { display: flex; align-items: center; gap: 6px; padding: 10px 10px 9px; border-bottom: 1px solid var(--line); }
+.pr-tabs { flex: 1; display: flex; gap: 2px; padding: 3px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 999px; }
+.pr-tabs button { position: relative; flex: 1; min-height: 28px; padding: 4px 2px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: none; border: 0; border-radius: 999px; cursor: pointer; }
+.pr-tabs button:hover { color: var(--text); }
+.pr-tabs button[aria-selected="true"] { color: var(--ink); background: var(--day-accent); }
+.pr-icon { position: relative; flex: none; width: 32px; height: 32px; display: grid; place-items: center; color: var(--text-2); background: rgba(255, 255, 255, .06); border: 1px solid var(--line); border-radius: 50%; cursor: pointer; }
+.pr-icon:hover { color: var(--text); }
+.pr-icon svg { width: 15px; height: 15px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.pr-ed-body { flex: 1; overflow-y: auto; padding: 12px 14px 16px; scrollbar-width: thin; scrollbar-color: rgba(255,255,255,.2) transparent; }
+.pr-pane { display: grid; gap: 15px; }
+.pr-pane[hidden] { display: none; }
+.pr-group { display: grid; gap: 7px; }
+.pr-lbl { margin: 0; font-size: 10.5px; font-weight: 700; letter-spacing: .09em; text-transform: uppercase; color: var(--text-2); }
+.pr-hint { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--text-2); }
+.pr-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pr-editor input[type="text"], .pr-editor input[type="search"], .pr-editor select {
+  width: 100%; min-height: 32px; padding: 6px 9px; font: inherit; font-size: 12.5px; color: var(--text);
+  background: rgba(255, 255, 255, .06); border: 1px solid var(--line); border-radius: 9px; }
+.pr-editor select option { background: #141a24; }
+.pr-editor input::placeholder { color: rgba(238, 242, 247, .42); }
+.pr-field { display: grid; gap: 4px; font-size: 11.5px; color: var(--text-2); }
+.pr-field-row { display: flex; gap: 6px; }
+.pr-field-row .dmc-btn { flex: none; }
+.pr-range { display: grid; grid-template-columns: 74px 1fr 34px; align-items: center; gap: 8px; font-size: 12px; color: var(--text-2); }
+.pr-range output { text-align: right; font-variant-numeric: tabular-nums; color: var(--text); font-size: 11.5px; }
+.pr-editor input[type="range"] { width: 100%; accent-color: var(--day-accent); margin: 0; height: 22px; }
+.pr-sw { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12.5px; cursor: pointer; min-height: 28px; }
+.pr-sw input { appearance: none; -webkit-appearance: none; position: relative; flex: none; width: 34px; height: 20px; margin: 0; border-radius: 999px; background: rgba(255, 255, 255, .14); border: 1px solid var(--line); cursor: pointer; transition: background .2s; }
+.pr-sw input::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
+.pr-sw input:checked { background: var(--day-accent); }
+.pr-sw input:checked::after { transform: translateX(14px); background: var(--ink); }
+.pr-sw-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px 16px; }
+.pr-colors { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.pr-color { display: grid; justify-items: center; gap: 4px; font-size: 11px; color: var(--text-2); }
+.pr-editor input[type="color"] { width: 34px; height: 34px; padding: 0; border: 1px solid rgba(255, 255, 255, .3); border-radius: 50%; background: none; cursor: pointer; }
+.pr-editor input[type="color"]::-webkit-color-swatch-wrapper { padding: 0; }
+.pr-editor input[type="color"]::-webkit-color-swatch { border: 0; border-radius: 50%; }
+.pr-editor input[type="color"]::-moz-color-swatch { border: 0; border-radius: 50%; }
+.pr-editor .dmc-seg { display: flex; flex-wrap: wrap; }
+.pr-editor .dmc-seg button { flex: 1; white-space: nowrap; padding: 4px 8px; }
+.pr-editor .pr-row { flex-wrap: wrap; }
+
+.pr-searchbox { display: flex; gap: 6px; }
+.pr-results { list-style: none; margin: 0; padding: 4px; display: grid; gap: 1px; background: rgba(0, 0, 0, .25); border: 1px solid var(--line); border-radius: 10px; max-height: 220px; overflow-y: auto; }
+.pr-results[hidden] { display: none; }
+.pr-results button { width: 100%; text-align: left; display: grid; gap: 1px; padding: 6px 8px; font: inherit; font-size: 12px; color: var(--text); background: none; border: 0; border-radius: 7px; cursor: pointer; }
+.pr-results button:hover, .pr-results button:focus-visible { background: rgba(255, 255, 255, .08); }
+.pr-results small { font-size: 10.5px; color: var(--text-2); }
+.pr-results .src { padding: 3px 8px 2px; font-size: 10px; color: var(--text-2); }
+.pr-picks { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pr-picks button { position: relative; overflow: hidden; display: grid; align-content: end; min-height: 52px; padding: 6px 8px; text-align: left; font: inherit; font-size: 11.5px; font-weight: 600; color: #fff; border: 1px solid var(--line); border-radius: 10px; cursor: pointer; background: #222 center / cover no-repeat; text-shadow: 0 1px 3px rgba(0, 0, 0, .9); }
+.pr-picks button::before { content: ""; position: absolute; inset: 0; background: linear-gradient(to top, rgba(0, 0, 0, .65), rgba(0, 0, 0, 0) 70%); }
+.pr-picks button span { position: relative; }
+.pr-picks button:hover { border-color: var(--day-accent); }
+.pr-big { display: inline-flex; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 40px; font: inherit; font-size: 13px; font-weight: 700; color: var(--ink); background: var(--day-accent); border: 0; border-radius: 12px; cursor: pointer; box-shadow: 0 0 18px rgba(var(--day-accent-rgb), .3); }
+.pr-big:hover { background: #ffd894; }
+.pr-big:disabled { opacity: .5; cursor: progress; }
+
+.pr-bases { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pr-bases button { display: grid; grid-template-columns: 38px 1fr; align-items: center; gap: 8px; padding: 4px 8px 4px 4px; text-align: left; font: inherit; font-size: 11.5px; font-weight: 600; line-height: 1.2; color: var(--text-2); background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; min-height: 46px; }
+.pr-bases img { width: 38px; height: 38px; border-radius: 7px; object-fit: cover; display: block; background: #333; }
+.pr-bases button:hover { color: var(--text); }
+.pr-bases button[aria-pressed="true"] { color: var(--text); border-color: var(--day-accent); box-shadow: inset 0 0 0 1px var(--day-accent); }
+.pr-duo { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pr-duo[hidden] { display: none; }
+.pr-duo .presets { display: flex; gap: 5px; }
+.pr-duo .presets button { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(255, 255, 255, .3); cursor: pointer; padding: 0; }
+
+.pr-tpls { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pr-tpls button { display: grid; gap: 5px; justify-items: center; padding: 8px 6px 6px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: rgba(255, 255, 255, .035); border: 1px solid var(--line); border-radius: 11px; cursor: pointer; }
+.pr-tpls canvas { display: block; max-width: 100%; box-shadow: 0 4px 10px rgba(0, 0, 0, .45); }
+.pr-tpls button:hover { color: var(--text); }
+.pr-tpls button[aria-pressed="true"] { color: var(--text); border-color: var(--day-accent); box-shadow: inset 0 0 0 1px var(--day-accent), 0 0 16px rgba(var(--day-accent-rgb), .22); }
+.pr-tpls small { font-size: 10px; font-weight: 400; color: var(--text-2); margin-top: -4px; }
+
+.pr-papers { display: grid; grid-template-columns: repeat(4, 1fr); gap: 5px; }
+.pr-papers button { display: grid; justify-items: center; gap: 4px; padding: 6px 2px 5px; font: inherit; font-size: 10.5px; font-weight: 600; line-height: 1.15; color: var(--text-2); background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 9px; cursor: pointer; text-align: center; }
+.pr-papers i { display: block; background: rgba(255, 255, 255, .55); border-radius: 1px; }
+.pr-papers button[aria-pressed="true"] { color: var(--text); border-color: var(--day-accent); }
+.pr-papers button[aria-pressed="true"] i { background: var(--day-accent); }
+.pr-info { margin: 0; font-size: 11.5px; line-height: 1.5; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.pr-info b { color: var(--text); font-weight: 600; }
+.pr-acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.pr-act { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 34px; font: inherit; font-size: 12px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 10px; cursor: pointer; }
+.pr-act:hover { background: rgba(255, 255, 255, .14); }
+.pr-act:disabled, .pr-big:disabled { opacity: .5; cursor: progress; }
+.pr-prog { display: grid; gap: 5px; }
+.pr-prog[hidden] { display: none; }
+.pr-bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+.pr-bar i { display: block; height: 100%; width: 0; background: var(--day-accent); transition: width .3s; }
+.pr-prog p { margin: 0; font-size: 11.5px; color: var(--text-2); }
+.pr-warn { color: #FFB27A !important; }
+
+.pr-ed-open { position: fixed; z-index: 3; top: var(--gutter); right: var(--gutter); display: inline-flex; align-items: center; gap: 7px; padding: 7px 14px; font: inherit; font-size: 12px; font-weight: 600; color: var(--text); border-radius: 999px; cursor: pointer; }
+.pr-ed-open[hidden] { display: none; }
+.pr-ed-open svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+
+#offscreen { position: fixed; left: -20000px; top: 0; pointer-events: none; }
+#print-out { display: none; }
+
+/* ---- phones: the editor becomes a bottom sheet with tabs ---- */
+@media (max-width: 640px) {
+  .pr-editor { top: auto; left: 0; right: 0; bottom: 0; width: auto; height: min(47vh, 430px); border-radius: 16px 16px 0 0; border-bottom: 0; padding-bottom: env(safe-area-inset-bottom, 0px); }
+  .pr-editor.collapsed { transform: none; height: calc(52px + env(safe-area-inset-bottom, 0px)); }
+  .pr-editor.collapsed .pr-ed-body { visibility: hidden; }
+  .pr-ed-head { padding: 9px 8px 8px; }
+  .pr-tabs button { font-size: 11px; }
+  .pr-ed-body { padding: 10px 12px 14px; }
+  .pr-toolbar .lbl, .pr-size { display: none; }
+  .pr-toolbar .dmc-btn { padding: 4px 10px; }
+  .pr-tpls { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --side-w: min(300px, 44vw); }
+  .pr-toolbar .lbl, .pr-size { display: none; }
+}
+
+/* ---- print: only the rendered poster ---- */
+@media print {
+  html, body { height: auto !important; overflow: visible !important; background: #fff !important; }
+  body > *:not(#print-out) { display: none !important; }
+  #print-out { display: block !important; }
+  #print-out img { display: block; }
+}
+</style>
+<style id="page-size"></style>
+</head>
+<body>
+<svg class="pr-fx" aria-hidden="true" focusable="false">
+  <filter id="fx" color-interpolation-filters="sRGB" x="0" y="0" width="100%" height="100%">
+    <feColorMatrix id="fx-warm" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+    <feColorMatrix id="fx-mat" type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"/>
+    <feComponentTransfer id="fx-duo"><feFuncR type="table" tableValues="0 1"/><feFuncG type="table" tableValues="0 1"/><feFuncB type="table" tableValues="0 1"/></feComponentTransfer>
+  </filter>
+</svg>
+
+<main id="stage" class="pr-stage" data-backdrop="wall">
+  <div class="pr-spot" aria-hidden="true"></div>
+  <div id="sheet" class="pr-sheet">
+    <canvas id="under" aria-hidden="true"></canvas>
+    <div id="map" role="region" aria-label="Live map inside the poster frame. Drag to move, scroll or pinch to zoom, right-drag or two fingers to tilt and turn."></div>
+    <canvas id="over" aria-hidden="true"></canvas>
+    <div class="pr-sheen" aria-hidden="true"></div>
+  </div>
+  <div id="rail" class="pr-rail"></div>
+  <div id="toolbar" class="pr-toolbar dmc-glass dmc-chrome" role="toolbar" aria-label="Poster actions">
+    <button id="tb-surprise" class="dmc-btn pr-go" type="button" title="Random place and frame"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2 2M10.6 10.6l2 2M3.4 12.6l2-2M10.6 5.4l2-2"/></svg><span class="lbl">Surprise me</span></button>
+    <button id="tb-png" class="dmc-btn" type="button" title="Download the full-size PNG"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M2.5 13.5h11"/></svg><span class="lbl">PNG</span></button>
+    <button id="tb-share" class="dmc-btn" type="button" title="Copy a link to this design"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6.5 9.5l3-3M7 4.5l1.3-1.3a2.6 2.6 0 0 1 3.7 3.7L10.7 8.2M9 11.5l-1.3 1.3a2.6 2.6 0 0 1-3.7-3.7L5.3 7.8"/></svg><span class="lbl">Link</span></button>
+    <button id="tb-focus" class="dmc-btn" type="button" title="Only the poster (F)"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5.5V2h3.5M10.5 2H14v3.5M14 10.5V14h-3.5M5.5 14H2v-3.5"/></svg><span class="lbl">Focus</span></button>
+    <span id="tb-size" class="pr-size"></span>
+  </div>
+  <div id="toast" class="pr-toast dmc-glass dmc-chrome" role="status" aria-live="polite" hidden></div>
+</main>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="editor" class="pr-editor dmc-glass" data-dmc-overlay aria-label="Poster editor">
+  <div class="pr-ed-head">
+    <div class="pr-tabs" role="tablist" aria-label="Editor sections">
+      <button role="tab" id="tab-place" aria-controls="pane-place" aria-selected="true">Place</button>
+      <button role="tab" id="tab-map" aria-controls="pane-map" aria-selected="false" tabindex="-1">Map</button>
+      <button role="tab" id="tab-frame" aria-controls="pane-frame" aria-selected="false" tabindex="-1">Frame</button>
+      <button role="tab" id="tab-text" aria-controls="pane-text" aria-selected="false" tabindex="-1">Text</button>
+      <button role="tab" id="tab-export" aria-controls="pane-export" aria-selected="false" tabindex="-1">Export</button>
+    </div>
+    <button id="ed-collapse" class="pr-icon" type="button" aria-label="Hide the editor" aria-expanded="true" aria-controls="editor"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5"/></svg></button>
+  </div>
+  <div class="pr-ed-body">
+    <!-- PLACE -->
+    <section id="pane-place" class="pr-pane" role="tabpanel" aria-labelledby="tab-place">
+      <form id="search" class="pr-group" role="search">
+        <label class="pr-lbl" for="q">Find a place</label>
+        <div class="pr-searchbox"><input id="q" type="search" placeholder="Building, street, postcode, or anywhere" autocomplete="off" aria-controls="results"><button class="dmc-btn" type="submit">Go</button></div>
+        <ul id="results" class="pr-results" hidden></ul>
+        <p id="search-note" class="pr-hint">Singapore results come from OneMap as you type. Press Enter to search the world (OpenStreetMap Nominatim).</p>
+      </form>
+      <div class="pr-group"><p class="pr-lbl">Quick picks</p><div id="picks" class="pr-picks"></div></div>
+      <button id="surprise" class="pr-big" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.5v3M8 11.5v3M1.5 8h3M11.5 8h3M3.4 3.4l2 2M10.6 10.6l2 2M3.4 12.6l2-2M10.6 5.4l2-2"/></svg>Surprise me: random place and frame</button>
+      <p class="pr-hint">Then drag inside the frame to compose: scroll or pinch to zoom, right-drag (or two fingers) to tilt and turn. Ten minutes is plenty.</p>
+    </section>
+
+    <!-- MAP -->
+    <section id="pane-map" class="pr-pane" role="tabpanel" aria-labelledby="tab-map" hidden>
+      <div class="pr-group"><p class="pr-lbl" id="lbl-base">Basemap</p><div id="bases" class="pr-bases" data-k="b" role="group" aria-labelledby="lbl-base"></div>
+        <p id="base-note" class="pr-hint"></p></div>
+      <div class="pr-group">
+        <p class="pr-lbl">Camera</p>
+        <label class="pr-sw">3D buildings (OpenFreeMap)<input id="b3d" type="checkbox"></label>
+        <div class="pr-row"><div class="dmc-seg" id="tilt" role="group" aria-label="Tilt"><button type="button" data-tilt="0">Flat</button><button type="button" data-tilt="45">Tilt 45°</button><button type="button" data-tilt="62">Tilt 62°</button></div>
+          <button id="north-up" class="dmc-btn" type="button">North up</button></div>
+      </div>
+      <div class="pr-group">
+        <div class="pr-row"><p class="pr-lbl">Adjust imagery</p><button id="adj-reset" class="dmc-btn" type="button">Reset</button></div>
+        <label class="pr-range">Brightness<input type="range" data-k="bri" min="-0.6" max="0.6" step="0.02"><output data-for="bri"></output></label>
+        <label class="pr-range">Contrast<input type="range" data-k="con" min="-0.6" max="0.6" step="0.02"><output data-for="con"></output></label>
+        <label class="pr-range">Saturation<input type="range" data-k="sat" min="-1" max="1" step="0.02"><output data-for="sat"></output></label>
+        <label class="pr-range">Warmth<input type="range" data-k="warm" min="-1" max="1" step="0.02"><output data-for="warm"></output></label>
+        <label class="pr-range">Hue<input type="range" data-k="hue" min="-180" max="180" step="2"><output data-for="hue"></output></label>
+      </div>
+      <div class="pr-group">
+        <p class="pr-lbl" id="lbl-treat">Colour treatment</p>
+        <div class="dmc-seg" data-k="treat" role="group" aria-labelledby="lbl-treat"><button type="button" data-v="none">Natural</button><button type="button" data-v="grey">Greyscale</button><button type="button" data-v="sepia">Sepia</button><button type="button" data-v="duo">Duotone</button></div>
+        <div id="duo" class="pr-duo" hidden>
+          <label class="pr-color">Shadows<input type="color" data-k="d1"></label>
+          <label class="pr-color">Lights<input type="color" data-k="d2"></label>
+          <div class="presets" id="duo-presets" role="group" aria-label="Duotone presets"></div>
+        </div>
+        <p class="pr-hint">Treatments are baked into the downloaded file too.</p>
+      </div>
+    </section>
+
+    <!-- FRAME -->
+    <section id="pane-frame" class="pr-pane" role="tabpanel" aria-labelledby="tab-frame" hidden>
+      <div class="pr-group"><p class="pr-lbl" id="lbl-tpl">Frame</p><div id="tpls" class="pr-tpls" data-k="t" role="group" aria-labelledby="lbl-tpl"></div>
+        <label class="pr-sw">Keep my map colours when switching<input type="checkbox" data-k="keepLook"></label></div>
+      <div class="pr-group">
+        <p class="pr-lbl">Colours</p>
+        <div class="pr-colors">
+          <label class="pr-color">Frame<input type="color" data-k="fc"></label>
+          <label class="pr-color">Paper / mat<input type="color" data-k="mc"></label>
+          <label class="pr-color">Text<input type="color" data-k="tc"></label>
+        </div>
+      </div>
+      <div class="pr-group">
+        <p class="pr-lbl">Proportions</p>
+        <label class="pr-range">Mat / margin<input type="range" data-k="mat" min="0" max="160" step="1"><output data-for="mat"></output></label>
+        <label class="pr-range">Frame / rule<input type="range" data-k="border" min="0" max="60" step="0.5"><output data-for="border"></output></label>
+      </div>
+      <div class="pr-group">
+        <p class="pr-lbl">Furniture</p>
+        <div class="pr-sw-grid">
+          <label class="pr-sw">Grid ticks<input type="checkbox" data-k="ticks"></label>
+          <label class="pr-sw">North arrow<input type="checkbox" data-k="north"></label>
+          <label class="pr-sw">Scale bar<input type="checkbox" data-k="scale"></label>
+          <label class="pr-sw">Coordinates<input type="checkbox" data-k="showCoords"></label>
+        </div>
+        <p id="tilt-note" class="pr-hint" hidden></p>
+        <div class="pr-row"><span class="pr-hint" id="lbl-cp">Map credits</span><div class="dmc-seg" data-k="cp" role="group" aria-labelledby="lbl-cp"><button type="button" data-v="margin">In margin</button><button type="button" data-v="map">On map</button></div></div>
+      </div>
+    </section>
+
+    <!-- TEXT -->
+    <section id="pane-text" class="pr-pane" role="tabpanel" aria-labelledby="tab-text" hidden>
+      <label class="pr-field">Title<input type="text" data-k="title" maxlength="60"></label>
+      <label class="pr-field">Subtitle<input type="text" data-k="sub" maxlength="90"></label>
+      <div class="pr-field"><label for="coords">Coordinates line</label>
+        <div class="pr-field-row"><input id="coords" type="text" data-k="coords" maxlength="80"><button id="coords-auto" class="dmc-btn" type="button" title="Follow the map centre">Auto</button></div></div>
+      <label class="pr-field">Typeface<select data-k="font" id="font"></select></label>
+      <div class="pr-row"><span class="pr-hint" id="lbl-tp">Text placement</span><div class="dmc-seg" data-k="tp" role="group" aria-labelledby="lbl-tp"><button type="button" data-v="top">Top</button><button type="button" data-v="bottom">Bottom</button></div></div>
+      <p class="pr-hint">The coordinates line follows the map centre until you type your own.</p>
+    </section>
+
+    <!-- EXPORT -->
+    <section id="pane-export" class="pr-pane" role="tabpanel" aria-labelledby="tab-export" hidden>
+      <div class="pr-group"><p class="pr-lbl" id="lbl-paper">Paper</p><div id="papers" class="pr-papers" data-k="paper" role="group" aria-labelledby="lbl-paper"></div></div>
+      <div class="pr-row"><div class="dmc-seg" data-k="orient" role="group" aria-label="Orientation"><button type="button" data-v="p">Portrait</button><button type="button" data-v="l">Landscape</button></div>
+        <div class="dmc-seg" data-k="dpi" role="group" aria-label="Resolution"><button type="button" data-v="150" id="dpi150">150 dpi</button><button type="button" data-v="300" id="dpi300">300 dpi</button></div></div>
+      <div class="pr-group"><p class="pr-lbl" id="lbl-detail">Map detail</p>
+        <div class="dmc-seg" data-k="detail" role="group" aria-labelledby="lbl-detail"><button type="button" data-v="auto">Auto</button><button type="button" data-v="sharp">Sharpest</button><button type="button" data-v="balanced">Balanced</button><button type="button" data-v="large">Big labels</button></div>
+        <p id="plan" class="pr-info"></p></div>
+      <div class="pr-group">
+        <button id="dl-png" class="pr-big" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 2v8M4.5 6.8 8 10.3l3.5-3.5M2.5 13.5h11"/></svg>Download PNG</button>
+        <div class="pr-acts">
+          <button id="dl-pdf" class="pr-act" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 1.8h5.5L12.5 5v9.2H4zM9.5 1.8V5h3"/></svg>PDF</button>
+          <button id="dl-print" class="pr-act" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 6V2h7v4M4.5 11.5H2.5v-5.5h11v5.5h-2M4.5 9.5h7V14h-7z"/></svg>Print</button>
+        </div>
+        <div id="prog" class="pr-prog" hidden><div class="pr-bar"><i id="prog-bar"></i></div><p id="prog-msg" aria-live="polite"></p></div>
+      </div>
+      <div class="pr-group"><p class="pr-lbl" id="lbl-bg">Preview backdrop</p>
+        <div class="dmc-seg" data-k="bg" role="group" aria-labelledby="lbl-bg"><button type="button" data-v="wall">Gallery wall</button><button type="button" data-v="desk">Desk</button><button type="button" data-v="studio">Studio</button></div></div>
+      <p id="credits" class="dmc-credits"></p>
+    </section>
+  </div>
+</aside>
+<button id="ed-open" class="pr-ed-open dmc-glass dmc-chrome" type="button" hidden><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3.5 5.5 8l4.5 4.5"/></svg>Edit poster</button>
+<div id="offscreen" aria-hidden="true"></div>
+<div id="print-out" aria-hidden="true"><img id="print-img" alt=""></div>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 7,
+  title: 'Print your own Singapore',
+  deck: 'A poster studio. Frame any corner of Singapore in OneMap aerial imagery (or anywhere on Earth in Esri imagery), choose one of seven frames, set the words and download a print-ready file. The map is rendered again at full paper size, so an A2 at 300 dpi is sharp, not an enlarged screenshot.',
+  accent: '#FFC56B',
+  basemap: ['Satellite', 'Default', 'Night', 'Grey', 'Original'],
+  underlay: 'esri-imagery',
+  basemapBg: '#1c2526',
+  maxBounds: null, minZoom: 2, maxZoom: 20,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 55 },
+  buildingsOpacity: 1, buildingsColor: ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 8], 0, '#d9d4cb', 80, '#ece8e1', 250, '#faf8f4'],
+  creditsEl: 'credits',
+  attribution: ['Line-art basemaps: <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>, &copy; OpenMapTiles, &copy; OpenStreetMap contributors', 'Place search: <a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> (SLA) and <a href="https://nominatim.org/" target="_blank" rel="noopener noreferrer">Nominatim</a> (&copy; OpenStreetMap contributors). PDF by <a href="https://github.com/parallax/jsPDF" target="_blank" rel="noopener noreferrer">jsPDF</a>.'],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+
+const $ = id => document.getElementById(id);
+const root = document.documentElement;
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const PHONE = matchMedia('(max-width: 640px)');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const mapEl = $('map'), sheet = $('sheet'), stage = $('stage'), editor = $('editor'), toolbar = $('toolbar'), rail = $('rail');
+
+/* =========================================================================
+   Catalogue: papers, basemaps, places, typefaces
+   ========================================================================= */
+const PAPERS = {
+  a4: { name: 'A4', mm: [210, 297] }, a3: { name: 'A3', mm: [297, 420] }, a2: { name: 'A2', mm: [420, 594] },
+  letter: { name: 'US Letter', mm: [215.9, 279.4] }, sq30: { name: '30 × 30 cm', mm: [300, 300] },
+  insta: { name: 'Instagram 4:5', px: [1080, 1350] }, desk: { name: 'Desktop 16:9', px: [2160, 3840], land: true }, phone: { name: 'Phone 9:19.5', px: [1290, 2795] },
+};
+const OM_CREDIT = 'Map © OneMap, Singapore Land Authority';
+const BASES = {
+  sat: { name: 'OneMap Satellite', layers: ['Satellite'], underlay: true, bg: '#1c2526', dark: true, sharp: true, sg: true, thumb: 'https://www.onemap.gov.sg/maps/tiles/Satellite/15/25838/16267.png', credit: 'Imagery © OneMap, Singapore Land Authority; Esri, Maxar, Earthstar Geographics' },
+  esri: { name: 'Esri World Imagery', layers: [], underlay: true, bg: '#0d1418', dark: true, sharp: true, thumb: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/15/16267/25838', credit: 'Imagery © Esri, Maxar, Earthstar Geographics and the GIS User Community' },
+  default: { name: 'OneMap Default', layers: ['Default'], bg: '#c9dde8', sg: true, thumb: 'https://www.onemap.gov.sg/maps/tiles/Default/15/25838/16267.png', credit: OM_CREDIT },
+  night: { name: 'OneMap Night', layers: ['Night'], bg: '#0a1a2c', dark: true, sg: true, thumb: 'https://www.onemap.gov.sg/maps/tiles/Night/15/25838/16267.png', credit: OM_CREDIT },
+  grey: { name: 'OneMap Grey', layers: ['Grey'], bg: '#e3e3e3', sg: true, thumb: 'https://www.onemap.gov.sg/maps/tiles/Grey/15/25838/16267.png', credit: OM_CREDIT },
+  original: { name: 'OneMap Original', layers: ['Original'], bg: '#d5e6ee', sg: true, thumb: 'https://www.onemap.gov.sg/maps/tiles/Original/15/25838/16267.png', credit: OM_CREDIT },
+  // Line art: OpenFreeMap vector styles (free, no key). Vector labels stay sharp at any dpi.
+  light: { name: 'Positron line art', vec: 'positron', labels: true, layers: [], bg: '#f2f3f0', sw: ['#f2f3f0', '#c9ccd1', '#9aa3ad'] },
+  lightnl: { name: 'Positron, no labels', vec: 'positron', labels: false, layers: [], bg: '#f2f3f0', sw: ['#f2f3f0', '#c9ccd1', '#c9ccd1'] },
+  dark: { name: 'Dark line art', vec: 'dark', labels: true, layers: [], bg: '#0f1012', dark: true, sw: ['#16171a', '#3a3d44', '#8a8f98'] },
+  darknl: { name: 'Dark, no labels', vec: 'dark', labels: false, layers: [], bg: '#0f1012', dark: true, sw: ['#16171a', '#3a3d44', '#3a3d44'] },
+  fiord: { name: 'Fiord line art', vec: 'fiord', labels: true, layers: [], bg: '#45516e', dark: true, sw: ['#45516e', '#7286a8', '#cfd8e6'] },
+};
+for (const B of Object.values(BASES)) if (B.vec) {
+  B.credit = 'Map © OpenFreeMap, © OpenMapTiles, © OpenStreetMap contributors';
+  const [bg, ln, lab] = B.sw;
+  B.thumb = 'data:image/svg+xml,' + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40"><rect width="40" height="40" fill="${bg}"/><path d="M-2 28C10 22 18 30 42 16M8 -2 14 42M-2 9 42 13M26 -2 30 42" stroke="${ln}" stroke-width="1.6" fill="none"/><path d="M-2 34C12 30 22 38 42 30" stroke="${ln}" stroke-width="3" fill="none"/><rect x="6" y="18" width="12" height="3" rx="1" fill="${lab}"/></svg>`);
+}
+const RASTERS = DAY.basemap;
+// Zoom is stored as the zoom a 1000 px wide window would need, so a shared link frames the
+// same ground on any screen.
+const PICKS = [
+  { id: 'marina', name: 'Marina Bay', title: 'Marina Bay', sub: 'Singapore', c: [103.8585, 1.2838], z: 15.9 },
+  { id: 'jewel', name: 'Jewel Changi', title: 'Jewel Changi', sub: 'Changi Airport, Singapore', c: [103.9894, 1.3603], z: 18.1 },
+  { id: 'punggol', name: 'Punggol', title: 'Punggol', sub: 'Waterway and new town, Singapore', c: [103.9050, 1.4045], z: 15.6 },
+  { id: 'jurong', name: 'Jurong Island', title: 'Jurong Island', sub: 'Seven islands made one, Singapore', c: [103.6990, 1.2650], z: 13.9 },
+  { id: 'tuas', name: 'Tuas Mega Port', title: 'Tuas', sub: 'The mega port, Singapore', c: [103.6280, 1.2400], z: 14.6 },
+  { id: 'ubin', name: 'Pulau Ubin', title: 'Pulau Ubin', sub: 'Singapore', c: [103.9620, 1.4095], z: 14.4 },
+  { id: 'sentosa', name: 'Sentosa', title: 'Sentosa', sub: 'Singapore', c: [103.8290, 1.2490], z: 15.0 },
+  { id: 'bishan', name: 'Bishan Park', title: 'Bishan–Ang Mo Kio Park', sub: 'Kallang River, Singapore', c: [103.8440, 1.3630], z: 16.6 },
+  { id: 'duxton', name: 'Pinnacle@Duxton', title: 'Pinnacle@Duxton', sub: 'Tanjong Pagar, Singapore', c: [103.8413, 1.2768], z: 18.6 },
+];
+const FONTS = [
+  ['Instrument Sans', 'Instrument Sans (grotesque)', 'sans-serif'], ['Archivo', 'Archivo (bold sans)', 'sans-serif'],
+  ['Big Shoulders Display', 'Big Shoulders (condensed)', 'sans-serif'], ['Playfair Display', 'Playfair (display serif)', 'serif'],
+  ['Cormorant Garamond', 'Cormorant (book serif)', 'serif'], ['IBM Plex Mono', 'Plex Mono (technical)', 'monospace'], ['Caveat', 'Caveat (handwritten)', 'cursive'],
+];
+const FALLBACK = Object.fromEntries(FONTS.map(f => [f[0], f[2]]));
+const DUOS = [['#0B2747', '#D6ECFF'], ['#1D1B19', '#F3EBDD'], ['#2A1340', '#FFC49B'], ['#0F2B22', '#C9F2D8'], ['#5A0F12', '#F6E7CF']];
+
+/* =========================================================================
+   Small helpers: colour, text, geometry
+   ========================================================================= */
+const hexRgb = h => { h = h.replace('#', ''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+const rgba = (h, a) => `rgba(${hexRgb(h).join(',')},${a})`;
+const mix = (a, b, t) => '#' + hexRgb(a).map((v, i) => Math.round(v + (hexRgb(b)[i] - v) * t).toString(16).padStart(2, '0')).join('');
+const lum = h => { const [r, g, b] = hexRgb(h).map(v => { v /= 255; return v <= .03928 ? v / 12.92 : ((v + .055) / 1.055) ** 2.4; }); return .2126 * r + .7152 * g + .0722 * b; };
+const onColor = h => lum(h) > .36 ? '#111111' : '#FFFFFF';
+const R = (x, y, w, h) => ({ x: Math.round(x), y: Math.round(y), w: Math.max(16, Math.round(w)), h: Math.max(16, Math.round(h)) });
+const fam = f => `"${f}", ${FALLBACK[f] || 'sans-serif'}`;
+const fontStr = (o, size) => `${o.it ? 'italic ' : ''}${o.w || 400} ${size}px ${fam(o.f || 'Instrument Sans')}`;
+const pad2 = DMC.pad2;
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+function measure(ctx, s, tr) {
+  if (!tr) return ctx.measureText(s).width;
+  let w = 0; for (const ch of s) w += ctx.measureText(ch).width + tr;
+  return w - tr;
+}
+// One line of text. size in px; track in em; maxW shrinks the size to fit. Returns {w, size}.
+function txt(ctx, s, x, y, o) {
+  if (!s) return { w: 0, size: 0 };
+  s = String(s);
+  if (o.caps) s = s.toUpperCase();
+  let size = o.size;
+  ctx.save();
+  ctx.font = fontStr(o, size);
+  let tr = size * (o.track || 0), w = measure(ctx, s, tr);
+  if (o.maxW && w > o.maxW) { size = Math.max(size * o.maxW / w, o.minSize || 0); ctx.font = fontStr(o, size); tr = size * (o.track || 0); w = measure(ctx, s, tr); }
+  if (o.measureOnly) { ctx.restore(); return { w, size }; }
+  ctx.textBaseline = o.base || 'alphabetic';
+  ctx.textAlign = 'left';
+  ctx.globalAlpha *= o.alpha ?? 1;
+  if (o.rot) { ctx.translate(x, y); ctx.rotate(o.rot); x = 0; y = 0; }
+  let x0 = o.align === 'center' ? x - w / 2 : o.align === 'right' ? x - w : x;
+  if (o.shadow) { ctx.shadowColor = o.shadow; ctx.shadowBlur = o.shadowBlur ?? size * .25; ctx.shadowOffsetX = o.shadowX || 0; ctx.shadowOffsetY = o.shadowY ?? size * .04; }
+  const draw = (fn, ch, xx) => fn.call(ctx, ch, xx, y);
+  const run = fn => { if (!tr) draw(fn, s, x0); else { let xx = x0; for (const ch of s) { draw(fn, ch, xx); xx += ctx.measureText(ch).width + tr; } } };
+  if (o.stroke) { ctx.strokeStyle = o.stroke; ctx.lineWidth = o.strokeW; ctx.lineJoin = 'round'; run(ctx.strokeText); ctx.shadowColor = 'transparent'; }
+  ctx.fillStyle = o.color || '#000';
+  run(ctx.fillText);
+  ctx.restore();
+  return { w, size };
+}
+// A vertical stack of lines centred on cy. Each line: {s, size, gap, ...txt options}.
+function stack(ctx, lines, x, cy, base) {
+  lines = lines.filter(l => l.s);
+  const hs = lines.map(l => l.size * (l.lh || .74));
+  const total = lines.reduce((a, l, i) => a + hs[i] + (i ? l.gap || 0 : 0), 0);
+  let y = cy - total / 2;
+  lines.forEach((l, i) => { if (i) y += l.gap || 0; y += hs[i]; txt(ctx, l.s, x, y, { ...base, ...l }); });
+}
+function innerShadow(ctx, r, size, color) {
+  const g = (x0, y0, x1, y1) => { const gr = ctx.createLinearGradient(x0, y0, x1, y1); gr.addColorStop(0, color); gr.addColorStop(1, 'rgba(0,0,0,0)'); return gr; };
+  ctx.save();
+  ctx.beginPath(); ctx.rect(r.x, r.y, r.w, r.h); ctx.clip();
+  ctx.fillStyle = g(0, r.y, 0, r.y + size); ctx.fillRect(r.x, r.y, r.w, size);
+  ctx.fillStyle = g(r.x, 0, r.x + size, 0); ctx.fillRect(r.x, r.y, size, r.h);
+  ctx.fillStyle = g(r.x + r.w, 0, r.x + r.w - size * .6, 0); ctx.fillRect(r.x + r.w - size * .6, r.y, size * .6, r.h);
+  ctx.fillStyle = g(0, r.y + r.h, 0, r.y + r.h - size * .6); ctx.fillRect(r.x, r.y + r.h - size * .6, r.w, size * .6);
+  ctx.restore();
+}
+function paperGrain(ctx, W, H, k, ink, amount, seed) {
+  const rnd = rng(seed), n = Math.round(W * H / (k * k) * .0035 * amount);
+  ctx.save(); ctx.fillStyle = ink;
+  for (let i = 0; i < n; i++) { ctx.globalAlpha = .03 + rnd() * .09; const s = (.4 + rnd() * 1.4) * k; ctx.fillRect(rnd() * W, rnd() * H, s, s); }
+  ctx.globalAlpha = .035; ctx.strokeStyle = ink; ctx.lineWidth = .6 * k;
+  for (let i = 0; i < 70 * amount; i++) { const x = rnd() * W, y = rnd() * H, l = (8 + rnd() * 26) * k, a = rnd() * Math.PI; ctx.beginPath(); ctx.moveTo(x, y); ctx.quadraticCurveTo(x + Math.cos(a) * l * .5 + k * 3, y + Math.sin(a) * l * .5, x + Math.cos(a) * l, y + Math.sin(a) * l); ctx.stroke(); }
+  ctx.restore();
+}
+function drawCover(ctx, img, r) {
+  const iw = img.width, ih = img.height, s = Math.max(r.w / iw, r.h / ih), sw = r.w / s, sh = r.h / s;
+  ctx.drawImage(img, (iw - sw) / 2, (ih - sh) / 2, sw, sh, r.x, r.y, r.w, r.h);
+}
+
+/* ---------- coordinates ---------- */
+function dms(v, axis, dec = 1) {
+  const hemi = axis === 'lat' ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W');
+  let s = Math.abs(v) * 3600;
+  const d = Math.floor(s / 3600); s -= d * 3600;
+  const m = Math.floor(s / 60); s -= m * 60;
+  return `${d}°${pad2(m)}′${s.toFixed(dec).padStart(dec ? 3 + dec : 2, '0')}″${hemi}`;
+}
+const dmsPair = c => `${dms(c.lat, 'lat')}  ${dms(c.lng, 'lng')}`;
+function tickLabel(v, axis, iv) {
+  const hemi = axis === 'lat' ? (v >= 0 ? 'N' : 'S') : (v >= 0 ? 'E' : 'W');
+  const s = Math.round(Math.abs(v) * 3600), d = Math.floor(s / 3600), m = Math.floor(s % 3600 / 60), sec = s % 60;
+  if (iv >= 1) return `${d}°${hemi}`;
+  if (iv >= 1 / 60 - 1e-9) return `${d}°${pad2(m)}′${hemi}`;
+  return `${d}°${pad2(m)}′${pad2(sec)}″${hemi}`;
+}
+const IVS = [1, 2, 5, 10, 15, 30].map(s => s / 3600).concat([1, 2, 5, 10, 15, 30].map(m => m / 60), [1, 2, 5, 10, 15, 30]);
+// Where whole graticule values cross each edge of the map window (any bearing; flat-ish views).
+function gridTicks(V) {
+  if (V._ticks) return V._ticks;
+  const N = 40, sides = { top: t => [t, 0], bottom: t => [t, 1], left: t => [0, t], right: t => [1, t] };
+  const samp = {}, span = { lng: 0, lat: 0 }, axisOf = {};
+  for (const [s, f] of Object.entries(sides)) {
+    const a = [];
+    for (let i = 0; i <= N; i++) { const g = V.geoAt(...f(i / N)); a.push({ t: i / N, lng: g.lng, lat: g.lat }); }
+    samp[s] = a;
+    const rl = Math.abs(a[N].lng - a[0].lng), ra = Math.abs(a[N].lat - a[0].lat);
+    const ax = rl >= ra ? 'lng' : 'lat';
+    axisOf[s] = ax; span[ax] = Math.max(span[ax], ax === 'lng' ? rl : ra);
+  }
+  const iv = {};
+  for (const ax of ['lng', 'lat']) iv[ax] = IVS.find(x => x >= span[ax] / 5.5) || 30;
+  const list = [], parity = {};
+  for (const s in samp) {
+    const ax = axisOf[s], a = samp[s], d = iv[ax];
+    parity[s] = { ax, first: ((Math.floor(a[0][ax] / d) % 2) + 2) % 2 };
+    for (let i = 1; i < a.length; i++) {
+      const v0 = a[i - 1][ax], v1 = a[i][ax], lo = Math.min(v0, v1), hi = Math.max(v0, v1);
+      for (let m = Math.ceil(lo / d - 1e-9); m * d < hi - 1e-12; m++) {
+        const v = m * d, t = a[i - 1].t + (a[i].t - a[i - 1].t) * (v - v0) / ((v1 - v0) || 1);
+        list.push({ side: s, t, ax, v, label: tickLabel(v, ax, d) });
+      }
+    }
+  }
+  V._ticks = { list, iv, parity };
+  return V._ticks;
+}
+function edgePoint(win, side, t) {
+  if (side === 'top') return [win.x + t * win.w, win.y, 0, -1];
+  if (side === 'bottom') return [win.x + t * win.w, win.y + win.h, 0, 1];
+  if (side === 'left') return [win.x, win.y + t * win.h, -1, 0];
+  return [win.x + win.w, win.y + t * win.h, 1, 0];
+}
+// Tick marks along the window edges, labelled. o.inside draws them into the map.
+function edgeTicks(ctx, win, V, o) {
+  if (V.pitch > 30) return;
+  const { k } = V, dir = o.inside ? -1 : 1;
+  ctx.save();
+  ctx.strokeStyle = o.color; ctx.lineWidth = Math.max(.6, (o.lw || 1) * k);
+  for (const t of gridTicks(V).list) {
+    if (t.t < .045 || t.t > .955) continue;
+    const [x, y, nx, ny] = edgePoint(win, t.side, t.t);
+    ctx.beginPath(); ctx.moveTo(x - nx * (o.cross || 0), y - ny * (o.cross || 0)); ctx.lineTo(x + nx * o.len * dir, y + ny * o.len * dir); ctx.stroke();
+    if (o.labels === false) continue;
+    const g = o.len + o.gap, lx = x + nx * g * dir, ly = y + ny * g * dir;
+    const base = { size: o.size, f: o.font, w: o.weight || 500, it: o.it, color: o.color, alpha: o.alpha ?? .85, align: 'center', shadow: o.shadow, shadowBlur: o.shadow ? o.size * .5 : 0 };
+    if (t.side === 'top' || t.side === 'bottom') txt(ctx, t.label, lx, ly, { ...base, base: (t.side === 'top') === !o.inside ? 'alphabetic' : 'hanging' });
+    else txt(ctx, t.label, lx, ly, { ...base, rot: t.side === 'left' ? -Math.PI / 2 : Math.PI / 2, base: o.inside ? 'hanging' : 'alphabetic' });
+  }
+  ctx.restore();
+}
+
+/* ---------- north arrow, compass rose, scale bar ---------- */
+function northArrow(ctx, x, y, s, rot, color, fill2, f) {
+  ctx.save(); ctx.translate(x, y); ctx.rotate(rot);
+  ctx.lineJoin = 'round'; ctx.lineWidth = Math.max(.7, s * .06);
+  ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(-s * .4, s * .55); ctx.lineTo(0, s * .25); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = fill2; ctx.strokeStyle = color; ctx.beginPath(); ctx.moveTo(0, -s); ctx.lineTo(s * .4, s * .55); ctx.lineTo(0, s * .25); ctx.closePath(); ctx.fill(); ctx.stroke();
+  txt(ctx, 'N', 0, -s * 1.18, { size: s * .62, f: f || 'Instrument Sans', w: 700, color, align: 'center' });
+  ctx.restore();
+}
+function compassRose(ctx, cx, cy, r, rot, ink, paper, f) {
+  ctx.save(); ctx.translate(cx, cy); ctx.rotate(rot);
+  ctx.fillStyle = rgba(paper, .62); ctx.beginPath(); ctx.arc(0, 0, r * 1.05, 0, 7); ctx.fill();
+  ctx.strokeStyle = ink; ctx.lineWidth = r * .016;
+  for (const rr of [r, r * .9, r * .42]) { ctx.beginPath(); ctx.arc(0, 0, rr, 0, 7); ctx.stroke(); }
+  for (let i = 0; i < 64; i++) { const a = i / 64 * Math.PI * 2, l = i % 8 ? r * .04 : r * .1; ctx.beginPath(); ctx.moveTo(Math.sin(a) * r * .9, -Math.cos(a) * r * .9); ctx.lineTo(Math.sin(a) * (r * .9 + l), -Math.cos(a) * (r * .9 + l)); ctx.lineWidth = r * (i % 8 ? .008 : .016); ctx.stroke(); }
+  const point = (a, len, w) => {
+    const tip = [Math.sin(a) * len, -Math.cos(a) * len], l = [Math.sin(a - Math.PI / 2) * w, -Math.cos(a - Math.PI / 2) * w], rr = [Math.sin(a + Math.PI / 2) * w, -Math.cos(a + Math.PI / 2) * w];
+    ctx.lineWidth = r * .012;
+    ctx.fillStyle = ink; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(...tip); ctx.lineTo(...l); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = paper; ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(...tip); ctx.lineTo(...rr); ctx.closePath(); ctx.fill(); ctx.stroke();
+  };
+  for (let i = 0; i < 8; i++) point(Math.PI / 8 + i * Math.PI / 4, r * .5, r * .07);
+  for (let i = 0; i < 4; i++) point(Math.PI / 4 + i * Math.PI / 2, r * .66, r * .1);
+  for (let i = 0; i < 4; i++) point(i * Math.PI / 2, r * .98, r * .13);
+  ctx.fillStyle = ink; ctx.beginPath(); ctx.arc(0, 0, r * .035, 0, 7); ctx.fill();
+  txt(ctx, 'N', 0, -r * 1.12, { size: r * .3, f, w: 700, color: ink, align: 'center' });
+  ctx.restore();
+}
+function niceLength(maxM) { const p = 10 ** Math.floor(Math.log10(maxM)); return [5, 2, 1].map(f => f * p).find(m => m <= maxM) || p; }
+const fmtLen = m => m >= 1000 ? `${+(m / 1000).toFixed(2)} km` : `${m} m`;
+const fmtDenom = d => { const p = 10 ** Math.max(0, Math.floor(Math.log10(d)) - 1); return Math.round(d / p) * p; };
+// Returns the bar's width in px (0 when hidden).
+function scaleBar(ctx, V, x, y, maxW, o) {
+  const { k } = V;
+  if (!V.S.scale || V.pitch > 45 || !isFinite(V.mppPoster) || maxW < 20 * k) return 0;
+  const len = niceLength(maxW * V.mppPoster), px = len / V.mppPoster;
+  const x0 = o.align === 'center' ? x - px / 2 : o.align === 'right' ? x - px : x;
+  const th = o.h || 4.5 * k, lw = Math.max(.7, 1 * k), lab = { size: o.size || 9 * k, f: o.font || 'Instrument Sans', w: 500, color: o.color, it: o.it, shadow: o.shadow };
+  ctx.save(); ctx.strokeStyle = o.color; ctx.fillStyle = o.color; ctx.lineWidth = lw;
+  if (o.shadow) { ctx.shadowColor = o.shadow; ctx.shadowBlur = 3 * k; }
+  if (o.style === 'checker') {
+    const n = 4;
+    for (let i = 0; i < n; i++) { ctx.fillStyle = i % 2 ? (o.paper || '#fff') : o.color; ctx.fillRect(x0 + i * px / n, y - th, px / n, th); }
+    ctx.strokeRect(x0, y - th, px, th);
+    txt(ctx, '0', x0, y - th - 4 * k, { ...lab, align: 'center' });
+    txt(ctx, fmtLen(len), x0 + px, y - th - 4 * k, { ...lab, align: 'center' });
+  } else if (o.style === 'bar') {
+    ctx.fillRect(x0, y - th, px, th);
+    txt(ctx, fmtLen(len), x0, y - th - 5 * k, { ...lab, w: 600 });
+  } else {
+    ctx.beginPath(); ctx.moveTo(x0, y - th * 1.5); ctx.lineTo(x0, y); ctx.lineTo(x0 + px, y); ctx.lineTo(x0 + px, y - th * 1.5);
+    ctx.moveTo(x0 + px / 2, y); ctx.lineTo(x0 + px / 2, y - th * .8); ctx.stroke();
+    txt(ctx, fmtLen(len), x0 + px / 2, y - th * 1.5 - 3 * k, { ...lab, align: 'center' });
+  }
+  ctx.restore();
+  return px;
+}
+const rot = V => -V.bearing * Math.PI / 180;
+
+/* =========================================================================
+   Frame templates. Every size is in k = 1/1000 of the paper's short edge, so the
+   same drawing code makes the on-screen preview, the thumbnails and the 300 dpi file.
+   layout() places the map window; under() paints behind the map; over() on top.
+   ========================================================================= */
+const TPL = {};
+TPL.gallery = {
+  name: 'Gallery', note: 'Mat and black frame',
+  def: { font: 'Cormorant Garamond', tc: '#1D1C1A', fc: '#17130F', mc: '#FAF8F3', mat: 80, border: 24, tp: 'bottom', ticks: false, north: false, scale: true, showCoords: true, look: {} },
+  layout(W, H, k, S) {
+    const b = S.border * k, m = Math.max(S.mat * k, 8 * k), band = (S.title || S.sub || S.showCoords) ? 170 * k : 0;
+    const top = S.tp === 'top', mb = Math.max(m, band);
+    const win = R(b + m, b + (top ? mb : m), W - 2 * (b + m), H - 2 * b - m - mb);
+    return { win, b, m, tb: top ? [b, win.y] : [win.y + win.h, H - b] };
+  },
+  under(ctx, L, V) {
+    const { W, H, k, S } = V, b = L.b, w = L.win;
+    ctx.fillStyle = S.fc; ctx.fillRect(0, 0, W, H);
+    if (b > 0) {
+      const g = ctx.createLinearGradient(0, 0, W, H); g.addColorStop(0, 'rgba(255,255,255,.10)'); g.addColorStop(.5, 'rgba(255,255,255,0)'); g.addColorStop(1, 'rgba(0,0,0,.14)');
+      ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+      ctx.strokeStyle = 'rgba(255,255,255,.12)'; ctx.lineWidth = Math.max(.6, .8 * k); ctx.strokeRect(b * .42, b * .42, W - b * .84, H - b * .84);
+    }
+    ctx.fillStyle = S.mc; ctx.fillRect(b, b, W - 2 * b, H - 2 * b);
+    if (b > 0) innerShadow(ctx, { x: b, y: b, w: W - 2 * b, h: H - 2 * b }, 10 * k, 'rgba(0,0,0,.18)');
+    const bv = Math.max(1, 3.2 * k);
+    ctx.fillStyle = mix(S.mc, '#FFFFFF', .7); ctx.fillRect(w.x - bv, w.y - bv, w.w + 2 * bv, w.h + 2 * bv);
+    ctx.fillStyle = 'rgba(0,0,0,.07)'; ctx.fillRect(w.x - bv, w.y + w.h, w.w + 2 * bv, bv);
+    ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = Math.max(.5, .7 * k); ctx.strokeRect(w.x - bv, w.y - bv, w.w + 2 * bv, w.h + 2 * bv);
+  },
+  over(ctx, L, V) {
+    const { W, H, k, S } = V, [t0, t1] = L.tb, c = S.tc, w = L.win, mid = (t0 + t1) / 2;
+    if (S.ticks) edgeTicks(ctx, w, V, { color: c, len: 8 * k, gap: 5 * k, size: 8 * k, font: 'Instrument Sans', alpha: .7 });
+    const side = (S.scale || S.north) ? 150 * k : 0;
+    stack(ctx, [
+      { s: S.title, size: 44 * k, f: S.font, w: 600, caps: true, track: .2 },
+      { s: S.sub, size: 18 * k, f: S.font, w: 400, it: true, gap: 13 * k, lh: .7 },
+      { s: S.showCoords && V.coords, size: 10 * k, f: 'Instrument Sans', w: 500, track: .22, alpha: .62, gap: 15 * k },
+    ], W / 2, mid, { color: c, align: 'center', maxW: w.w - 2 * side });
+    if (L.tb[1] - L.tb[0] > 50 * k) {
+      scaleBar(ctx, V, w.x, mid + 6 * k, 120 * k, { color: c, size: 8.5 * k, style: 'line' });
+      if (S.north) northArrow(ctx, w.x + w.w - 18 * k, mid + 8 * k, 20 * k, rot(V), c, S.mc, S.font);
+    }
+    const y = S.tp === 'top' ? H - L.b - Math.min(L.m, 60 * k) * .45 : H - L.b - Math.min(L.m, 34 * k) * .5;
+    L.creditAt = { x: w.x + w.w, y: Math.max(y, w.y + w.h + 9 * k), align: 'right', color: c, size: 7 * k, maxW: w.w };
+  },
+};
+TPL.swiss = {
+  name: 'Swiss poster', note: 'Grid type, colour band',
+  def: { font: 'Archivo', tc: '#141414', fc: '#E2382B', mc: '#F2F0EA', mat: 44, border: 3, tp: 'top', ticks: false, north: true, scale: true, showCoords: true, look: { con: .08 } },
+  layout(W, H, k, S) {
+    const m = Math.max(S.mat * k, 14 * k), bandH = clamp(H * .19, 150 * k, 280 * k), info = 128 * k, gap = 16 * k, top = S.tp !== 'bottom';
+    const bw = W - 2 * m;
+    if (top) { const win = R(m, m + bandH + gap, bw, H - 2 * m - bandH - gap - info); return { win, m, band: { x: m, y: m, w: bw, h: bandH }, info: { x: m, y: win.y + win.h, w: bw, h: info } }; }
+    const win = R(m, m, bw, H - 2 * m - bandH - gap - info);
+    return { win, m, info: { x: m, y: win.y + win.h, w: bw, h: info }, band: { x: m, y: H - m - bandH, w: bw, h: bandH } };
+  },
+  under(ctx, L, V) {
+    const { W, H, S } = V;
+    ctx.fillStyle = S.mc; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = S.fc; ctx.fillRect(L.band.x, L.band.y, L.band.w, L.band.h);
+  },
+  over(ctx, L, V) {
+    const { k, S } = V, b = L.band, on = onColor(S.fc), c = S.tc, inf = L.info, p = 24 * k;
+    const tO = { size: b.h * .56, f: S.font, w: 900, track: -.025, color: on, maxW: b.w - 2 * p };
+    const tm = txt(ctx, S.title, 0, 0, { ...tO, measureOnly: true });
+    txt(ctx, S.title, b.x + p, b.y + b.h - p * .8 - tm.size * .2, tO);
+    txt(ctx, S.sub, b.x + p, b.y + p + 10 * k, { size: 13 * k, f: S.font, w: 700, caps: true, track: .14, color: on, maxW: b.w * .55 });
+    if (S.showCoords) txt(ctx, V.coords, b.x + b.w - p, b.y + p + 10 * k, { size: 10.5 * k, f: 'Instrument Sans', w: 500, track: .08, color: on, align: 'right', alpha: .9, maxW: b.w * .4 });
+    ctx.fillStyle = c; ctx.fillRect(inf.x, inf.y + 14 * k, inf.w, Math.max(1, S.border * k));
+    const cw = inf.w / 3, ly = inf.y + 40 * k, vy = inf.y + 62 * k, lab = { size: 8 * k, f: 'Instrument Sans', w: 700, caps: true, track: .16, color: c, alpha: .55 }, val = { size: 12.5 * k, f: S.font, w: 600, color: c, maxW: cw - 18 * k };
+    txt(ctx, 'Location', inf.x, ly, lab);
+    txt(ctx, [S.title, S.sub].filter(Boolean).join(', '), inf.x, vy, val);
+    txt(ctx, S.showCoords ? 'Coordinates' : 'Bearing', inf.x + cw, ly, lab);
+    txt(ctx, S.showCoords ? V.coords : `${Math.round((V.bearing + 360) % 360)}°`, inf.x + cw, vy, val);
+    txt(ctx, 'Scale', inf.x + 2 * cw, ly, lab);
+    txt(ctx, V.denom && V.pitch < 10 ? `1 : ${fmtDenom(V.denom).toLocaleString('en-SG')}` : V.pitch >= 10 ? 'Perspective' : 'Screen', inf.x + 2 * cw, vy, val);
+    scaleBar(ctx, V, inf.x + 2 * cw, inf.y + 92 * k, cw * .62, { color: c, style: 'bar', h: 3.6 * k, size: 7.5 * k });
+    if (S.north) northArrow(ctx, inf.x + inf.w - 12 * k, inf.y + 66 * k, 17 * k, rot(V), c, S.mc, S.font);
+    if (S.ticks) edgeTicks(ctx, L.win, V, { color: '#fff', len: 10 * k, gap: 5 * k, size: 8 * k, font: 'Instrument Sans', inside: true, shadow: 'rgba(0,0,0,.6)' });
+    L.creditAt = { x: inf.x, y: inf.y + inf.h - 4 * k, align: 'left', color: c, size: 7 * k, maxW: inf.w };
+  },
+};
+TPL.vintage = {
+  name: 'Vintage atlas', note: 'Cream paper, graduated border',
+  def: { font: 'Playfair Display', tc: '#3B2B1B', fc: '#3B2B1B', mc: '#EEE3C7', mat: 82, border: 7, tp: 'bottom', ticks: true, north: true, scale: true, showCoords: true, look: { treat: 'sepia', warm: .12, con: .06 } },
+  layout(W, H, k, S) {
+    const m = Math.max(S.mat * k, 58 * k), cart = 200 * k, top = S.tp === 'top';
+    const win = R(m, top ? cart + m * .55 : m, W - 2 * m, H - m - cart - m * .55);
+    return { win, m, cart: top ? [m * .3, win.y - 36 * k] : [win.y + win.h + 36 * k, H - m * .3] };
+  },
+  under(ctx, L, V) {
+    const { W, H, k, S } = V, o = 24 * k, bw = Math.max(1, S.border * k);
+    ctx.fillStyle = S.mc; ctx.fillRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * .3, W / 2, H / 2, Math.hypot(W, H) * .58);
+    g.addColorStop(0, 'rgba(120,80,30,0)'); g.addColorStop(1, 'rgba(120,80,30,.26)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    paperGrain(ctx, W, H, k, '#6b4a22', 1, 7);
+    ctx.strokeStyle = S.fc; ctx.lineWidth = bw; ctx.strokeRect(o + bw / 2, o + bw / 2, W - 2 * o - bw, H - 2 * o - bw);
+    const i = o + bw + 6 * k; ctx.lineWidth = Math.max(.6, 1.3 * k); ctx.strokeRect(i, i, W - 2 * i, H - 2 * i);
+  },
+  over(ctx, L, V) {
+    const { W, H, k, S } = V, w = L.win, ink = S.tc, nb = 10 * k;
+    const o = { x: w.x - nb, y: w.y - nb, w: w.w + 2 * nb, h: w.h + 2 * nb };
+    ctx.save();
+    ctx.fillStyle = S.mc;
+    ctx.fillRect(o.x, o.y, o.w, nb); ctx.fillRect(o.x, w.y + w.h, o.w, nb); ctx.fillRect(o.x, w.y, nb, w.h); ctx.fillRect(w.x + w.w, w.y, nb, w.h);
+    if (S.ticks && V.pitch <= 30) {
+      const T = gridTicks(V);
+      ctx.fillStyle = ink;
+      for (const side of ['top', 'bottom', 'left', 'right']) {
+        const ts = [0, ...T.list.filter(t => t.side === side).map(t => t.t).sort((a, b) => a - b), 1];
+        let par = T.parity[side].first;
+        for (let i = 0; i < ts.length - 1; i++, par ^= 1) {
+          if (!par) continue;
+          const a = ts[i], b = ts[i + 1], hb = nb * .5;
+          if (side === 'top') ctx.fillRect(w.x + a * w.w, w.y - hb, (b - a) * w.w, hb);
+          else if (side === 'bottom') ctx.fillRect(w.x + a * w.w, w.y + w.h, (b - a) * w.w, hb);
+          else if (side === 'left') ctx.fillRect(w.x - hb, w.y + a * w.h, hb, (b - a) * w.h);
+          else ctx.fillRect(w.x + w.w, w.y + a * w.h, hb, (b - a) * w.h);
+        }
+      }
+      ctx.strokeStyle = ink; ctx.lineWidth = Math.max(.5, .7 * k);
+      ctx.strokeRect(w.x - nb * .5, w.y - nb * .5, w.w + nb, w.h + nb);
+      edgeTicks(ctx, o, V, { color: ink, len: 5 * k, gap: 4 * k, size: 9.5 * k, font: 'Cormorant Garamond', weight: 600, it: true, alpha: .95 });
+    }
+    ctx.strokeStyle = ink; ctx.lineWidth = Math.max(.7, 1.3 * k); ctx.strokeRect(o.x, o.y, o.w, o.h);
+    ctx.lineWidth = Math.max(.5, .8 * k); ctx.strokeRect(w.x, w.y, w.w, w.h);
+    ctx.restore();
+    if (S.north) { const r = clamp(Math.min(w.w, w.h) * .1, 34 * k, 78 * k); compassRose(ctx, w.x + r * 1.45, w.y + w.h - r * 1.45, r, rot(V), ink, S.mc, S.font); }
+    const [c0, c1] = L.cart, cy = (c0 + c1) / 2, cx = W / 2, maxW = w.w * .6;
+    const hT = S.title ? 50 * k * .74 : 0, hS = S.sub ? 21 * k * .7 : 0, hO = S.showCoords ? 11 * k * .74 : 0;
+    let y = cy - 6 * k - (hT + (hT && (hS || hO) ? 36 * k : 0) + hS + (hO ? (hS ? 20 * k : 0) + hO : 0)) / 2;
+    if (hT) {
+      y += hT; txt(ctx, S.title, cx, y, { size: 50 * k, f: S.font, w: 700, caps: true, track: .12, color: ink, align: 'center', maxW });
+      const ty = y + 18 * k; // ornament rule: line, diamond, line
+      ctx.save(); ctx.strokeStyle = ink; ctx.fillStyle = ink; ctx.lineWidth = Math.max(.5, .9 * k);
+      ctx.beginPath(); ctx.moveTo(cx - 110 * k, ty); ctx.lineTo(cx - 10 * k, ty); ctx.moveTo(cx + 10 * k, ty); ctx.lineTo(cx + 110 * k, ty); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(cx, ty - 5 * k); ctx.lineTo(cx + 5 * k, ty); ctx.lineTo(cx, ty + 5 * k); ctx.lineTo(cx - 5 * k, ty); ctx.closePath(); ctx.fill(); ctx.restore();
+      if (hS || hO) y += 36 * k;
+    }
+    if (hS) { y += hS; txt(ctx, S.sub, cx, y, { size: 21 * k, f: S.font, w: 400, it: true, color: ink, align: 'center', maxW }); }
+    if (hO) { y += (hS ? 20 * k : 0) + hO; txt(ctx, V.coords, cx, y, { size: 11 * k, f: 'Cormorant Garamond', w: 600, track: .14, color: ink, alpha: .8, align: 'center', maxW }); }
+    const sw = scaleBar(ctx, V, w.x, cy + 6 * k, Math.min(170 * k, w.w * .22), { color: ink, paper: S.mc, style: 'checker', size: 9 * k, font: 'Cormorant Garamond', it: true });
+    if (sw && V.denom && V.pitch < 10) txt(ctx, `Scale 1 : ${fmtDenom(V.denom).toLocaleString('en-SG')}`, w.x, cy + 22 * k, { size: 9.5 * k, f: 'Cormorant Garamond', w: 600, it: true, color: ink });
+    // fold creases: a folded atlas plate
+    ctx.save();
+    for (const [x0, y0, x1, y1] of [[W / 2, 0, W / 2, H], [0, H / 2, W, H / 2]]) {
+      const vert = x0 === x1, g = vert ? ctx.createLinearGradient(x0 - 5 * k, 0, x0 + 5 * k, 0) : ctx.createLinearGradient(0, y0 - 5 * k, 0, y0 + 5 * k);
+      g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(.48, 'rgba(60,40,15,.10)'); g.addColorStop(.52, 'rgba(255,250,235,.16)'); g.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = g; vert ? ctx.fillRect(x0 - 5 * k, 0, 10 * k, H) : ctx.fillRect(0, y0 - 5 * k, W, 10 * k);
+    }
+    ctx.restore();
+    L.creditAt = { x: w.x + w.w, y: cy + 22 * k, align: 'right', color: ink, size: 7.5 * k, maxW: w.w * .3, f: 'Cormorant Garamond', it: true, alpha: .8 };
+  },
+};
+TPL.polaroid = {
+  name: 'Polaroid', note: 'Instant photo, handwritten',
+  def: { font: 'Caveat', tc: '#24306A', fc: '#D9D4C7', mc: '#F7F5EF', mat: 52, border: 1, tp: 'bottom', ticks: false, north: false, scale: false, showCoords: true, look: { warm: .25, sat: -.08, con: .06 } },
+  layout(W, H, k, S) {
+    const m = Math.max(S.mat * k, 16 * k), bottom = Math.max(m * 3.3, 230 * k), top = S.tp === 'top';
+    const win = R(m, top ? bottom : m, W - 2 * m, H - m - bottom);
+    return { win, m, cap: top ? [0, win.y] : [win.y + win.h, H] };
+  },
+  under(ctx, L, V) {
+    const { W, H, k, S } = V;
+    ctx.fillStyle = S.mc; ctx.fillRect(0, 0, W, H);
+    const g = ctx.createLinearGradient(0, 0, W * .3, H); g.addColorStop(0, 'rgba(255,255,255,.4)'); g.addColorStop(1, 'rgba(0,0,0,.05)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    paperGrain(ctx, W, H, k, '#777', .35, 3);
+    if (S.border > 0) { ctx.strokeStyle = S.fc; ctx.lineWidth = Math.max(.6, S.border * k); ctx.strokeRect(0, 0, W, H); }
+    ctx.fillStyle = '#111'; ctx.fillRect(L.win.x, L.win.y, L.win.w, L.win.h);
+  },
+  over(ctx, L, V) {
+    const { W, k, S } = V, w = L.win, [c0, c1] = L.cap;
+    const g = ctx.createRadialGradient(w.x + w.w / 2, w.y + w.h / 2, Math.min(w.w, w.h) * .35, w.x + w.w / 2, w.y + w.h / 2, Math.hypot(w.w, w.h) * .62);
+    g.addColorStop(0, 'rgba(0,0,0,0)'); g.addColorStop(1, 'rgba(20,10,0,.28)');
+    ctx.fillStyle = g; ctx.fillRect(w.x, w.y, w.w, w.h);
+    innerShadow(ctx, w, 7 * k, 'rgba(0,0,0,.35)');
+    if (S.ticks) edgeTicks(ctx, w, V, { color: S.tc, len: 7 * k, gap: 4 * k, size: 7.5 * k, font: 'Instrument Sans', alpha: .6 });
+    const mid = (c0 + c1) / 2 - 6 * k;
+    ctx.save(); ctx.translate(W / 2, mid); ctx.rotate(-.018);
+    stack(ctx, [
+      { s: S.title, size: 74 * k, f: S.font, w: 700 },
+      { s: S.sub, size: 36 * k, f: S.font, w: 500, gap: 16 * k, alpha: .9 },
+    ], 0, 0, { color: S.tc, align: 'center', maxW: w.w * .78 });
+    ctx.restore();
+    if (S.showCoords) txt(ctx, V.coords, W / 2, c1 - (S.tp === 'top' ? 18 * k : Math.max(30 * k, L.m * .55)), { size: 9 * k, f: 'Instrument Sans', w: 500, track: .18, color: S.tc, alpha: .5, align: 'center' });
+    scaleBar(ctx, V, w.x, mid + 10 * k, 110 * k, { color: S.tc, style: 'line', size: 8 * k });
+    if (S.north) northArrow(ctx, w.x + w.w - 16 * k, mid + 8 * k, 18 * k, rot(V), S.tc, S.mc, 'Instrument Sans');
+    L.creditAt = { x: w.x + w.w, y: c1 - (S.tp === 'top' ? 18 * k : Math.max(14 * k, L.m * .3)), align: 'right', color: S.tc, size: 6.5 * k, maxW: w.w * .5, alpha: .45 };
+  },
+};
+TPL.minimal = {
+  name: 'Full bleed', note: 'Edge to edge, small caption',
+  def: { font: 'Instrument Sans', tc: '#121212', fc: '#FFFFFF', mc: '#FFFFFF', mat: 36, border: 0, tp: 'bottom', ticks: false, north: false, scale: true, showCoords: true, look: {} },
+  layout(W, H, k, S) { const b = S.border * k; return { win: R(b, b, W - 2 * b, H - 2 * b), b }; },
+  under(ctx, L, V) { ctx.fillStyle = V.S.fc; ctx.fillRect(0, 0, V.W, V.H); },
+  over(ctx, L, V) {
+    const { k, S } = V, w = L.win, inset = Math.max(S.mat, 6) * k, pad = 18 * k, c = S.tc;
+    if (S.ticks) edgeTicks(ctx, w, V, { color: '#fff', len: 9 * k, gap: 4 * k, size: 7.5 * k, font: 'Instrument Sans', inside: true, shadow: 'rgba(0,0,0,.7)' });
+    const lines = [
+      { s: S.title, size: 24 * k, f: S.font, w: 700, caps: true, track: .16 },
+      { s: S.sub, size: 12 * k, f: S.font, w: 400, gap: 9 * k },
+      { s: S.showCoords && V.coords, size: 8.5 * k, f: 'Instrument Sans', w: 500, track: .12, alpha: .7, gap: 10 * k },
+    ].filter(l => l.s);
+    const maxW = w.w - 2 * inset - 2 * pad;
+    let tw = 0; for (const l of lines) tw = Math.max(tw, txt(ctx, l.s, 0, 0, { ...l, maxW, measureOnly: true }).w);
+    const hasScale = S.scale && V.pitch <= 45, credit = S.cp !== 'map';
+    tw = Math.max(tw, hasScale ? 110 * k : 0);
+    let th = lines.reduce((a, l, i) => a + l.size * .74 + (i ? l.gap : 0), 0) + (hasScale ? 26 * k : 0) + (credit ? 14 * k : 0);
+    const pw = tw + 2 * pad, ph = th + 2 * pad, px = w.x + inset, py = S.tp === 'top' ? w.y + inset : w.y + w.h - inset - ph;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.25)'; ctx.shadowBlur = 14 * k; ctx.shadowOffsetY = 3 * k;
+    ctx.fillStyle = rgba(S.mc, .94); ctx.fillRect(px, py, pw, ph); ctx.restore();
+    let y = py + pad;
+    lines.forEach((l, i) => { if (i) y += l.gap; y += l.size * .74; txt(ctx, l.s, px + pad, y, { ...l, color: c, maxW }); });
+    if (hasScale) { y += 24 * k; scaleBar(ctx, V, px + pad, y, 100 * k, { color: c, style: 'line', size: 7.5 * k }); }
+    if (S.north) { const s = 15 * k, nx = w.x + w.w - inset - s, ny = (S.tp === 'top' ? w.y + w.h - inset - s * 1.4 : w.y + inset + s * 1.9); ctx.save(); ctx.fillStyle = rgba(S.mc, .9); ctx.beginPath(); ctx.arc(nx, ny - s * .2, s * 1.65, 0, 7); ctx.fill(); ctx.restore(); northArrow(ctx, nx, ny, s, rot(V), c, S.mc, 'Instrument Sans'); }
+    L.creditAt = { x: px + pad, y: py + ph - pad + 2 * k, align: 'left', color: c, size: 6.2 * k, maxW: Math.max(pw - 2 * pad, 10 * k), alpha: .6 };
+  },
+};
+TPL.blueprint = {
+  name: 'Blueprint', note: 'Drafting sheet, title block',
+  def: { font: 'IBM Plex Mono', tc: '#DCEBFA', fc: '#DCEBFA', mc: '#123A66', mat: 62, border: 3, tp: 'bottom', ticks: true, north: true, scale: true, showCoords: true, look: { treat: 'duo', d1: '#0B2747', d2: '#D6ECFF', con: .15 } },
+  layout(W, H, k, S) {
+    const m = Math.max(S.mat * k, 42 * k), tb = 200 * k, top = S.tp === 'top';
+    const win = R(m, top ? m + tb : m, W - 2 * m, H - 2 * m - tb);
+    const tbw = Math.min(600 * k, win.w * .64), ty = top ? m : win.y + win.h + 28 * k;
+    return { win, m, block: { x: win.x + win.w - tbw, y: ty, w: tbw, h: tb - 28 * k } };
+  },
+  under(ctx, L, V) {
+    const { W, H, k, S } = V, o = 22 * k, c = S.tc;
+    ctx.fillStyle = S.mc; ctx.fillRect(0, 0, W, H);
+    const g = ctx.createRadialGradient(W * .45, H * .4, Math.min(W, H) * .2, W / 2, H / 2, Math.hypot(W, H) * .6);
+    g.addColorStop(0, 'rgba(255,255,255,.05)'); g.addColorStop(1, 'rgba(0,0,10,.28)'); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    ctx.save(); ctx.strokeStyle = c;
+    for (let i = 0, s = 20 * k; i * s < Math.max(W, H); i++) {
+      ctx.globalAlpha = i % 5 ? .055 : .12; ctx.lineWidth = Math.max(.4, (i % 5 ? .5 : .8) * k);
+      ctx.beginPath(); ctx.moveTo(i * s, 0); ctx.lineTo(i * s, H); ctx.moveTo(0, i * s); ctx.lineTo(W, i * s); ctx.stroke();
+    }
+    ctx.globalAlpha = 1; ctx.lineWidth = Math.max(.8, S.border * k); ctx.strokeRect(o, o, W - 2 * o, H - 2 * o);
+    ctx.lineWidth = Math.max(.5, .7 * k); ctx.strokeRect(o + 7 * k, o + 7 * k, W - 2 * o - 14 * k, H - 2 * o - 14 * k);
+    // zone letters on the border
+    const nx = 6, ny = Math.round(6 * H / W);
+    for (let i = 0; i < nx; i++) { txt(ctx, String(i + 1), o + (i + .5) * (W - 2 * o) / nx, o + 5.5 * k, { size: 6 * k, f: 'IBM Plex Mono', color: c, align: 'center', base: 'middle', alpha: .6 }); }
+    for (let i = 0; i < ny; i++) { txt(ctx, 'ABCDEFGHIJKL'[i] || '', o + 3.5 * k, o + (i + .5) * (H - 2 * o) / ny, { size: 6 * k, f: 'IBM Plex Mono', color: c, align: 'center', base: 'middle', alpha: .6 }); }
+    ctx.restore();
+  },
+  over(ctx, L, V) {
+    const { k, S } = V, w = L.win, c = S.tc, b = L.block;
+    ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = Math.max(.7, 1.2 * k); ctx.strokeRect(w.x, w.y, w.w, w.h);
+    // corner registration crosses
+    for (const [x, y] of [[w.x, w.y], [w.x + w.w, w.y], [w.x, w.y + w.h], [w.x + w.w, w.y + w.h]]) { ctx.beginPath(); ctx.moveTo(x - 14 * k, y); ctx.lineTo(x + 14 * k, y); ctx.moveTo(x, y - 14 * k); ctx.lineTo(x, y + 14 * k); ctx.stroke(); }
+    ctx.restore();
+    if (S.ticks) edgeTicks(ctx, w, V, { color: c, len: 7 * k, cross: 7 * k, gap: 5 * k, size: 7.5 * k, font: 'IBM Plex Mono', weight: 400, alpha: .9 });
+    // title block
+    ctx.save(); ctx.strokeStyle = c; ctx.lineWidth = Math.max(.7, 1.2 * k);
+    ctx.fillStyle = rgba(S.mc, .6); ctx.fillRect(b.x, b.y, b.w, b.h); ctx.strokeRect(b.x, b.y, b.w, b.h);
+    const r1 = b.h * .44, r2 = b.h * .28;
+    ctx.lineWidth = Math.max(.5, .7 * k);
+    ctx.beginPath(); ctx.moveTo(b.x, b.y + r1); ctx.lineTo(b.x + b.w, b.y + r1); ctx.moveTo(b.x, b.y + r1 + r2); ctx.lineTo(b.x + b.w, b.y + r1 + r2);
+    ctx.moveTo(b.x + b.w * .62, b.y + r1); ctx.lineTo(b.x + b.w * .62, b.y + b.h); ctx.moveTo(b.x + b.w * .82, b.y + r1 + r2); ctx.lineTo(b.x + b.w * .82, b.y + b.h); ctx.stroke();
+    ctx.restore();
+    const lab = { size: 6.5 * k, f: 'IBM Plex Mono', w: 500, caps: true, track: .12, color: c, alpha: .62 }, val = { size: 11 * k, f: S.font, w: 500, color: c };
+    const p = 9 * k, cell = (lx, ly, label, value, cw, size) => { txt(ctx, label, lx + p, ly + p + 6 * k, lab); txt(ctx, value, lx + p, ly + p + 6 * k + (size || 11 * k) + 6 * k, { ...val, size: size || 11 * k, maxW: cw - 2 * p }); };
+    cell(b.x, b.y, 'Title', (S.title || '').toUpperCase(), b.w, 30 * k);
+    cell(b.x, b.y + r1, 'Subject', S.sub || '—', b.w * .62);
+    cell(b.x + b.w * .62, b.y + r1, 'Scale', V.denom && V.pitch < 10 ? `1:${fmtDenom(V.denom).toLocaleString('en-SG')}` : V.pitch >= 10 ? 'PERSPECTIVE' : 'N.T.S.', b.w * .38);
+    cell(b.x, b.y + r1 + r2, 'Coordinates', S.showCoords ? V.coords : '—', b.w * .62, 9.5 * k);
+    cell(b.x + b.w * .62, b.y + r1 + r2, 'Date', V.date, b.w * .2, 9.5 * k);
+    cell(b.x + b.w * .82, b.y + r1 + r2, 'Sheet', '07/30', b.w * .18, 9.5 * k);
+    const lx = w.x, lw = b.x - w.x - 24 * k, top = S.tp === 'top';
+    if (S.north) northArrow(ctx, lx + 20 * k, b.y + 50 * k, 22 * k, rot(V), c, S.mc, 'IBM Plex Mono');
+    scaleBar(ctx, V, lx + (S.north ? 64 * k : 0), b.y + 58 * k, Math.min(lw - 70 * k, 220 * k), { color: c, paper: S.mc, style: 'checker', size: 7.5 * k, font: 'IBM Plex Mono', h: 5 * k });
+    L.creditAt = { x: lx, y: b.y + b.h - 4 * k, align: 'left', color: c, size: 6.5 * k, maxW: lw, f: 'IBM Plex Mono', alpha: .7 };
+    void top;
+  },
+};
+TPL.postcard = {
+  name: 'Postcard', note: 'Greetings, stamp, postmark',
+  def: { font: 'Big Shoulders Display', tc: '#FFF6E6', fc: '#D8452B', mc: '#FBF6EA', mat: 30, border: 0, tp: 'top', ticks: false, north: false, scale: false, showCoords: true, look: { sat: .2, con: .08, warm: .15 } },
+  layout(W, H, k, S) { const m = Math.max(S.mat * k, 10 * k); return { win: R(m, m, W - 2 * m, H - 2 * m - 30 * k), m }; },
+  under(ctx, L, V) {
+    const { W, H, k, S } = V;
+    ctx.fillStyle = S.mc; ctx.fillRect(0, 0, W, H);
+    paperGrain(ctx, W, H, k, '#7a6a50', .4, 11);
+    if (S.border > 0) { ctx.strokeStyle = S.fc; ctx.lineWidth = S.border * k; ctx.strokeRect(S.border * k / 2, S.border * k / 2, W - S.border * k, H - S.border * k); }
+  },
+  over(ctx, L, V) {
+    const { W, H, k, S } = V, w = L.win, top = S.tp !== 'bottom';
+    if (S.ticks) edgeTicks(ctx, w, V, { color: '#fff', len: 8 * k, gap: 4 * k, size: 7.5 * k, font: 'Instrument Sans', inside: true, shadow: 'rgba(0,0,0,.6)' });
+    // stamp
+    const sw = clamp(w.w * .17, 90 * k, 150 * k), sh = sw * 1.2, sx = w.x + w.w - 30 * k - sw, sy = top ? w.y + 30 * k : w.y + 30 * k;
+    const r = sw / 34;
+    ctx.save(); ctx.shadowColor = 'rgba(0,0,0,.35)'; ctx.shadowBlur = 8 * k; ctx.shadowOffsetY = 3 * k; ctx.fillStyle = '#FFFDF7';
+    ctx.beginPath(); perforated(ctx, sx, sy, sw, sh, r); ctx.fill(); ctx.restore();
+    const f = { x: sx + 9 * r, y: sy + 9 * r, w: sw - 18 * r, h: sh - 18 * r };
+    ctx.save(); ctx.beginPath(); ctx.rect(f.x, f.y, f.w, f.h); ctx.clip();
+    const sky = ctx.createLinearGradient(0, f.y, 0, f.y + f.h); sky.addColorStop(0, S.fc); sky.addColorStop(1, mix(S.fc, '#3a0f08', .35));
+    ctx.fillStyle = sky; ctx.fillRect(f.x, f.y, f.w, f.h);
+    ctx.fillStyle = '#FFD58A'; ctx.beginPath(); ctx.arc(f.x + f.w * .62, f.y + f.h * .5, f.w * .24, 0, 7); ctx.fill();
+    ctx.strokeStyle = '#FFFDF7'; ctx.lineWidth = f.w * .035;
+    for (let i = 0; i < 4; i++) { const yy = f.y + f.h * (.66 + i * .085); ctx.beginPath(); for (let x = 0; x <= f.w; x += f.w / 24) { const Y = yy + Math.sin(x / f.w * Math.PI * 4 + i) * f.h * .018; x ? ctx.lineTo(f.x + x, Y) : ctx.moveTo(f.x, Y); } ctx.stroke(); }
+    ctx.restore();
+    txt(ctx, 'SINGAPORE', f.x + f.w / 2, f.y + f.h * .17, { size: f.w * .15, f: 'Archivo', w: 800, track: .08, color: '#FFFDF7', align: 'center', maxW: f.w * .9 });
+    txt(ctx, '70c', f.x + f.w * .08, f.y + f.h * .42, { size: f.w * .2, f: 'Big Shoulders Display', w: 800, color: '#FFFDF7' });
+    // postmark
+    const pr = sw * .46, pcx = sx - pr * .15, pcy = sy + sh * .72, ink = 'rgba(28,28,40,.78)';
+    ctx.save(); ctx.beginPath(); ctx.rect(w.x, w.y, w.w, w.h); ctx.clip(); ctx.strokeStyle = ink; ctx.lineWidth = 2.4 * k;
+    ctx.beginPath(); ctx.arc(pcx, pcy, pr, 0, 7); ctx.stroke(); ctx.lineWidth = 1.4 * k; ctx.beginPath(); ctx.arc(pcx, pcy, pr * .72, 0, 7); ctx.stroke();
+    // cancellation waves run right, across the stamp, so they never cross the title
+    for (let i = 0; i < 5; i++) { const yy = pcy - pr * .5 + i * pr * .25; ctx.beginPath(); for (let x = 0; x <= pr * 2.4; x += pr / 10) { const X = pcx + pr * 1.12 + x, Y = yy + Math.sin(x / pr * 3.2) * pr * .07; x ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.lineWidth = 2 * k; ctx.stroke(); }
+    ctx.restore();
+    ringText(ctx, (S.sub || S.title || 'Singapore').toUpperCase().slice(0, 26), pcx, pcy, pr * .86, { size: pr * .17, f: 'Instrument Sans', w: 700, color: ink });
+    txt(ctx, V.dateShort, pcx, pcy + pr * .1, { size: pr * .2, f: 'IBM Plex Mono', w: 600, color: ink, align: 'center' });
+    // greetings lockup
+    const gx = w.x + 40 * k, maxW = Math.max(w.w * .4, top ? pcx - pr * 1.12 - gx - 16 * k : w.w - 80 * k);
+    const big = txt(ctx, S.title, 0, 0, { size: 190 * k, f: S.font, w: 900, caps: true, track: .01, maxW, measureOnly: true });
+    const gh = 46 * k, by = top ? w.y + 44 * k + gh + big.size * .8 : w.y + w.h - 46 * k - (S.sub ? 30 * k : 0);
+    txt(ctx, 'Greetings from', gx + 6 * k, by - big.size * .84 - 4 * k, { size: gh, f: 'Caveat', w: 700, color: S.tc, shadow: 'rgba(0,0,0,.6)', shadowBlur: 10 * k, shadowY: 2 * k });
+    txt(ctx, S.title, gx, by, { size: big.size, f: S.font, w: 900, caps: true, track: .01, color: S.tc, stroke: S.fc, strokeW: big.size * .1, shadow: 'rgba(0,0,0,.45)', shadowBlur: 0, shadowX: big.size * .045, shadowY: big.size * .045 });
+    if (S.sub) txt(ctx, S.sub, gx + 4 * k, by + 30 * k, { size: 13 * k, f: 'Instrument Sans', w: 700, caps: true, track: .2, color: S.tc, shadow: 'rgba(0,0,0,.7)', shadowBlur: 6 * k, maxW });
+    const below = onColor(S.mc);
+    if (S.showCoords) txt(ctx, V.coords, W / 2, H - L.m - 9 * k, { size: 9.5 * k, f: 'Instrument Sans', w: 500, track: .25, color: below, alpha: .6, align: 'center', maxW: w.w * .5 });
+    scaleBar(ctx, V, w.x + 30 * k, w.y + w.h - 26 * k, 110 * k, { color: '#fff', style: 'line', size: 8 * k, shadow: 'rgba(0,0,0,.7)' });
+    if (S.north) northArrow(ctx, w.x + w.w - 40 * k, w.y + w.h - 40 * k, 18 * k, rot(V), '#fff', 'rgba(0,0,0,.25)', 'Instrument Sans');
+    L.creditAt = { x: w.x + w.w, y: H - L.m - 9 * k, align: 'right', color: below, size: 6.5 * k, maxW: w.w * .3, alpha: .5 };
+  },
+};
+function perforated(ctx, x, y, w, h, r) {
+  const nx = Math.max(3, Math.round(w / (r * 3.2))), ny = Math.max(3, Math.round(h / (r * 3.2))), sx = w / nx, sy = h / ny;
+  ctx.moveTo(x, y);
+  for (let i = 0; i < nx; i++) { const cx = x + (i + .5) * sx; ctx.lineTo(cx - r, y); ctx.arc(cx, y, r, Math.PI, 0, true); }
+  ctx.lineTo(x + w, y);
+  for (let i = 0; i < ny; i++) { const cy = y + (i + .5) * sy; ctx.lineTo(x + w, cy - r); ctx.arc(x + w, cy, r, -Math.PI / 2, Math.PI / 2, true); }
+  ctx.lineTo(x + w, y + h);
+  for (let i = nx - 1; i >= 0; i--) { const cx = x + (i + .5) * sx; ctx.lineTo(cx + r, y + h); ctx.arc(cx, y + h, r, 0, Math.PI, true); }
+  ctx.lineTo(x, y + h);
+  for (let i = ny - 1; i >= 0; i--) { const cy = y + (i + .5) * sy; ctx.lineTo(x, cy + r); ctx.arc(x, cy, r, Math.PI / 2, -Math.PI / 2, true); }
+  ctx.closePath();
+}
+function ringText(ctx, s, cx, cy, r, o) {
+  ctx.save(); ctx.font = fontStr(o, o.size);
+  const chars = [...s], ws = chars.map(ch => ctx.measureText(ch).width + o.size * .12), total = ws.reduce((a, b) => a + b, 0);
+  let a = -Math.PI / 2 - total / r / 2;
+  ctx.fillStyle = o.color; ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  chars.forEach((ch, i) => { const aa = a + ws[i] / r / 2; ctx.save(); ctx.translate(cx + Math.cos(aa) * r, cy + Math.sin(aa) * r); ctx.rotate(aa + Math.PI / 2); ctx.fillText(ch, 0, 0); ctx.restore(); a += ws[i] / r; });
+  ctx.restore();
+}
+const TPL_ORDER = ['gallery', 'swiss', 'vintage', 'polaroid', 'minimal', 'blueprint', 'postcard'];
+
+/* =========================================================================
+   State
+   ========================================================================= */
+const BASE_STATE = { t: 'gallery', b: 'sat', lng: PICKS[0].c[0], lat: PICKS[0].c[1], z: PICKS[0].z, pitch: 0, bearing: 0, b3d: false,
+  paper: 'a3', orient: 'p', dpi: 300, detail: 'auto', title: PICKS[0].title, sub: PICKS[0].sub, coords: '', cp: 'margin',
+  bri: 0, con: 0, sat: 0, hue: 0, warm: 0, treat: 'none', d1: '#0B2747', d2: '#D6ECFF', bg: 'wall', keepLook: false };
+function tplPatch(id, keepLook) {
+  const d = TPL[id].def, p = { t: id, font: d.font, tc: d.tc, fc: d.fc, mc: d.mc, mat: d.mat, border: d.border, tp: d.tp, ticks: d.ticks, north: d.north, scale: d.scale, showCoords: d.showCoords };
+  if (!keepLook) Object.assign(p, { bri: 0, con: 0, sat: 0, hue: 0, warm: 0, treat: 'none' }, d.look);
+  return p;
+}
+const S = { ...BASE_STATE, ...tplPatch(BASE_STATE.t) };
+const HASH_KEYS = ['t', 'b', 'lng', 'lat', 'z', 'pitch', 'bearing', 'b3d', 'paper', 'orient', 'dpi', 'detail', 'title', 'sub', 'coords', 'font', 'tc', 'fc', 'mc', 'mat', 'border', 'tp', 'ticks', 'north', 'scale', 'showCoords', 'cp', 'bri', 'con', 'sat', 'hue', 'warm', 'treat', 'd1', 'd2', 'bg'];
+const COLOR_KEYS = new Set(['tc', 'fc', 'mc', 'd1', 'd2']);
+function loadHash() {
+  const p = new URLSearchParams(location.hash.slice(1));
+  if (p.has('t') && TPL[p.get('t')]) Object.assign(S, tplPatch(p.get('t')));
+  for (const k of HASH_KEYS) {
+    if (!p.has(k)) continue;
+    const raw = p.get(k), cur = BASE_STATE[k] ?? S[k];
+    if (COLOR_KEYS.has(k)) { if (/^[0-9a-f]{6}$/i.test(raw)) S[k] = '#' + raw.toUpperCase(); }
+    else if (typeof cur === 'number') { const n = parseFloat(raw); if (isFinite(n)) S[k] = n; }
+    else if (typeof cur === 'boolean') S[k] = raw === '1';
+    else S[k] = raw;
+  }
+  if (!BASES[S.b]) S.b = 'sat';
+  if (!PAPERS[S.paper]) S.paper = 'a3';
+  if (!TPL[S.t]) S.t = 'gallery';
+  if (!FALLBACK[S.font]) S.font = TPL[S.t].def.font;
+  S.dpi = S.dpi >= 300 ? 300 : 150;
+}
+let hashTimer = 0;
+function saveHash() {
+  clearTimeout(hashTimer);
+  hashTimer = setTimeout(() => {
+    const p = new URLSearchParams();
+    for (const k of HASH_KEYS) {
+      let v = S[k];
+      if (typeof v === 'number') v = +v.toFixed(k === 'lng' || k === 'lat' ? 5 : 2);
+      if (typeof v === 'boolean') v = v ? 1 : 0;
+      if (COLOR_KEYS.has(k)) v = String(v).replace('#', '');
+      p.set(k, v);
+    }
+    history.replaceState(null, '', '#' + p.toString());
+  }, 250);
+}
+
+function paperDims(s = S) {
+  const p = PAPERS[s.paper];
+  let [w, h] = p.mm || p.px;
+  const land = s.orient === 'l';
+  if ((land && w < h) || (!land && w > h)) [w, h] = [h, w];
+  if (p.mm) { const px = mm => Math.round(mm / 25.4 * s.dpi); return { mmW: w, mmH: h, pxW: px(w), pxH: px(h), physical: true }; }
+  const f = s.dpi >= 300 ? 2 : 1;
+  return { mmW: w / 150 * 25.4, mmH: h / 150 * 25.4, pxW: w * f, pxH: h * f, physical: false, scale: f };
+}
+function layoutFor(s, W, H) { const k = Math.min(W, H) / 1000; return { ...TPL[s.t].layout(W, H, k, s), k }; }
+function creditText(s) {
+  let c = BASES[s.b].credit;
+  if (buildingsOn()) c += ' · 3D buildings © OpenFreeMap, OpenMapTiles, OpenStreetMap contributors';
+  return c;
+}
+// Everything a template needs to know about the camera, in poster pixels.
+function makeView(s, L, W, H) {
+  const c = map.getCenter(), z = map.getZoom(), cw = mapEl.clientWidth || 1, ch = mapEl.clientHeight || 1;
+  const mppCss = 40075016.686 * Math.cos(c.lat * Math.PI / 180) / (512 * 2 ** z);
+  const pd = paperDims(s);
+  const now = new Date();
+  return {
+    W, H, k: Math.min(W, H) / 1000, S: s, L, pd,
+    center: c, bearing: map.getBearing(), pitch: map.getPitch(),
+    mppPoster: mppCss * cw / L.win.w,
+    denom: pd.physical ? (mppCss * cw) / (L.win.w / W * pd.mmW / 1000) : null,
+    geoAt: (fx, fy) => map.unproject([fx * cw, fy * ch]),
+    credits: creditText(s), coords: (s.coords || '').trim() || dmsPair(c), dark: !!BASES[s.b].dark,
+    date: now.toISOString().slice(0, 10),
+    dateShort: `${pad2(now.getDate())} ${now.toLocaleString('en-GB', { month: 'short' }).toUpperCase()} ${now.getFullYear()}`,
+  };
+}
+function drawCredit(ctx, L, V) {
+  const { k, S: s } = V, t = V.credits;
+  const a = L.creditAt;
+  if (s.cp === 'map' || !a) {
+    const size = 6.8 * k, pad = 3.5 * k, w = L.win;
+    const m = txt(ctx, t, 0, 0, { size, f: 'Instrument Sans', w: 500, maxW: w.w * .9, minSize: 4 * k, measureOnly: true });
+    const pw = m.w + 2 * pad, ph = m.size + 2 * pad, x = w.x + w.w - pw - 6 * k, y = w.y + w.h - ph - 6 * k;
+    ctx.save(); ctx.fillStyle = V.dark ? 'rgba(0,0,0,.5)' : 'rgba(255,255,255,.78)'; ctx.fillRect(x, y, pw, ph); ctx.restore();
+    txt(ctx, t, x + pad, y + pad + m.size * .78, { size: m.size, f: 'Instrument Sans', w: 500, color: V.dark ? '#fff' : '#222' });
+    return;
+  }
+  txt(ctx, t, a.x, a.y, { size: a.size, f: a.f || 'Instrument Sans', it: a.it, w: 500, color: a.color, align: a.align, alpha: a.alpha ?? .55, maxW: a.maxW, minSize: 4 * k });
+}
+function paint(ctx, part, s, L, V, mapImg) {
+  const t = TPL[s.t];
+  if (part !== 'over') t.under(ctx, L, V);
+  if (mapImg) { ctx.save(); ctx.beginPath(); ctx.rect(L.win.x, L.win.y, L.win.w, L.win.h); ctx.clip(); drawCover(ctx, mapImg, L.win); ctx.restore(); }
+  if (part !== 'under') { t.over(ctx, L, V); drawCredit(ctx, L, V); }
+}
+
+/* =========================================================================
+   Colour treatments: one definition drives the live SVG filter and the export pixels
+   ========================================================================= */
+function fxParams(s) {
+  const w = s.warm, warm = w ? [1 + .16 * w, 1 + .02 * w, 1 - .16 * w] : null;
+  const L3 = [.2126, .7152, .0722];
+  const M = s.treat === 'grey' || s.treat === 'duo' ? [L3, L3, L3] : s.treat === 'sepia' ? [[.393, .769, .189], [.349, .686, .168], [.272, .534, .131]] : null;
+  const duo = s.treat === 'duo' ? [hexRgb(s.d1).map(v => v / 255), hexRgb(s.d2).map(v => v / 255)] : null;
+  return { warm, M, duo, any: !!(warm || M || duo) };
+}
+function applyFx() {
+  const f = fxParams(S);
+  const m4 = r => `${r[0]} ${r[1]} ${r[2]} 0 0`;
+  $('fx-warm').setAttribute('values', f.warm ? `${f.warm[0]} 0 0 0 0  0 ${f.warm[1]} 0 0 0  0 0 ${f.warm[2]} 0 0  0 0 0 1 0` : '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0');
+  $('fx-mat').setAttribute('values', f.M ? `${m4(f.M[0])}  ${m4(f.M[1])}  ${m4(f.M[2])}  0 0 0 1 0` : '1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0');
+  const fn = $('fx-duo').children;
+  for (let i = 0; i < 3; i++) fn[i].setAttribute('tableValues', f.duo ? `${f.duo[0][i].toFixed(4)} ${f.duo[1][i].toFixed(4)}` : '0 1');
+  mapEl.querySelector('.maplibregl-canvas-container')?.classList.toggle('fx', f.any);
+}
+function treatCanvas(cv, s) {
+  const f = fxParams(s);
+  if (!f.any) return cv;
+  const ctx = cv.getContext('2d', { willReadFrequently: true }), W = cv.width, H = cv.height, band = 256;
+  for (let y0 = 0; y0 < H; y0 += band) {
+    const h = Math.min(band, H - y0), img = ctx.getImageData(0, y0, W, h), d = img.data;
+    for (let i = 0; i < d.length; i += 4) {
+      let r = d[i] / 255, g = d[i + 1] / 255, b = d[i + 2] / 255;
+      if (f.warm) { r = Math.min(1, r * f.warm[0]); g = Math.min(1, g * f.warm[1]); b = Math.max(0, Math.min(1, b * f.warm[2])); }
+      if (f.M) { const M = f.M; const nr = M[0][0] * r + M[0][1] * g + M[0][2] * b, ng = M[1][0] * r + M[1][1] * g + M[1][2] * b, nb = M[2][0] * r + M[2][1] * g + M[2][2] * b; r = Math.min(1, nr); g = Math.min(1, ng); b = Math.min(1, nb); }
+      if (f.duo) { const [a, c] = f.duo; r = a[0] + (c[0] - a[0]) * r; g = a[1] + (c[1] - a[1]) * g; b = a[2] + (c[2] - a[2]) * b; }
+      d[i] = r * 255 + .5; d[i + 1] = g * 255 + .5; d[i + 2] = b * 255 + .5;
+    }
+    ctx.putImageData(img, 0, y0);
+  }
+  return cv;
+}
+
+/* =========================================================================
+   The live map, inside the frame
+   ========================================================================= */
+loadHash();
+// The kit frames Singapore against the whole viewport, so the map starts full-size and is
+// then moved into the poster window.
+Object.assign(mapEl.style, { position: 'fixed', left: '0', top: '0', width: '100vw', height: '100vh' });
+const map = DMC.createMap(DAY, { fadeDuration: 0 });
+mapEl.removeAttribute('style');
+document.querySelectorAll('.maplibregl-ctrl-top-right').forEach(c => rail.append(c));
+
+const zRef = () => Math.log2(1000 / Math.max(1, mapEl.clientWidth));
+let syncing = false;
+function cameraFromState(animate) {
+  const cam = { center: [S.lng, S.lat], zoom: S.z - zRef(), pitch: S.pitch, bearing: S.bearing };
+  if (animate && !reduceMotion) map.flyTo({ ...cam, duration: 2200, essential: true });
+  else { syncing = true; map.jumpTo(cam); syncing = false; }
+}
+map.on('moveend', () => {
+  if (syncing) return;
+  const c = map.getCenter();
+  Object.assign(S, { lng: c.lng, lat: c.lat, z: map.getZoom() + zRef(), pitch: map.getPitch(), bearing: map.getBearing() });
+  saveHash(); syncUI(); queueThumbs(); checkRegion();
+});
+let overQueued = false;
+map.on('move', () => { if (!overQueued) { overQueued = true; requestAnimationFrame(() => { overQueued = false; drawOver(); }); } });
+
+let styleReady = false;
+const vecLayers = {}, vecLoads = {};
+// Merge an OpenFreeMap style into the live map on first use (shared tiles, glyphs and sprite).
+function ensureVector(name) {
+  return vecLoads[name] ||= (async () => {
+    const st = await (await fetch(`https://tiles.openfreemap.org/styles/${name}`)).json();
+    if (!map.getStyle().glyphs) map.setGlyphs(st.glyphs);
+    if (!map.getStyle().sprite) map.setSprite(st.sprite);
+    for (const [id, src] of Object.entries(st.sources)) if (!map.getSource('ofm-' + id)) map.addSource('ofm-' + id, src);
+    const before = map.getLayer('dmc-buildings') ? 'dmc-buildings' : undefined;
+    vecLayers[name] = st.layers.map(l => {
+      const id = `${name}-${l.id}`;
+      map.addLayer({ ...l, id, ...(l.source ? { source: 'ofm-' + l.source } : {}), layout: { ...(l.layout || {}), visibility: 'none' } }, before);
+      return { id, symbol: l.type === 'symbol' };
+    });
+  })().catch(err => { delete vecLoads[name]; toast('Could not load the OpenFreeMap style; try again.'); throw err; });
+}
+function applyBase() {
+  if (!styleReady) return;
+  const B = BASES[S.b];
+  for (const n of RASTERS) { const on = B.layers.includes(n); DMC.setBasemapVisible(map, n, on); if (on) DMC.setBasemapOpacity(map, n, 1); }
+  if (map.getLayer('underlay')) map.setLayoutProperty('underlay', 'visibility', B.underlay ? 'visible' : 'none');
+  map.setPaintProperty('background', 'background-color', B.bg);
+  mapEl.style.background = B.bg;
+  const show = () => {
+    for (const [name, ls] of Object.entries(vecLayers)) for (const l of ls) {
+      const B2 = BASES[S.b], on = B2.vec === name && (B2.labels || !l.symbol);
+      if (map.getLayer(l.id)) map.setLayoutProperty(l.id, 'visibility', on ? 'visible' : 'none');
+    }
+  };
+  show();
+  if (B.vec && !vecLayers[B.vec]) ensureVector(B.vec).then(show, () => {});
+}
+function rasterIds() { return ['underlay', ...RASTERS.flatMap(n => [`basemap-${n}`, `basemap-${n}-lo`])].filter(id => map.getLayer(id)); }
+function applyPaint() {
+  if (!styleReady) return;
+  const b = S.bri;
+  for (const id of rasterIds()) {
+    map.setPaintProperty(id, 'raster-brightness-min', b > 0 ? b * .45 : 0);
+    map.setPaintProperty(id, 'raster-brightness-max', b < 0 ? 1 + b * .6 : 1);
+    map.setPaintProperty(id, 'raster-contrast', clamp(S.con, -.99, .99));
+    map.setPaintProperty(id, 'raster-saturation', clamp(S.sat, -1, 1));
+    map.setPaintProperty(id, 'raster-hue-rotate', S.hue);
+  }
+}
+const buildingsOn = () => !!(map.getLayer('dmc-buildings') && map.getLayoutProperty('dmc-buildings', 'visibility') !== 'none');
+const kitBuildingsBtn = () => rail.querySelector('button[aria-label="3D buildings"]');
+function setBuildings(on) { if (buildingsOn() !== on) kitBuildingsBtn()?.click(); }
+
+/* =========================================================================
+   Layout: the sheet on the wall, the map window inside it
+   ========================================================================= */
+let Lp = null, sheetRect = null;
+function stageRect(ar) {
+  const focus = root.classList.contains('dmc-focus'), vw = innerWidth, vh = innerHeight, phone = PHONE.matches;
+  const A = { l: 0, t: 0, r: vw, b: vh };
+  const pad = focus ? 22 : phone ? 12 : 30;
+  if (focus) A.b -= (document.querySelector('.dmc-focus-credit')?.offsetHeight || 0) + 2;
+  if (!focus) {
+    const ed = editor.getBoundingClientRect();
+    if (phone) A.b = Math.min(A.b, editor.classList.contains('collapsed') ? vh - 52 : vh - ed.height);
+    else if (!editor.classList.contains('collapsed')) A.r = vw - editor.offsetWidth - 14;
+    A.b -= (toolbar.offsetHeight || 40) + (phone ? 6 : 12);
+    if (!phone) A.r -= 46;
+  }
+  const fit = a => {
+    const aw = a.r - a.l - 2 * pad, ah = a.b - a.t - 2 * pad, w = Math.max(40, Math.min(aw, ah * ar)), h = w / ar;
+    return { x: a.l + pad + (aw - w) / 2, y: a.t + pad + (ah - h) / 2, w, h };
+  };
+  let r = fit(A);
+  if (!focus) {
+    const s = $('dmc-stamp').getBoundingClientRect();
+    if (r.x < s.right + 6 && r.y < s.bottom + 6) {
+      const a1 = fit({ ...A, t: s.bottom + 10 - pad }), a2 = fit({ ...A, l: s.right + 10 - pad });
+      r = a1.w >= a2.w ? a1 : a2;
+    }
+  }
+  return { x: Math.round(r.x), y: Math.round(r.y), w: Math.round(r.w), h: Math.round(r.h) };
+}
+function relayout() {
+  const pd = paperDims();
+  const r = sheetRect = stageRect(pd.pxW / pd.pxH);
+  Object.assign(sheet.style, { left: r.x + 'px', top: r.y + 'px', width: r.w + 'px', height: r.h + 'px' });
+  Lp = layoutFor(S, r.w, r.h);
+  const w = Lp.win, before = [mapEl.clientWidth, mapEl.clientHeight];
+  Object.assign(mapEl.style, { left: w.x + 'px', top: w.y + 'px', width: w.w + 'px', height: w.h + 'px' });
+  const dpr = Math.min(devicePixelRatio || 1, 2.5);
+  for (const c of [$('under'), $('over')]) { const cw = Math.round(r.w * dpr), ch = Math.round(r.h * dpr); if (c.width !== cw || c.height !== ch) { c.width = cw; c.height = ch; } }
+  if (before[0] !== w.w || before[1] !== w.h) { syncing = true; map.resize(); syncing = false; cameraFromState(false); }
+  drawUnder(); drawOver();
+  placeChrome();
+}
+function placeChrome() {
+  const r = sheetRect, w = Lp.win, rw = rail.offsetWidth || 34, gap = PHONE.matches ? 8 : 12;
+  if (innerWidth - (r.x + r.w) >= rw + gap + 4) Object.assign(rail.style, { left: (r.x + r.w + gap) + 'px', top: r.y + 'px' });
+  else if (r.x >= rw + gap + 4) Object.assign(rail.style, { left: (r.x - rw - gap) + 'px', top: r.y + 'px' });
+  else Object.assign(rail.style, { left: (r.x + w.x + w.w - rw - 6) + 'px', top: (r.y + w.y + 6) + 'px' });
+  const tw = toolbar.offsetWidth, x = clamp(r.x + r.w / 2 - tw / 2, 8, innerWidth - tw - 8);
+  Object.assign(toolbar.style, { left: x + 'px', top: (r.y + r.h + (PHONE.matches ? 8 : 14)) + 'px' });
+}
+function previewCtx(id) {
+  const c = $(id), ctx = c.getContext('2d');
+  ctx.setTransform(c.width / sheetRect.w, 0, 0, c.height / sheetRect.h, 0, 0);
+  ctx.clearRect(0, 0, sheetRect.w, sheetRect.h);
+  return ctx;
+}
+function drawUnder() { if (!Lp) return; const ctx = previewCtx('under'); paint(ctx, 'under', S, Lp, makeView(S, Lp, sheetRect.w, sheetRect.h)); }
+function drawOver() { if (!Lp) return; const ctx = previewCtx('over'); paint(ctx, 'over', S, Lp, makeView(S, Lp, sheetRect.w, sheetRect.h)); }
+
+/* =========================================================================
+   Editor UI
+   ========================================================================= */
+const tabs = [...document.querySelectorAll('.pr-tabs [role="tab"]')];
+function selectTab(tab, focus) {
+  for (const t of tabs) { const on = t === tab; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; $(t.getAttribute('aria-controls')).hidden = !on; }
+  if (focus) tab.focus();
+  if (editor.classList.contains('collapsed')) setCollapsed(false);
+  if (tab.id === 'tab-frame') queueThumbs(true);
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => { if (PHONE.matches && t.getAttribute('aria-selected') === 'true' && !editor.classList.contains('collapsed')) setCollapsed(true); else selectTab(t); });
+  t.addEventListener('keydown', e => {
+    const d = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0;
+    if (d) { e.preventDefault(); selectTab(tabs[(i + d + tabs.length) % tabs.length], true); }
+  });
+});
+function setCollapsed(on) {
+  editor.classList.toggle('collapsed', on);
+  $('ed-collapse').setAttribute('aria-expanded', String(!on));
+  $('ed-collapse').setAttribute('aria-label', on ? 'Show the editor' : 'Hide the editor');
+  $('ed-open').hidden = !on || PHONE.matches;
+  relayout();
+  setTimeout(relayout, 340);
+}
+$('ed-collapse').addEventListener('click', () => setCollapsed(!editor.classList.contains('collapsed')));
+$('ed-open').addEventListener('click', () => setCollapsed(false));
+$('ed-collapse').innerHTML = PHONE.matches ? '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 6 8 10.5 12.5 6"/></svg>' : $('ed-collapse').innerHTML;
+
+// Built lists: places, basemaps, templates, papers, fonts, duotone presets
+const tileFor = (lng, lat, z) => { const n = 2 ** z, x = Math.floor((lng + 180) / 360 * n), r = lat * Math.PI / 180, y = Math.floor((1 - Math.log(Math.tan(r) + 1 / Math.cos(r)) / Math.PI) / 2 * n); return [x, y]; };
+for (const p of PICKS) {
+  const b = document.createElement('button'); b.type = 'button';
+  const [x, y] = tileFor(p.c[0], p.c[1], 15);
+  b.style.backgroundImage = `url(https://www.onemap.gov.sg/maps/tiles/Satellite/15/${x}/${y}.png)`;
+  b.innerHTML = `<span>${p.name}</span>`;
+  b.addEventListener('click', () => goTo(p));
+  $('picks').append(b);
+}
+for (const [id, B] of Object.entries(BASES)) {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.v = id;
+  b.innerHTML = `<img src="${B.thumb}" alt="" loading="lazy" crossorigin="anonymous"><span>${B.name}</span>`;
+  $('bases').append(b);
+}
+const thumbCanvases = {};
+for (const id of TPL_ORDER) {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.v = id;
+  const c = document.createElement('canvas'); thumbCanvases[id] = c;
+  b.append(c, Object.assign(document.createElement('span'), { textContent: TPL[id].name }), Object.assign(document.createElement('small'), { textContent: TPL[id].note }));
+  $('tpls').append(b);
+}
+for (const [id, p] of Object.entries(PAPERS)) {
+  const b = document.createElement('button'); b.type = 'button'; b.dataset.v = id;
+  let [w, h] = (p.mm || p.px).slice().sort((a, b2) => a - b2);
+  if (p.land) [w, h] = [h, w];
+  const s = 24 / Math.max(w, h);
+  b.innerHTML = `<i style="width:${Math.round(w * s)}px;height:${Math.round(h * s)}px;margin-top:${Math.round(24 - h * s)}px"></i>${p.name}`;
+  $('papers').append(b);
+}
+for (const [f, label] of FONTS) { const o = document.createElement('option'); o.value = f; o.textContent = label; $('font').append(o); }
+for (const [a, c] of DUOS) {
+  const b = document.createElement('button'); b.type = 'button'; b.title = `Duotone ${a} to ${c}`; b.setAttribute('aria-label', b.title);
+  b.style.background = `linear-gradient(135deg, ${a} 50%, ${c} 50%)`;
+  b.addEventListener('click', () => update({ d1: a, d2: c, treat: 'duo' }));
+  $('duo-presets').append(b);
+}
+
+const fmtOut = { bri: v => (v > 0 ? '+' : '') + Math.round(v * 100), con: v => (v > 0 ? '+' : '') + Math.round(v * 100), sat: v => (v > 0 ? '+' : '') + Math.round(v * 100), warm: v => (v > 0 ? '+' : '') + Math.round(v * 100), hue: v => Math.round(v) + '°', mat: v => Math.round(v), border: v => +(+v).toFixed(1) };
+function syncUI() {
+  for (const el of document.querySelectorAll('[data-k]')) {
+    const k = el.dataset.k, v = S[k];
+    if (el.matches('input[type="checkbox"]')) el.checked = !!v;
+    else if (el.matches('input, select')) { if (document.activeElement !== el) el.value = v ?? ''; }
+    else for (const b of el.querySelectorAll('button[data-v]')) b.setAttribute('aria-pressed', String(String(v) === b.dataset.v));
+  }
+  for (const o of document.querySelectorAll('output[data-for]')) o.textContent = fmtOut[o.dataset.for](S[o.dataset.for]);
+  $('duo').hidden = S.treat !== 'duo';
+  $('coords').placeholder = dmsPair(map.getCenter());
+  $('b3d').checked = buildingsOn();
+  const pd = paperDims();
+  $('dpi150').textContent = pd.physical ? '150 dpi' : '1×';
+  $('dpi300').textContent = pd.physical ? '300 dpi' : '2×';
+  $('tb-size').textContent = `${PAPERS[S.paper].name} · ${pd.physical ? `${Math.round(pd.mmW)} × ${Math.round(pd.mmH)} mm · ${S.dpi} dpi · ` : ''}${pd.pxW} × ${pd.pxH} px`;
+  const plan = exportPlan();
+  $('plan').innerHTML = `<b>${pd.pxW.toLocaleString()} × ${pd.pxH.toLocaleString()} px</b>${pd.physical ? ` (${Math.round(pd.mmW)} × ${Math.round(pd.mmH)} mm at ${S.dpi} dpi)` : ''}. The map is drawn again at imagery zoom ${plan.zoom.toFixed(1)}${plan.tiles > 1 ? ` in ${plan.tiles} GPU tiles` : ''}${plan.over ? `, past the ${plan.maxz} limit of this basemap, so it will look soft` : ''}.${plan.capped ? ` <span class="pr-warn">Tilted views render in one pass, so this one is upscaled ×${plan.capped.toFixed(1)}; lower the tilt or the dpi for full sharpness.</span>` : ''}`;
+  const tiltNote = map.getPitch() > 30 && (S.ticks || (S.scale && map.getPitch() > 45));
+  $('tilt-note').hidden = !tiltNote;
+  $('tilt-note').textContent = 'Grid ticks hide on tilted views (and the scale bar beyond 45°): a perspective has no single scale.';
+}
+function update(patch) {
+  const prev = { ...S };
+  if ('t' in patch && patch.t !== S.t) patch = { ...tplPatch(patch.t, S.keepLook), ...patch };
+  if ('paper' in patch && patch.paper !== S.paper && !('orient' in patch)) patch.orient = PAPERS[patch.paper].land ? 'l' : 'p';
+  Object.assign(S, patch);
+  if (S.b !== prev.b) applyBase();
+  if (['bri', 'con', 'sat', 'hue'].some(k => S[k] !== prev[k])) applyPaint();
+  applyFx();
+  stage.dataset.backdrop = S.bg;
+  if (S.font !== prev.font) fontsReady(S).then(() => { drawUnder(); drawOver(); queueThumbs(); });
+  relayout(); syncUI(); saveHash(); queueThumbs();
+}
+editor.addEventListener('input', e => {
+  const el = e.target, k = el.dataset.k;
+  if (!k) return;
+  update({ [k]: el.type === 'checkbox' ? el.checked : el.type === 'range' ? +el.value : el.value });
+});
+editor.addEventListener('click', e => {
+  const b = e.target.closest('button[data-v]'), g = b && b.closest('[data-k]');
+  if (!g) return;
+  let v = b.dataset.v;
+  if (/^-?\d+(\.\d+)?$/.test(v)) v = +v;
+  update({ [g.dataset.k]: v });
+});
+$('coords-auto').addEventListener('click', () => { $('coords').value = ''; update({ coords: '' }); });
+$('adj-reset').addEventListener('click', () => update({ bri: 0, con: 0, sat: 0, hue: 0, warm: 0, treat: 'none' }));
+$('b3d').addEventListener('change', e => { setBuildings(e.target.checked); setTimeout(() => { syncUI(); drawOver(); saveHash(); }, 50); });
+for (const b of document.querySelectorAll('#tilt button')) b.addEventListener('click', () => {
+  const p = +b.dataset.tilt;
+  map.easeTo({ pitch: p, bearing: p ? (map.getBearing() || -18) : map.getBearing(), duration: reduceMotion ? 0 : 900 });
+});
+$('north-up').addEventListener('click', () => map.easeTo({ bearing: 0, duration: reduceMotion ? 0 : 700 }));
+map.on('styledata', () => { if (styleReady) { const on = buildingsOn(); if (on !== S.b3d) { S.b3d = on; syncUI(); drawOver(); saveHash(); } } });
+
+/* ---------- template thumbnails, from a snapshot of the live map ---------- */
+let thumbTimer = 0, snap = null;
+const treatedSnaps = new Map();
+function queueThumbs(now) {
+  if ($('pane-frame').hidden) return;
+  clearTimeout(thumbTimer);
+  thumbTimer = setTimeout(() => {
+    map.once('render', () => {
+      const src = map.getCanvas(), w = Math.min(320, src.width), h = Math.round(w * src.height / src.width);
+      snap = document.createElement('canvas'); snap.width = w; snap.height = h;
+      snap.getContext('2d').drawImage(src, 0, 0, w, h);
+      treatedSnaps.clear();
+      drawThumbs();
+    });
+    map.triggerRepaint();
+  }, now ? 30 : 260);
+}
+function drawThumbs() {
+  const pd = paperDims(), ar = pd.pxW / pd.pxH, box = PHONE.matches ? 84 : 112;
+  const cw = ar >= 1 ? box : box * ar, ch = ar >= 1 ? box / ar : box, dpr = Math.min(devicePixelRatio || 1, 2);
+  for (const id of TPL_ORDER) {
+    const c = thumbCanvases[id];
+    c.width = Math.round(cw * dpr); c.height = Math.round(ch * dpr); c.style.width = cw + 'px'; c.style.height = ch + 'px';
+    const s = { ...S, ...tplPatch(id, S.keepLook) }, ctx = c.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const L = layoutFor(s, cw, ch), V = makeView(s, L, cw, ch);
+    let img = snap;
+    if (snap) {
+      const key = JSON.stringify(fxParams(s));
+      if (!treatedSnaps.has(key)) { const t = document.createElement('canvas'); t.width = snap.width; t.height = snap.height; t.getContext('2d').drawImage(snap, 0, 0); treatedSnaps.set(key, treatCanvas(t, s)); }
+      img = treatedSnaps.get(key);
+    }
+    paint(ctx, 'all', s, L, V, img);
+  }
+}
+
+/* ---------- places: quick picks, search, surprise ---------- */
+function goTo(p, opts = {}) {
+  const patch = { lng: p.c[0], lat: p.c[1], z: p.z, title: p.title, sub: p.sub, coords: '' };
+  if (opts.bearing != null) patch.bearing = opts.bearing;
+  Object.assign(S, patch);
+  const outside = !inSG(p.c[0], p.c[1]);
+  if (outside && BASES[S.b].sg) { S.b = 'esri'; applyBase(); toast('Outside Singapore: switched to Esri World Imagery (OneMap covers Singapore only).'); }
+  cameraFromState(true);
+  syncUI(); drawOver(); saveHash();
+}
+const inSG = (lng, lat) => lng > 103.55 && lng < 104.1 && lat > 1.13 && lat < 1.49;
+function checkRegion() {
+  const sgOnly = BASES[S.b].sg, out = !inSG(S.lng, S.lat);
+  $('base-note').textContent = sgOnly && out ? 'OneMap covers Singapore only; outside it you see the Esri imagery underneath, credited as such.' : 'OneMap basemaps cover Singapore; Esri imagery and the OpenFreeMap line art cover the world.';
+  if (sgOnly && out && S.b === 'sat') { /* the Esri underlay fills in; credit line already names both */ }
+}
+let searchCtl = null, searchTimer = 0, lastNominatim = 0;
+const titleCase = s => s.toLowerCase().replace(/(^|[\s\-/(@])([a-z])/g, (m, a, b) => a + b.toUpperCase());
+async function searchOneMap(q) {
+  const u = `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(q)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`;
+  const r = await fetch(u, { signal: searchCtl.signal });
+  if (!r.ok) throw new Error('OneMap ' + r.status);
+  const j = await r.json();
+  return (j.results || []).slice(0, 7).map(x => ({ name: titleCase(x.SEARCHVAL), detail: titleCase(x.ADDRESS), c: [+x.LONGITUDE, +x.LATITUDE], src: 'onemap' }));
+}
+async function searchNominatim(q) {
+  // Nominatim usage policy: no autocomplete, at most one request a second, credit OSM.
+  const wait = 1100 - (Date.now() - lastNominatim);
+  if (wait > 0) await new Promise(r => setTimeout(r, wait));
+  lastNominatim = Date.now();
+  const r = await fetch(`https://nominatim.openstreetmap.org/search?format=jsonv2&limit=6&accept-language=en&q=${encodeURIComponent(q)}`, { signal: searchCtl.signal });
+  if (!r.ok) throw new Error('Nominatim ' + r.status);
+  return (await r.json()).map(x => ({ name: x.name || x.display_name.split(',')[0], detail: x.display_name, c: [+x.lon, +x.lat], src: 'osm', type: x.type, bb: x.boundingbox }));
+}
+function showResults(list, note) {
+  const ul = $('results');
+  ul.replaceChildren();
+  if (!list.length) { ul.hidden = true; $('search-note').textContent = note || 'Nothing found. Try a building name, road or postcode, or press Enter to search worldwide.'; return; }
+  const src = list[0].src;
+  for (const r of list) {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button';
+    b.append(Object.assign(document.createElement('span'), { textContent: r.name }), Object.assign(document.createElement('small'), { textContent: r.detail }));
+    b.addEventListener('click', () => pickResult(r));
+    li.append(b); ul.append(li);
+  }
+  const s = document.createElement('li'); s.className = 'src'; s.textContent = src === 'osm' ? 'Search by Nominatim · © OpenStreetMap contributors' : 'Search by OneMap · © Singapore Land Authority';
+  ul.append(s); ul.hidden = false;
+  $('search-note').textContent = note || '';
+}
+function pickResult(r) {
+  let z = 17.6;
+  if (r.bb) { const [s, n, w, e] = r.bb.map(Number); const span = Math.max(e - w, (n - s) * 1.1, 1e-4); z = clamp(Math.log2(360 / span * 1000 / 512 * .75), 3, 18.5); }
+  const sub = r.src === 'onemap' ? 'Singapore' : r.detail.split(',').slice(-1)[0].trim();
+  goTo({ c: r.c, z, title: r.name.length > 34 ? r.name.slice(0, 34) : r.name, sub });
+  $('results').hidden = true;
+}
+async function runSearch(q, world) {
+  searchCtl?.abort(); searchCtl = new AbortController();
+  try {
+    let list = q.length >= 2 ? await searchOneMap(q) : [];
+    if (!list.length && world) { $('search-note').textContent = 'Searching the world…'; list = await searchNominatim(q); }
+    showResults(list, list.length ? '' : null);
+  } catch (err) { if (err.name !== 'AbortError') showResults([], 'Search is not answering right now; try a quick pick.'); }
+}
+$('q').addEventListener('input', e => { clearTimeout(searchTimer); const q = e.target.value.trim(); if (q.length < 3) { $('results').hidden = true; return; } searchTimer = setTimeout(() => runSearch(q, false), 320); });
+$('search').addEventListener('submit', e => { e.preventDefault(); const q = $('q').value.trim(); if (q) runSearch(q, true); });
+
+function surprise() {
+  const pool = PICKS.filter(p => Math.abs(p.c[0] - S.lng) > 1e-3 || Math.abs(p.c[1] - S.lat) > 1e-3);
+  const p = pool[Math.floor(Math.random() * pool.length)];
+  const tpls = TPL_ORDER.filter(t => t !== S.t), t = tpls[Math.floor(Math.random() * tpls.length)];
+  const r = Math.random(), b = r < .62 ? 'sat' : ['default', 'night', 'grey', 'lightnl', 'darknl', 'fiord', 'esri'][Math.floor(Math.random() * 7)];
+  const patch = { ...tplPatch(t, false), b };
+  if (t !== 'blueprint' && t !== 'vintage' && Math.random() < .25) { const d = DUOS[Math.floor(Math.random() * DUOS.length)]; Object.assign(patch, { treat: 'duo', d1: d[0], d2: d[1] }); }
+  update(patch);
+  goTo(p, { bearing: [0, 0, 0, -20, 18, 32][Math.floor(Math.random() * 6)] });
+  toast(`${TPL[t].name} · ${p.name} · ${BASES[b].name}`);
+}
+$('surprise').addEventListener('click', surprise);
+$('tb-surprise').addEventListener('click', surprise);
+$('tb-focus').addEventListener('click', () => DMC.setFocus(true));
+$('tb-share').addEventListener('click', async () => {
+  saveHash();
+  await new Promise(r => setTimeout(r, 300));
+  try { await navigator.clipboard.writeText(location.href); toast('Link copied: it opens this exact design.'); }
+  catch { toast('Copy the address bar: it holds this exact design.'); }
+});
+$('tb-png').addEventListener('click', () => doExport('png'));
+let toastTimer = 0;
+function toast(msg, ms = 3200) { const t = $('toast'); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); if (ms) toastTimer = setTimeout(() => { t.hidden = true; }, ms); }
+
+/* =========================================================================
+   Export: an offscreen MapLibre map at the real pixel size, then the frame on a 2D canvas
+   ========================================================================= */
+let GPU_MAX = 0;
+function gpuLimit() {
+  if (GPU_MAX) return GPU_MAX;
+  try {
+    const c = document.createElement('canvas'), gl = c.getContext('webgl2') || c.getContext('webgl');
+    const v = gl.getParameter(gl.MAX_VIEWPORT_DIMS);
+    GPU_MAX = Math.min(gl.getParameter(gl.MAX_TEXTURE_SIZE), gl.getParameter(gl.MAX_RENDERBUFFER_SIZE), v[0], v[1]);
+    gl.getExtension('WEBGL_lose_context')?.loseContext();
+  } catch { GPU_MAX = 4096; }
+  return GPU_MAX;
+}
+const tileLimit = () => Math.min(gpuLimit(), PHONE.matches || matchMedia('(pointer: coarse)').matches ? 2048 : 4096);
+const BASE_MAXZ = { sat: 20, esri: 19, default: 19, night: 19, grey: 19, original: 19, light: 22, lightnl: 22, dark: 22, darknl: 22, fiord: 22 };
+// Pixel ratio of the export map: how many output pixels per CSS pixel. Lower = more tile detail
+// (smaller labels); higher = bigger labels and fewer tiles.
+function exportPR(s, pd) {
+  const mode = s.detail === 'auto' ? (BASES[s.b].sharp ? 'sharp' : 'balanced') : s.detail;
+  if (pd.physical) return Math.max(1, s.dpi / { sharp: 200, balanced: 125, large: 85 }[mode]);
+  return pd.scale * { sharp: 1, balanced: 1.25, large: 1.7 }[mode];
+}
+function exportPlan(s = S) {
+  const pd = paperDims(s), L = layoutFor(s, pd.pxW, pd.pxH), pr = exportPR(s, pd), cw = mapEl.clientWidth || 1;
+  const WC = L.win.w / pr, HC = L.win.h / pr, zoom = map.getZoom() + Math.log2(WC / cw), T = tileLimit();
+  let tiles = 1, capped = 0;
+  if (map.getPitch() < .5) tiles = Math.ceil(L.win.w / T) * Math.ceil(L.win.h / T);
+  else { const maxPr = Math.min(T / Math.ceil(WC), T / Math.ceil(HC)); if (pr > maxPr) capped = pr / maxPr; }
+  const maxz = BASE_MAXZ[s.b];
+  return { pd, L, pr, WC, HC, zoom, tiles, capped, maxz, over: zoom > maxz + .6 };
+}
+function idle(m, ms = 60000) {
+  return new Promise(res => { let done = false; const fin = () => { if (!done) { done = true; res(); } }; m.once('idle', fin); setTimeout(fin, ms); m.triggerRepaint(); });
+}
+async function renderMap(plan, progress) {
+  const { L, pr, WC, HC } = plan, Wpx = L.win.w, Hpx = L.win.h, T = tileLimit();
+  const center = map.getCenter(), bearing = map.getBearing(), pitch = map.getPitch();
+  let cols = 1, rows = 1, prR = pr, tw = Math.ceil(WC), th = Math.ceil(HC);
+  if (pitch < .5) {
+    cols = Math.ceil(Wpx / T); rows = Math.ceil(Hpx / T);
+    tw = Math.ceil(WC / cols); th = Math.ceil(HC / rows);
+    while (tw * pr > T) { cols++; tw = Math.ceil(WC / cols); }
+    while (th * pr > T) { rows++; th = Math.ceil(HC / rows); }
+  } else prR = Math.min(pr, T / tw, T / th);
+  const out = document.createElement('canvas'); out.width = Wpx; out.height = Hpx;
+  const octx = out.getContext('2d', { willReadFrequently: true });
+  const box = document.createElement('div');
+  Object.assign(box.style, { position: 'absolute', left: '0', top: '0', width: tw + 'px', height: th + 'px' });
+  $('offscreen').append(box);
+  const style = map.getStyle();
+  const off = new maplibregl.Map({
+    container: box, style, center, zoom: plan.zoom, bearing, pitch, pixelRatio: prR, preserveDrawingBuffer: true,
+    interactive: false, attributionControl: false, fadeDuration: 0, maxZoom: 24, minZoom: 0, maxPitch: 85,
+    maxCanvasSize: [T, T], renderWorldCopies: true, trackResize: false,
+  });
+  try {
+    await new Promise(res => { if (off.loaded()) res(); else { off.once('load', res); setTimeout(res, 30000); } });
+    const n = cols * rows;
+    for (let j = 0, i0 = 0; j < rows; j++) for (let i = 0; i < cols; i++, i0++) {
+      progress((i0 + .1) / n, n > 1 ? `Rendering map tile ${i0 + 1} of ${n}…` : 'Rendering the map at full size…');
+      off.jumpTo({ center, zoom: plan.zoom, bearing, pitch });
+      if (n > 1) {
+        const dx = (i + .5) * tw - WC / 2, dy = (j + .5) * th - HC / 2;
+        off.jumpTo({ center: off.unproject([tw / 2 + dx, th / 2 + dy]) });
+      }
+      await idle(off);
+      const src = off.getCanvas();
+      octx.drawImage(src, 0, 0, src.width, src.height, i * tw * pr, j * th * pr, tw * pr, th * pr);
+    }
+  } finally { off.remove(); box.remove(); }
+  return out;
+}
+function checkCanvas(W, H) {
+  const c = document.createElement('canvas'); c.width = W; c.height = H;
+  const ctx = c.getContext('2d');
+  if (!ctx) return false;
+  ctx.fillStyle = '#f00'; ctx.fillRect(W - 1, H - 1, 1, 1);
+  const ok = ctx.getImageData(W - 1, H - 1, 1, 1).data[0] === 255;
+  c.width = c.height = 1;
+  return ok;
+}
+const FONT_LOADS = [];
+function fontsReady(s) {
+  const need = ['Instrument Sans', 'Archivo', 'Cormorant Garamond', 'IBM Plex Mono', 'Caveat', 'Big Shoulders Display', 'Playfair Display'];
+  const loads = [];
+  for (const f of need) for (const w of [400, 500, 600, 700, 900]) loads.push(document.fonts.load(`${w} 20px "${f}"`, 'AaN°′″'));
+  loads.push(document.fonts.load(`italic 400 20px "${s.font}"`), document.fonts.load('italic 600 20px "Cormorant Garamond"'), document.fonts.load('italic 400 20px "Playfair Display"'));
+  return Promise.allSettled(loads);
+}
+async function renderPoster(s = S, progress = () => {}) {
+  const plan = exportPlan(s), { pd, L } = plan, W = pd.pxW, H = pd.pxH;
+  if (!checkCanvas(W, H)) throw new Error(`This browser cannot hold a ${W} × ${H} px canvas. Choose 150 dpi or a smaller paper.`);
+  await fontsReady(s);
+  const mapCanvas = treatCanvas(await renderMap(plan, progress), s);
+  progress(.92, 'Drawing the frame and type…');
+  const out = document.createElement('canvas'); out.width = W; out.height = H;
+  const ctx = out.getContext('2d');
+  const V = makeView(s, L, W, H);
+  paint(ctx, 'all', s, L, V, mapCanvas);
+  return { canvas: out, plan };
+}
+// PNG with a pHYs chunk, so print software knows the intended dpi.
+const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+const crc32 = b => { let c = 0xFFFFFFFF; for (const x of b) c = CRC[(c ^ x) & 255] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; };
+async function pngBlob(canvas, dpi) {
+  const blob = await new Promise(res => canvas.toBlob(res, 'image/png'));
+  if (!blob) throw new Error('The browser could not encode the PNG (too large?).');
+  const buf = new Uint8Array(await blob.arrayBuffer());
+  if (new TextDecoder().decode(buf.subarray(0, 120)).includes('pHYs')) return blob;
+  const ch = new Uint8Array(21), dv = new DataView(ch.buffer), ppm = Math.round(dpi / .0254);
+  dv.setUint32(0, 9); ch.set([0x70, 0x48, 0x59, 0x73], 4); dv.setUint32(8, ppm); dv.setUint32(12, ppm); ch[16] = 1; dv.setUint32(17, crc32(ch.subarray(4, 17)));
+  return new Blob([buf.subarray(0, 33), ch, buf.subarray(33)], { type: 'image/png' });
+}
+const slug = s => (s || 'map').toLowerCase().normalize('NFKD').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '').slice(0, 40) || 'map';
+const fileName = ext => `${slug(S.title)}-${TPL[S.t].name.toLowerCase().replace(/\s+/g, '-')}-${S.paper}-${paperDims().physical ? S.dpi + 'dpi' : paperDims().pxW + 'px'}.${ext}`;
+function download(blob, name) { const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000); }
+let jspdfP = null;
+const loadJsPDF = () => jspdfP ||= new Promise((res, rej) => { const s = document.createElement('script'); s.src = 'https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js'; s.onload = () => res(window.jspdf.jsPDF); s.onerror = () => { jspdfP = null; rej(new Error('Could not load the PDF library.')); }; document.head.append(s); });
+let busy = false;
+async function doExport(kind) {
+  if (busy) return;
+  busy = true;
+  const btns = ['dl-png', 'dl-pdf', 'dl-print', 'tb-png'].map($);
+  btns.forEach(b => { b.disabled = true; });
+  $('prog').hidden = false; $('prog-msg').classList.remove('pr-warn');
+  const progress = (f, msg) => { $('prog-bar').style.width = Math.round(f * 100) + '%'; $('prog-msg').textContent = msg; toast(msg, 0); };
+  const t0 = performance.now();
+  try {
+    progress(.02, 'Preparing…');
+    const { canvas, plan } = await renderPoster(S, progress);
+    const pd = plan.pd;
+    if (kind === 'png') {
+      progress(.96, 'Encoding PNG…');
+      download(await pngBlob(canvas, pd.physical ? S.dpi : 144), fileName('png'));
+    } else if (kind === 'pdf') {
+      progress(.95, 'Building PDF…');
+      const jsPDF = await loadJsPDF();
+      const doc = new jsPDF({ orientation: pd.mmW > pd.mmH ? 'landscape' : 'portrait', unit: 'mm', format: [pd.mmW, pd.mmH], compress: true });
+      doc.addImage(canvas.toDataURL('image/jpeg', .93), 'JPEG', 0, 0, pd.mmW, pd.mmH, undefined, 'FAST');
+      doc.setProperties({ title: `${S.title} · ${S.sub}`, subject: creditText(S), creator: '#30DayMapChallenge 2026 · day 7' });
+      doc.save(fileName('pdf'));
+    } else {
+      progress(.96, 'Opening the print dialog…');
+      const blob = await pngBlob(canvas, S.dpi), img = $('print-img');
+      img.src = URL.createObjectURL(blob); await img.decode();
+      $('page-size').textContent = `@page { size: ${pd.mmW.toFixed(1)}mm ${pd.mmH.toFixed(1)}mm; margin: 0; } @media print { #print-out img { width: ${pd.mmW.toFixed(1)}mm; height: ${pd.mmH.toFixed(1)}mm; } }`;
+      window.print();
+    }
+    const secs = ((performance.now() - t0) / 1000).toFixed(1);
+    progress(1, `Done in ${secs} s: ${pd.pxW} × ${pd.pxH} px${plan.capped ? `, map upscaled ×${plan.capped.toFixed(1)} (tilted view)` : ''}.`);
+    setTimeout(() => { $('toast').hidden = true; }, 3500);
+  } catch (err) {
+    console.error(err);
+    $('prog-msg').textContent = err.message || String(err); $('prog-msg').classList.add('pr-warn');
+    toast(err.message || 'Export failed', 6000);
+  } finally {
+    busy = false; btns.forEach(b => { b.disabled = false; });
+  }
+}
+$('dl-png').addEventListener('click', () => doExport('png'));
+$('dl-pdf').addEventListener('click', () => doExport('pdf'));
+$('dl-print').addEventListener('click', () => doExport('print'));
+// Test hook: render without downloading and report what came out.
+window.__poster = {
+  state: () => ({ ...S }), update,
+  async render(patch = {}) {
+    const s = { ...S, ...patch };
+    const { canvas, plan } = await renderPoster(s, (f, m) => console.log('[export]', Math.round(f * 100) + '%', m));
+    const ctx = canvas.getContext('2d'), w = plan.L.win, d = ctx.getImageData(w.x, w.y, w.w, w.h).data;
+    let sum = 0, sum2 = 0, n = 0;
+    for (let i = 0; i < d.length; i += 4 * 97) { const v = (d[i] + d[i + 1] + d[i + 2]) / 3; sum += v; sum2 += v * v; n++; }
+    const mean = sum / n, sd = Math.sqrt(sum2 / n - mean * mean);
+    let dataURL = patch.__data ? canvas.toDataURL('image/png') : null;
+    if (patch.__crop || patch.__thumb) {
+      const [cx, cy, cw, ch] = patch.__crop || [0, 0, canvas.width, canvas.height], sc = patch.__thumb ? patch.__thumb / cw : 1;
+      const c2 = document.createElement('canvas'); c2.width = Math.round(cw * sc); c2.height = Math.round(ch * sc);
+      c2.getContext('2d').drawImage(canvas, cx, cy, cw, ch, 0, 0, c2.width, c2.height);
+      dataURL = c2.toDataURL('image/png');
+    }
+    return { width: canvas.width, height: canvas.height, mapWindow: w, mapMean: +mean.toFixed(1), mapSD: +sd.toFixed(1), zoom: +plan.zoom.toFixed(2), tiles: plan.tiles, capped: plan.capped, pr: +plan.pr.toFixed(2), gpu: tileLimit(), dataURL };
+  },
+};
+
+/* =========================================================================
+   Start
+   ========================================================================= */
+stage.dataset.backdrop = S.bg;
+relayout();
+cameraFromState(false);
+syncUI();
+applyFx();
+map.on('load', () => {
+  styleReady = true;
+  applyBase(); applyPaint(); applyFx();
+  if (S.b3d) setBuildings(true);
+  relayout(); syncUI(); checkRegion();
+});
+fontsReady(S).then(() => { drawUnder(); drawOver(); queueThumbs(); });
+addEventListener('resize', () => { clearTimeout(relayout.t); relayout.t = setTimeout(relayout, 120); });
+document.addEventListener('dmc:focus', () => { relayout(); setTimeout(relayout, 300); });
+PHONE.addEventListener?.('change', () => location.reload());
+if (PHONE.matches) setCollapsed(false);
+</script>
+</body></html>
