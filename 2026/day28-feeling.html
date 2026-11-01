@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F3E6DA">
+<title>Day 28 · How hot Singapore feels right now</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 28, Feeling: live heat-stress readings (WBGT) from NEA's stations, spread across the island as a shimmering heat haze. Look up how hot it feels where you are, and replay today hour by hour.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F3E6DA'/%3E%3Cpath d='M7 22c3-3 6 3 9 0s6 3 9 0M7 16c3-3 6 3 9 0s6 3 9 0' fill='none' stroke='%23E4506B' stroke-width='2.4' stroke-linecap='round'/%3E%3Ccircle cx='22' cy='9' r='3.2' fill='%23F2A65E'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,600;12..96,800&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 28: a heat haze. Warm light, paper grain, and the hot places shimmer. ===== */
+:root {
+  --ink: #3A1F24; --ink-2: rgba(58, 31, 36, .74); --ink-3: rgba(58, 31, 36, .52);
+  --glass: rgba(255, 247, 240, .86); --line: rgba(120, 60, 50, .16);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --sea: #EFE4DA;
+  --soft: "Bricolage Grotesque", var(--font);
+  --low: #EBD99A; --mod: #EE8064; --high: #C93D62;
+  --heat: .5;                               /* 0 to 1, from the readings: how warm the light is */
+  --panel-w: 336px;
+  color-scheme: light;
+}
+body { background: var(--sea); color: var(--ink); }
+.dmc-map { background: var(--sea); }
+.dmc-map .maplibregl-canvas { cursor: crosshair; }
+.dmc-map .maplibregl-canvas:active { cursor: grabbing; }
+
+/* ---- kit chrome in warm daylight ---- */
+.dmc-glass { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .85), 0 16px 38px rgba(120, 50, 30, .16), 0 2px 6px rgba(120, 50, 30, .08); }
+.dmc-num { text-shadow: none; }
+.dmc-more, .dmc-btn { background: rgba(58, 31, 36, .05); color: var(--ink); border-color: rgba(58, 31, 36, .15); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(58, 31, 36, .1); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(58, 31, 36, .16); }
+.dmc-index li.done { background: rgba(58, 31, 36, .09); }
+.dmc-index li.today { color: #fff; box-shadow: 0 0 10px rgba(var(--day-accent-rgb), .35); }
+.dmc-keys kbd { border-color: rgba(58, 31, 36, .25); }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; opacity: .78; }
+.dmc-ctrl button { color: var(--ink-2); }
+.dmc-ctrl button:hover { color: var(--ink); }
+.dmc-ctrl button[aria-label^="Tilt"], .maplibregl-ctrl-compass { display: none !important; }
+.dmc-ctrl button:nth-child(2) { border-top: 0 !important; }
+.dmc-focus-credit { background: rgba(255, 247, 240, .88); color: var(--ink-2); }
+.dmc-credits a, .fl a { color: inherit; text-decoration-color: rgba(58, 31, 36, .35); text-underline-offset: 2px; }
+
+/* ---- the warm light and the paper grain, laid over the map ---- */
+.fx-light, .fx-grain { position: absolute; inset: 0; pointer-events: none; }
+.fx-light {
+  mix-blend-mode: multiply; transition: opacity 1.2s;
+  opacity: calc(.45 + .55 * var(--heat));
+  background:
+    radial-gradient(70% 60% at 88% -6%, rgba(255, 176, 102, .55), rgba(255, 196, 140, .18) 55%, transparent 78%),
+    radial-gradient(80% 70% at 6% 108%, rgba(232, 120, 132, .22), transparent 70%),
+    linear-gradient(180deg, rgba(255, 226, 196, .35), rgba(246, 196, 176, .2));
+}
+.fx-grain {
+  opacity: .5; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .45 0 0 0 0 .3 0 0 0 0 .25 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='180' height='180' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ---- the panel ---- */
+.fl {
+  top: var(--fl-top, 112px); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--panel-w); padding: 12px 14px 10px; display: flex; flex-direction: column; gap: 10px;
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  background: linear-gradient(170deg, rgba(255, 249, 243, .9), rgba(255, 238, 228, .88));
+}
+.fl section { display: grid; gap: 7px; }
+.fl section + section { border-top: 1px dashed rgba(120, 60, 50, .22); padding-top: 9px; }
+.kick { font-size: 10.5px; font-weight: 600; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-3); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.live { display: inline-flex; align-items: center; gap: 5px; padding: 1px 7px 1px 6px; border-radius: 999px; letter-spacing: .04em; color: #2D6A47; background: rgba(61, 180, 110, .14); }
+.live::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: #2FA866; box-shadow: 0 0 0 0 rgba(47, 168, 102, .5); animation: pulse 2.2s infinite; }
+.live.snap { color: #8A4B12; background: rgba(240, 150, 50, .16); }
+.live.snap::before { background: #E08A2C; animation: none; }
+.live.past { color: var(--ink-2); background: rgba(58, 31, 36, .07); }
+.live.past::before { background: var(--ink-3); animation: none; }
+@keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(47, 168, 102, .5); } 70% { box-shadow: 0 0 0 6px rgba(47, 168, 102, 0); } 100% { box-shadow: 0 0 0 0 rgba(47, 168, 102, 0); } }
+.fl h2 { margin: 0; font-family: var(--soft); font-size: 19px; font-weight: 600; line-height: 1.15; letter-spacing: -.01em; text-wrap: balance; }
+.fl p { margin: 0; font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+.fl p b { color: var(--ink); font-weight: 600; }
+.trio { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.trio li { display: grid; gap: 1px; align-content: start; padding: 6px 8px 7px; border-radius: 10px; background: rgba(255, 255, 255, .55); box-shadow: inset 0 0 0 1px rgba(120, 60, 50, .1); font-size: 10.5px; line-height: 1.25; color: var(--ink-2); min-width: 0; }
+.trio b { font-family: var(--soft); font-size: 18px; font-weight: 800; line-height: 1.05; color: var(--ink); font-variant-numeric: tabular-nums; }
+.trio span { overflow-wrap: anywhere; }
+.trio button { all: unset; cursor: pointer; display: contents; }
+.share { display: flex; height: 10px; border-radius: 6px; overflow: hidden; gap: 1px; background: rgba(58, 31, 36, .06); }
+.share i { display: block; height: 100%; min-width: 0; transition: flex-grow .6s; }
+.share-key { display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10.5px; color: var(--ink-2); }
+.share-key span { display: inline-flex; align-items: center; gap: 4px; }
+.share-key i { width: 8px; height: 8px; border-radius: 2px; }
+.share-key b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* ---- the colour scale ---- */
+.scale { display: grid; gap: 2px; }
+.scale .bar { height: 9px; border-radius: 5px; }
+.scale .ticks { position: relative; height: 13px; font-size: 10px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.scale .ticks span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+.scale .ticks span.th { font-weight: 700; color: var(--ink); }
+.scale .bands { position: relative; height: 13px; font-size: 10px; font-weight: 600; color: var(--ink-2); }
+.scale .bands span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
+
+/* ---- the lookup ---- */
+.ask h3 { margin: 0; font-family: var(--soft); font-size: 15px; font-weight: 600; letter-spacing: -.005em; }
+.search { position: relative; display: flex; gap: 6px; }
+.search input { flex: 1; min-width: 0; font: inherit; font-size: 13px; color: var(--ink); background: rgba(255, 255, 255, .8); border: 1px solid rgba(120, 60, 50, .22); border-radius: 999px; padding: 6px 12px; min-height: 32px; }
+.search input::placeholder { color: var(--ink-3); }
+.search input:focus-visible { outline: 2px solid var(--day-accent); outline-offset: 1px; }
+.me { flex: none; display: inline-flex; align-items: center; gap: 5px; }
+.me svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+.hits { list-style: none; margin: 0; padding: 4px; display: grid; gap: 1px; position: absolute; z-index: 6; left: 0; right: 0; top: calc(100% + 4px); background: #FFF9F4; border: 1px solid rgba(120, 60, 50, .2); border-radius: 12px; box-shadow: 0 12px 28px rgba(120, 50, 30, .18); max-height: 220px; overflow-y: auto; }
+.hits[hidden] { display: none; }
+.hits button { all: unset; box-sizing: border-box; display: block; width: 100%; padding: 6px 9px; border-radius: 8px; font-size: 12px; line-height: 1.3; color: var(--ink); cursor: pointer; }
+.hits button small { display: block; font-size: 10.5px; color: var(--ink-3); }
+.hits button:hover, .hits button[aria-selected="true"], .hits button:focus-visible { background: rgba(var(--day-accent-rgb), .12); }
+.hint { font-size: 11px !important; color: var(--ink-3) !important; }
+
+.feel { display: grid; gap: 6px; padding: 10px 11px 10px; border-radius: 12px; background: rgba(255, 255, 255, .62); box-shadow: inset 0 0 0 1px rgba(120, 60, 50, .12); position: relative; overflow: hidden; }
+.feel[hidden] { display: none; }
+.feel::before { content: ""; position: absolute; inset: 0 auto 0 0; width: 5px; background: var(--feel-c, var(--low)); }
+.feel .where { font-size: 11px; font-weight: 600; color: var(--ink-3); letter-spacing: .02em; padding-right: 22px; }
+.feel .big { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.feel .big b { font-family: var(--soft); font-size: 34px; font-weight: 800; line-height: .9; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.feel .big b small { font-size: 16px; font-weight: 600; letter-spacing: 0; }
+.feel .word { font-family: var(--soft); font-size: 17px; font-weight: 600; line-height: 1.1; }
+.pill { display: inline-block; padding: 1px 8px; border-radius: 999px; font-size: 10.5px; font-weight: 700; letter-spacing: .03em; color: #fff; background: var(--pill, #888); vertical-align: 1px; }
+.pill.lo { color: #4A3A12; }
+.feel .x { position: absolute; top: 5px; right: 5px; width: 26px; height: 26px; border-radius: 50%; border: 0; background: transparent; color: var(--ink-2); font-size: 17px; line-height: 1; cursor: pointer; }
+.feel .x:hover { background: rgba(58, 31, 36, .08); }
+.feel .est { font-size: 11px !important; }
+
+/* ---- today strip ---- */
+.strip { display: grid; gap: 5px; }
+.strip-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.strip-head .kick { margin: 0; }
+.strip-head button { font-size: 11px; min-height: 26px; padding: 2px 9px; }
+.strip-head button[hidden] { display: none; }
+.chart { position: relative; }
+.chart svg { display: block; width: 100%; height: 92px; overflow: visible; }
+.chart svg text { font: 500 9.5px var(--font); fill: rgba(58, 31, 36, .6); font-variant-numeric: tabular-nums; }
+.chart svg text.th { font-weight: 700; }
+.chart input { position: absolute; inset: 0 0 14px 22px; width: calc(100% - 22px); height: calc(100% - 14px); margin: 0; opacity: 0; cursor: ew-resize; }
+.chart:has(input:focus-visible) { outline: 2px solid var(--day-accent); outline-offset: 3px; border-radius: 6px; }
+.peak { font-size: 11px !important; }
+.lg { display: inline-block; width: 13px; height: 2px; margin: 0 4px 0 1px; vertical-align: 3px; background: var(--ink); border-radius: 1px; }
+
+.method { font-size: 11px !important; line-height: 1.45 !important; }
+.fl .dmc-credits { font-size: 10px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.loading[hidden] { display: none; }
+
+/* ---- on the map: station readings, the pin, the hover tip ---- */
+.st { display: grid; justify-items: center; pointer-events: none; }
+.st .v { padding: 1px 6px 2px; border-radius: 8px; font-family: var(--soft); font-size: 12px; font-weight: 700; line-height: 1.2; color: var(--ink); background: rgba(255, 250, 245, .92); box-shadow: 0 1px 0 rgba(120, 60, 50, .25), 0 3px 8px rgba(120, 50, 30, .15); font-variant-numeric: tabular-nums; white-space: nowrap; border-bottom: 3px solid var(--c, #ccc); }
+.st.hide .v { visibility: hidden; }
+.st.sel .v { background: var(--ink); color: #FFF5EE; }
+.pin { display: grid; justify-items: center; pointer-events: none; }
+.pin .tag { padding: 3px 9px 4px; border-radius: 9px; background: var(--ink); color: #FFF5EE; font-family: var(--soft); font-size: 13px; font-weight: 700; white-space: nowrap; box-shadow: 0 6px 14px rgba(60, 20, 20, .3); }
+.pin .stem { width: 2px; height: 16px; background: var(--ink); }
+.pin .dot { width: 10px; height: 10px; border-radius: 50%; background: #fff; border: 2.5px solid var(--ink); margin-top: -2px; }
+.tip { position: absolute; z-index: 4; pointer-events: none; padding: 5px 9px; border-radius: 9px; background: rgba(58, 31, 36, .92); color: #FFF5EE; font-size: 11.5px; line-height: 1.3; white-space: nowrap; transform: translate(-50%, calc(-100% - 14px)); }
+.tip b { font-family: var(--soft); font-weight: 700; }
+.tip small { display: block; color: rgba(255, 245, 238, .72); font-size: 10.5px; }
+.tip[hidden] { display: none; }
+.jb { font-family: var(--soft); font-size: 11px; font-weight: 600; color: rgba(58, 31, 36, .45); letter-spacing: .12em; text-transform: uppercase; pointer-events: none; white-space: nowrap; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .st .v { font-size: 11px; padding: 0 5px 1px; }
+  .fl { padding: 10px 12px 9px; gap: 8px; }
+  .fl h2 { font-size: 16.5px; }
+  .trio b { font-size: 16px; }
+  .feel .big b { font-size: 28px; }
+  .chart svg { height: 78px; }
+}
+/* phones held upright: a bottom sheet, the map above it */
+@media (max-width: 640px) and (orientation: portrait) {
+  .fl { top: auto; left: 0; right: 0; bottom: 0; width: auto; max-height: 47vh; border-bottom: 0; border-radius: 16px 16px 0 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .fl .scale .bands { display: none; }
+}
+/* phones held sideways: a right-hand column */
+@media (max-height: 520px) and (orientation: landscape) {
+  .fl { top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); left: auto; right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); width: min(330px, 44vw); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .live::before { animation: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore coloured by estimated heat stress (WBGT), with each weather station's reading"></div>
+<div id="fx-light" class="fx-light" aria-hidden="true"></div>
+<div id="fx-grain" class="fx-grain" aria-hidden="true"></div>
+<div id="tip" class="tip" hidden></div>
+<p id="loading" class="loading dmc-chrome">Feeling for the heat&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="fl" class="dmc-glass fl" data-dmc-overlay aria-label="Heat stress now, and how it feels where you are">
+  <section aria-live="polite">
+    <p class="kick"><span id="live" class="live snap">Loading</span><span id="when"></span></p>
+    <h2 id="headline">&nbsp;</h2>
+    <ul class="trio">
+      <li><b id="n-st">&ndash;</b><span>stations reporting</span></li>
+      <li><button id="go-hot" type="button" aria-label="Show the hottest station"><b id="n-hot">&ndash;</b><span id="n-hot-at">hottest</span></button></li>
+      <li><button id="go-cool" type="button" aria-label="Show the coolest station"><b id="n-cool">&ndash;</b><span id="n-cool-at">coolest</span></button></li>
+    </ul>
+    <div id="share" class="share" role="img" aria-label=""></div>
+    <div id="share-key" class="share-key"></div>
+  </section>
+
+  <section class="ask">
+    <h3>How does it feel where you are?</h3>
+    <div class="search">
+      <label class="sr" for="q">Search for a place, postcode or address</label>
+      <input id="q" type="search" placeholder="Place or postcode" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="hits" aria-autocomplete="list">
+      <button id="me" class="dmc-btn me" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3"/><path d="M8 1v2.5M8 12.5V15M1 8h2.5M12.5 8H15"/></svg>Near me</button>
+      <ul id="hits" class="hits" role="listbox" aria-label="Places found" hidden></ul>
+    </div>
+    <p id="ask-hint" class="hint">Or tap anywhere on the island.</p>
+    <div id="feel" class="feel" hidden>
+      <button id="feel-x" class="x" type="button" aria-label="Clear this place">&times;</button>
+      <p id="f-where" class="where"></p>
+      <div class="big"><b id="f-v"></b><span id="f-word" class="word"></span></div>
+      <p id="f-cat"></p>
+      <p id="f-est" class="est"></p>
+    </div>
+  </section>
+
+  <section id="strip" class="strip">
+    <div class="strip-head"><p class="kick" id="strip-kick">Today, every station</p><button id="now" class="dmc-btn" type="button" hidden>Back to now</button></div>
+    <div class="chart" id="chart">
+      <svg id="chart-svg" aria-hidden="true"></svg>
+      <input id="scrub" type="range" min="0" max="0" step="1" value="0" aria-label="Replay today: pick a time">
+    </div>
+    <p id="peak" class="peak"></p>
+  </section>
+
+  <section>
+    <div class="scale" aria-label="Colour scale: WBGT in degrees Celsius">
+      <div id="scale-bar" class="bar"></div>
+      <div id="scale-ticks" class="ticks"></div>
+      <div id="scale-bands" class="bands"></div>
+    </div>
+    <p class="method"><b>How to read it.</b> WBGT (wet-bulb globe temperature) folds air temperature, humidity, sunshine and wind into one number for heat stress on the body. Each station reading is a 15-minute average. Between stations the colour is an <b>estimate</b>: each spot is a blend of all the readings, weighted by one over distance squared (inverse-distance weighting), and shown on land only. The hotter a place, the more it shimmers.</p>
+    <p id="credits" class="dmc-credits"></p>
+  </section>
+  <table class="sr" aria-label="Station readings"><thead><tr><th>Station</th><th>WBGT °C</th><th>Heat stress</th></tr></thead><tbody id="sr-rows"></tbody></table>
+</aside>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const DATASET = 'https://data.gov.sg/datasets/d_5406ce77e1d364f43317cb3e9f3d6725/view';
+const DAY = {
+  n: 28,
+  title: 'How hot Singapore feels right now',
+  deck: 'NEA measures heat stress at 30 stations every 15 minutes, as WBGT: one number for temperature, humidity, sunshine and wind together. Here those readings are spread across the island as a warm haze; between stations it is an estimate, and the hotter it is, the more it shimmers.',
+  accent: '#E4506B',
+  basemapBg: '#EFE4DA',
+  style: null,   // set below
+  styleCredit: 'Coastline and reservoirs: ' + ext('https://data.gov.sg/datasets/d_29f066d67df3eae91df8a42f443863c8/view', 'SLA National Map Polygon') + ' via data.gov.sg',
+  bounds: [[103.6, 1.205], [104.06, 1.472]],
+  maxBounds: [[102.9, .6], [104.8, 2.05]],
+  minZoom: 8.5, maxZoom: 15,
+  camera: { pitch: 0, bearing: 0 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Heat stress: NEA ' + ext(DATASET, 'Wet-Bulb Globe Temperature, real-time API') + ' via data.gov.sg, ' + ext('https://data.gov.sg/open-data-licence', 'Singapore Open Data Licence'),
+    'Heat stress levels (low below 31 &deg;C, moderate 31 to below 33 &deg;C, high 33 &deg;C and above): ' + ext('https://www.mse.gov.sg/latest-news/press-release-heat-stress-advisory/', 'MSE and NEA Heat Stress Advisory') + ', July 2023, thresholds as reported by ' + ext('https://asianews.network/singapore-launches-national-heat-stress-advisory-as-world-hots-up', 'The Straits Times') + '; NEA&rsquo;s own labels in the data match them; full advice at ' + ext('https://www.weather.gov.sg/heat-stress/', 'weather.gov.sg'),
+    'Place search: ' + ext('https://www.onemap.gov.sg/', 'OneMap') + ', Singapore Land Authority',
+  ],
+  author: '', nav: null,
+};
+
+/* ---------- colours: sea-glass, sand, apricot, coral, raspberry, plum ---------- */
+const VMIN = 23, VMAX = 35, LOW = 31, HIGH = 33;
+const STOPS = [[23, '#8EC3C0'], [25.5, '#B9D3AE'], [27.5, '#EBD99A'], [29.5, '#F5B77C'], [30.95, '#F29C70'], [31, '#EC765F'], [32.95, '#D44F5E'], [33, '#C33A62'], [35, '#7E1F5A']];
+const hex2 = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+const LUT = new Uint8ClampedArray(256 * 3);
+for (let i = 0; i < 256; i++) {
+  const v = VMIN + (VMAX - VMIN) * i / 255;
+  let k = 0;
+  while (k < STOPS.length - 2 && v > STOPS[k + 1][0]) k++;
+  const [v0, c0] = STOPS[k], [v1, c1] = STOPS[k + 1], t = Math.max(0, Math.min(1, (v - v0) / (v1 - v0)));
+  const a = hex2(c0), b = hex2(c1);
+  for (let j = 0; j < 3; j++) LUT[i * 3 + j] = a[j] + (b[j] - a[j]) * t;
+}
+const colourOf = v => { const i = Math.max(0, Math.min(255, Math.round((v - VMIN) / (VMAX - VMIN) * 255))) * 3; return `rgb(${LUT[i]},${LUT[i + 1]},${LUT[i + 2]})`; };
+const COLOR_EXPR = ['interpolate', ['linear'], ['get', 'v'], ...STOPS.flat()];
+const CAT = {
+  Low: { c: '#EBD99A', pill: '#E6CC74', text: 'Low', do: 'Fine for normal activities. Keep water to hand.' },
+  Moderate: { c: '#EC765F', pill: '#E0604F', text: 'Moderate', do: 'Take it easier outdoors: shade, regular breaks, more to drink.' },
+  High: { c: '#C33A62', pill: '#B32F58', text: 'High', do: 'Keep time outdoors short, stay in the shade and cool down.' },
+};
+const category = v => v < LOW ? 'Low' : v < HIGH ? 'Moderate' : 'High';
+// How it might feel: our own plain words, finer than NEA's three levels.
+const feeling = v => v < 26 ? 'Mild, for Singapore' : v < 28 ? 'Warm and muggy' : v < 30 ? 'Hot and sticky' : v < LOW ? 'Very hot, heavy air' : v < HIGH ? 'Draining heat' : 'Oppressive heat';
+
+/* ---------- map: no basemap tiles, only the land, the water and the heat ---------- */
+const FRAME = [[103.59, 1.19], [104.10, 1.48]];   // the interpolation grid; same as the build script
+const GW = 640, GH = 364;
+DAY.style = {
+  version: 8,
+  sources: {},
+  layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#EFE4DA' } }],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY, { maxPitch: 0, dragRotate: false, touchPitch: false, pitchWithRotate: false });
+map.touchZoomRotate.disableRotation();
+// this map stays flat and north-up, so the kit's tilt hint does not apply
+{ const k = document.querySelector('.dmc-keys'); if (k) k.innerHTML = 'Drag to pan · scroll or pinch to zoom · tap for the heat there · <kbd>F</kbd> focus mode'; }
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const nf1 = v => v.toFixed(1);
+const fmtT = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', hour: '2-digit', minute: '2-digit', hour12: false });
+const fmtD = new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Singapore', weekday: 'short', day: 'numeric', month: 'short' });
+const hhmm = iso => fmtT.format(new Date(iso));
+const sgDate = d => new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Singapore', year: 'numeric', month: '2-digit', day: '2-digit' }).format(d);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+
+// The light, the grain and the hover tip sit inside the map, under its buttons.
+const mapEl = map.getContainer(), ctrlEl = mapEl.querySelector('.maplibregl-control-container');
+for (const e of [$('fx-light'), $('fx-grain'), $('tip')]) mapEl.insertBefore(e, ctrlEl);
+
+/* ---------- geometry ---------- */
+function decodeRing(a) {
+  const out = []; let x = 0, y = 0;
+  for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / 1e5, y / 1e5]); }
+  return out;
+}
+const signed = r => { let s = 0; for (let i = 1; i < r.length; i++) s += (r[i][0] - r[i - 1][0]) * (r[i][1] + r[i - 1][1]); return s; };   // > 0: clockwise
+const wind = (r, cw) => (signed(r) > 0) === cw ? r : r.slice().reverse();
+const polys = enc => enc.map(p => p.map(decodeRing));
+const multi = ps => ({ type: 'Feature', properties: {}, geometry: { type: 'MultiPolygon', coordinates: ps.map(p => p.map((r, i) => wind(r, i > 0))) } });
+
+/* ---------- state ---------- */
+let G = null;               // bundled file
+let ST = [], TIMES = [], V = [];   // stations [{id,name,town,lon,lat}], ISO times, tenths per station per time
+let ti = 0;                 // the time shown
+let LIVE = false, snapWhy = '';
+const KX = 111320 * Math.cos(1.335 * Math.PI / 180), KY = 110574;
+
+/* ---------- the field: inverse-distance weighting on a 640 x 364 grid ---------- */
+const F = new Float32Array(GW * GH);
+const MASK = new Uint8Array(GW * GH);      // land (pixel centre on land)
+const NEAR = new Uint8Array(GW * GH);      // land, grown by 4 pixels: where the haze is drawn
+const pxLon = x => FRAME[0][0] + (x + .5) / GW * (FRAME[1][0] - FRAME[0][0]);
+const pxLat = y => FRAME[1][1] - (y + .5) / GH * (FRAME[1][1] - FRAME[0][1]);
+function readings(t) {
+  const out = [];
+  V[t].forEach((v, i) => { if (v != null) out.push({ i, v: v / 10, lon: ST[i].lon, lat: ST[i].lat }); });
+  return out;
+}
+function idwAt(lon, lat, pts) {
+  let num = 0, den = 0;
+  for (const p of pts) {
+    const dx = (lon - p.lon) * KX, dy = (lat - p.lat) * KY, d2 = dx * dx + dy * dy;
+    if (d2 < 1) return p.v;
+    num += p.v / d2; den += 1 / d2;
+  }
+  return num / den;
+}
+const NUM = new Float64Array(GW * GH), DEN = new Float64Array(GW * GH), DX2 = new Float64Array(GW);
+function buildField(pts) {
+  // station by station, so the inner loop is plain arithmetic over one row at a time
+  NUM.fill(0); DEN.fill(0);
+  const hits = [];
+  for (const p of pts) {
+    for (let x = 0; x < GW; x++) { const dx = (pxLon(x) - p.lon) * KX; DX2[x] = dx * dx; }
+    for (let y = 0; y < GH; y++) {
+      const dy = (pxLat(y) - p.lat) * KY, dy2 = dy * dy, o = y * GW;
+      for (let x = 0; x < GW; x++) {
+        const d2 = DX2[x] + dy2;
+        if (d2 < 1) { hits.push([o + x, p.v]); continue; }
+        const w = 1 / d2;
+        NUM[o + x] += w * p.v; DEN[o + x] += w;
+      }
+    }
+  }
+  for (let i = 0; i < F.length; i++) F[i] = NUM[i] / DEN[i];
+  for (const [i, v] of hits) F[i] = v;   // a grid point on a station takes its reading
+}
+function buildMask(land) {
+  const c = document.createElement('canvas'); c.width = GW; c.height = GH;
+  const g = c.getContext('2d');
+  const X = lon => (lon - FRAME[0][0]) / (FRAME[1][0] - FRAME[0][0]) * GW, Y = lat => (FRAME[1][1] - lat) / (FRAME[1][1] - FRAME[0][1]) * GH;
+  g.fillStyle = '#000'; g.beginPath();
+  for (const p of land) for (const r of p) r.forEach(([lo, la], i) => (i ? g.lineTo(X(lo), Y(la)) : g.moveTo(X(lo), Y(la))));
+  g.fill('evenodd');
+  const a = g.getImageData(0, 0, GW, GH).data;
+  for (let i = 0; i < GW * GH; i++) MASK[i] = a[i * 4 + 3] >= 128 ? 1 : 0;
+  for (let y = 0; y < GH; y++) for (let x = 0; x < GW; x++) {
+    let on = 0;
+    for (let dy = -4; dy <= 4 && !on; dy++) for (let dx = -4; dx <= 4; dx++) {
+      const xx = x + dx, yy = y + dy;
+      if (xx >= 0 && yy >= 0 && xx < GW && yy < GH && a[(yy * GW + xx) * 4 + 3]) { on = 1; break; }
+    }
+    NEAR[y * GW + x] = on;
+  }
+}
+// Share of the land in each heat-stress level (an estimate: the grid, not the stations).
+function landShare() {
+  let lo = 0, mo = 0, hi = 0;
+  for (let i = 0; i < F.length; i++) if (MASK[i]) { const v = F[i]; if (v < LOW) lo++; else if (v < HIGH) mo++; else hi++; }
+  const n = lo + mo + hi;
+  return { Low: lo / n, Moderate: mo / n, High: hi / n, n };
+}
+
+/* ---------- the haze: redrawn every frame, the hot places wobbling more ---------- */
+const canvas = document.createElement('canvas');
+canvas.width = GW; canvas.height = GH;
+const ctx = canvas.getContext('2d');
+const img = ctx.createImageData(GW, GH), px = img.data;
+const AMP = new Float32Array(256);     // wobble, in grid pixels, by WBGT
+for (let i = 0; i < 256; i++) { const v = VMIN + (VMAX - VMIN) * i / 255; AMP[i] = 2.4 * Math.max(0, Math.min(1, (v - 27.5) / 5.5)) ** 1.4; }
+const SX1 = new Float32Array(GW), CX1 = new Float32Array(GW), SX2 = new Float32Array(GW), CX2 = new Float32Array(GW), SX3 = new Float32Array(GW), CX3 = new Float32Array(GW);
+for (let x = 0; x < GW; x++) { SX1[x] = Math.sin(.13 * x); CX1[x] = Math.cos(.13 * x); SX2[x] = Math.sin(-.21 * x); CX2[x] = Math.cos(-.21 * x); SX3[x] = Math.sin(.07 * x); CX3[x] = Math.cos(.07 * x); }
+const lutIdx = v => { const i = ((v - VMIN) / (VMAX - VMIN) * 255) | 0; return i < 0 ? 0 : i > 255 ? 255 : i; };
+function sample(fx, fy) {
+  if (fx < 0) fx = 0; else if (fx > GW - 1.001) fx = GW - 1.001;
+  if (fy < 0) fy = 0; else if (fy > GH - 1.001) fy = GH - 1.001;
+  const x0 = fx | 0, y0 = fy | 0, tx = fx - x0, ty = fy - y0, i = y0 * GW + x0;
+  const a = F[i] + (F[i + 1] - F[i]) * tx, b = F[i + GW] + (F[i + GW + 1] - F[i + GW]) * tx;
+  return a + (b - a) * ty;
+}
+function drawHaze(t) {
+  for (let y = 0; y < GH; y++) {
+    // three travelling ripples; each rises (moves up the screen) as t grows
+    const p1 = .43 * y + 2.3 * t, p2 = .29 * y + 1.6 * t, p3 = .17 * y + 3.1 * t;
+    const s1 = Math.sin(p1), c1 = Math.cos(p1), s2 = Math.sin(p2), c2 = Math.cos(p2), s3 = Math.sin(p3), c3 = Math.cos(p3);
+    for (let x = 0; x < GW; x++) {
+      const i = y * GW + x, o = i * 4;
+      if (!NEAR[i]) { px[o + 3] = 0; continue; }
+      const v0 = F[i], a = t < 0 ? 0 : AMP[lutIdx(v0)];
+      let v = v0, b = 1;
+      if (a > .01) {
+        const n1 = SX1[x] * c1 + CX1[x] * s1, n2 = SX2[x] * c2 + CX2[x] * s2, n3 = SX3[x] * c3 + CX3[x] * s3;
+        v = sample(x + a * .55 * n2, y + a * (.7 * n1 + .3 * n3));
+        b = 1 + .016 * a * (n1 + n2 + n3);
+      }
+      const k = lutIdx(v) * 3;
+      px[o] = LUT[k] * b; px[o + 1] = LUT[k + 1] * b; px[o + 2] = LUT[k + 2] * b; px[o + 3] = 255;
+    }
+  }
+  ctx.putImageData(img, 0, 0);
+}
+let hazeOn = false, raf = 0, last = 0;
+function loop(now) {
+  raf = requestAnimationFrame(loop);
+  if (now - last < 50) return;          // about 20 frames a second is plenty for a haze
+  last = now;
+  drawHaze(now / 1000);
+}
+function startHaze() {
+  if (reduceMotion || hazeOn || document.hidden || !map.getSource('field')) return;
+  hazeOn = true; map.getSource('field').play(); raf = requestAnimationFrame(loop);
+}
+function stopHaze() {
+  if (!hazeOn) return;
+  hazeOn = false; cancelAnimationFrame(raf);
+  if (map.getSource('field')) map.getSource('field').pause();
+}
+// A still frame: play for one render so the new pixels reach the map, then pause again.
+function stillFrame() {
+  drawHaze(-1);
+  const src = map.getSource('field');
+  if (!src || hazeOn) return;
+  src.play(); map.triggerRepaint();
+  map.once('render', () => { if (!hazeOn) src.pause(); });
+}
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopHaze(); else startHaze(); });
+
+/* ---------- contours: marching squares on the grid, every 1 °C ---------- */
+const CASES = [null,
+  (t, r, b, l) => [[l, b]], (t, r, b, l) => [[b, r]], (t, r, b, l) => [[l, r]], (t, r, b, l) => [[t, r]], (t, r, b, l) => [[l, t], [b, r]],
+  (t, r, b, l) => [[t, b]], (t, r, b, l) => [[l, t]], (t, r, b, l) => [[l, t]], (t, r, b, l) => [[t, b]], (t, r, b, l) => [[t, r], [l, b]],
+  (t, r, b, l) => [[t, r]], (t, r, b, l) => [[l, r]], (t, r, b, l) => [[b, r]], (t, r, b, l) => [[l, b]]];
+function contours(levels) {
+  const feats = [], segsBy = levels.map(() => []);
+  const X = gx => FRAME[0][0] + (gx + .5) / GW * (FRAME[1][0] - FRAME[0][0]);
+  const Y = gy => FRAME[1][1] - (gy + .5) / GH * (FRAME[1][1] - FRAME[0][1]);
+  const lo0 = levels[0], step = levels[1] - levels[0];
+  for (let y = 0; y < GH - 1; y++) for (let x = 0; x < GW - 1; x++) {
+    const i = y * GW + x;
+    if (!NEAR[i]) continue;
+    const a = F[i], b = F[i + 1], c = F[i + GW + 1], d = F[i + GW];
+    const mn = Math.min(a, b, c, d), mx = Math.max(a, b, c, d);
+    const k0 = Math.max(0, Math.ceil((mn - lo0) / step)), k1 = Math.min(levels.length - 1, Math.floor((mx - lo0) / step));
+    for (let k = k0; k <= k1; k++) {
+      const L = levels[k];
+      const code = (a >= L ? 8 : 0) | (b >= L ? 4 : 0) | (c >= L ? 2 : 0) | (d >= L ? 1 : 0);
+      if (code === 0 || code === 15) continue;
+      const top = [x + (L - a) / (b - a), y], right = [x + 1, y + (L - b) / (c - b)], bottom = [x + (L - d) / (c - d), y + 1], left = [x, y + (L - a) / (d - a)];
+      const E = CASES[code](top, right, bottom, left);
+      for (const [p, q] of E) segsBy[k].push([[X(p[0]), Y(p[1])], [X(q[0]), Y(q[1])]]);
+    }
+  }
+  levels.forEach((L, k) => { if (segsBy[k].length) feats.push({ type: 'Feature', properties: { L, th: L === LOW || L === HIGH ? 1 : 0 }, geometry: { type: 'MultiLineString', coordinates: segsBy[k] } }); });
+  return { type: 'FeatureCollection', features: feats };
+}
+
+/* ---------- layers ---------- */
+function addLayers() {
+  const land = polys(G.land), johor = polys(G.johor), water = polys(G.water);
+  // the sea covers everything but the land, so the haze beneath shows only on land and the coast stays crisp
+  const rect = [[100, -2], [108, -2], [108, 5], [100, 5], [100, -2]];
+  const sea = { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [wind(rect, false), ...land.map(p => wind(p[0], true))] } };
+  const coords = [[FRAME[0][0], FRAME[1][1]], [FRAME[1][0], FRAME[1][1]], [FRAME[1][0], FRAME[0][1]], [FRAME[0][0], FRAME[0][1]]];
+  map.addSource('field', { type: 'canvas', canvas, coordinates: coords, animate: false });
+  map.addSource('contours', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addSource('sea', { type: 'geojson', data: sea, tolerance: .2 });
+  map.addSource('johor', { type: 'geojson', data: multi(johor), tolerance: .4 });
+  map.addSource('land', { type: 'geojson', data: multi(land), tolerance: .2 });
+  map.addSource('water', { type: 'geojson', data: multi(water), tolerance: .2 });
+  map.addSource('stations', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'field', type: 'raster', source: 'field', paint: { 'raster-resampling': 'linear', 'raster-fade-duration': 0 } });
+  map.addLayer({ id: 'iso', type: 'line', source: 'contours', filter: ['==', ['get', 'th'], 0], layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#5A2E2A', 'line-opacity': .16, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, .5, 14, 1] } });
+  map.addLayer({ id: 'iso-th', type: 'line', source: 'contours', filter: ['==', ['get', 'th'], 1], layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#5A1E2E', 'line-opacity': .62, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1.1, 14, 2], 'line-dasharray': [2.2, 1.6] } });
+  map.addLayer({ id: 'water', type: 'fill', source: 'water', paint: { 'fill-color': '#DCE6E1', 'fill-opacity': .92 } });
+  map.addLayer({ id: 'water-edge', type: 'line', source: 'water', paint: { 'line-color': '#8FAAA6', 'line-width': .6, 'line-opacity': .6 } });
+  map.addLayer({ id: 'sea', type: 'fill', source: 'sea', paint: { 'fill-color': '#EFE4DA' } });
+  map.addLayer({ id: 'johor', type: 'fill', source: 'johor', paint: { 'fill-color': '#E4D9CF' } });
+  map.addLayer({ id: 'johor-edge', type: 'line', source: 'johor', paint: { 'line-color': '#9D8578', 'line-width': .7, 'line-opacity': .45, 'line-dasharray': [3, 2] } });
+  // a pencil coastline: two slightly offset strokes
+  map.addLayer({ id: 'coast-2', type: 'line', source: 'land', layout: { 'line-join': 'round' }, paint: { 'line-color': '#5A2E2A', 'line-width': .7, 'line-opacity': .28, 'line-translate': [1.2, .9] } });
+  map.addLayer({ id: 'coast', type: 'line', source: 'land', layout: { 'line-join': 'round' }, paint: { 'line-color': '#4A2328', 'line-width': ['interpolate', ['linear'], ['zoom'], 9, .9, 14, 1.6], 'line-opacity': .7 } });
+  map.addLayer({ id: 'st-halo', type: 'circle', source: 'stations', paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 6, 14, 11], 'circle-color': '#FFF8F2', 'circle-opacity': .55, 'circle-blur': .6 } });
+  map.addLayer({ id: 'st', type: 'circle', source: 'stations', paint: {
+    'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, 3.4, 14, 6.5], 'circle-color': COLOR_EXPR,
+    'circle-stroke-color': ['case', ['boolean', ['feature-state', 'sel'], false], '#3A1F24', '#5A2E2A'], 'circle-stroke-width': ['case', ['boolean', ['feature-state', 'sel'], false], 2.4, 1.2] } });
+  // "Johor" label as an HTML marker (this map loads no fonts)
+  const jb = document.createElement('div'); jb.className = 'jb dmc-chrome'; jb.textContent = 'Johor, Malaysia';
+  new maplibregl.Marker({ element: jb }).setLngLat([103.75, 1.485]).addTo(map);
+}
+
+/* ---------- station labels: the readings, kept from overlapping ---------- */
+let labels = [];
+function makeLabels() {
+  labels.forEach(l => l.m.remove());
+  labels = ST.map((s, i) => {
+    const el = document.createElement('div');
+    el.className = 'st'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<span class="v"></span>';
+    const m = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, -7] }).setLngLat([s.lon, s.lat]).addTo(map);
+    return { i, el, m, v: el.firstChild };
+  });
+}
+let placeQ = false;
+function placeLabels() {
+  placeQ = false;
+  const vals = V[ti] || [];
+  const order = labels.filter(l => vals[l.i] != null).sort((a, b) => (b.i === selSt) - (a.i === selSt) || vals[b.i] - vals[a.i]);
+  const boxes = [];
+  if (askAt && pin && pin.getElement().isConnected) { const p = map.project([askAt.lon, askAt.lat]); boxes.push([p.x - 30, p.y - 50, p.x + 30, p.y + 6]); }
+  for (const l of labels) if (vals[l.i] == null) l.el.classList.add('hide');
+  for (const l of order) {
+    const p = map.project([ST[l.i].lon, ST[l.i].lat]);
+    const w = l.w || 36, h = l.h || 20, b = [p.x - w / 2 - 1, p.y - 7 - h - 1, p.x + w / 2 + 1, p.y - 6];
+    const clash = boxes.some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]);
+    l.el.classList.toggle('hide', clash && l.i !== selSt);
+    if (!clash || l.i === selSt) boxes.push(b);
+  }
+}
+const queuePlace = () => { if (!placeQ) { placeQ = true; requestAnimationFrame(placeLabels); } };
+map.on('move', queuePlace);
+
+/* ---------- showing one moment ---------- */
+let hiSt = -1, loSt = -1, share = null;
+function show(t) {
+  $('scrub').max = Math.max(0, TIMES.length - 1);
+  ti = Math.max(0, Math.min(TIMES.length - 1, t));
+  const pts = readings(ti);
+  buildField(pts);
+  share = landShare();
+  if (map.getSource('contours')) map.getSource('contours').setData(contours([24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35]));
+  if (map.getSource('stations')) map.getSource('stations').setData({ type: 'FeatureCollection', features: pts.map(p => ({ type: 'Feature', id: p.i, properties: { v: p.v, i: p.i }, geometry: { type: 'Point', coordinates: [p.lon, p.lat] } })) });
+  if (hazeOn) drawHaze(performance.now() / 1000); else stillFrame();
+  for (const l of labels) { const v = V[ti][l.i]; if (v != null) { l.v.textContent = nf1(v / 10); l.v.style.setProperty('--c', colourOf(v / 10)); } }
+  for (const l of labels) { const r = l.v.getBoundingClientRect(); if (r.width) { l.w = r.width; l.h = r.height; } }
+  queuePlace();
+
+  // the panel
+  const hot = pts.reduce((a, b) => (b.v > a.v ? b : a)), cool = pts.reduce((a, b) => (b.v < a.v ? b : a));
+  hiSt = hot.i; loSt = cool.i;
+  const latest = ti === TIMES.length - 1;
+  const when = `${fmtD.format(new Date(TIMES[ti]))}, ${hhmm(TIMES[ti])}`;
+  const tag = $('live');
+  if (!latest) { tag.className = 'live past'; tag.textContent = LIVE ? 'Earlier today' : 'Earlier that day'; }
+  else if (LIVE) { tag.className = 'live'; tag.textContent = 'Live'; }
+  else { tag.className = 'live snap'; tag.textContent = 'Snapshot'; }
+  $('when').textContent = latest && !LIVE ? `${when}${snapWhy}` : when;
+  $('n-st').textContent = pts.length;
+  const names = v => { const n = pts.filter(p => p.v === v).map(p => ST[p.i].name); return n.length > 2 ? `${n[0]} and ${n.length - 1} more` : n.join(' and '); };
+  $('n-hot').textContent = nf1(hot.v) + '°'; $('n-hot-at').textContent = `hottest: ${names(hot.v)}`;
+  $('n-cool').textContent = nf1(cool.v) + '°'; $('n-cool-at').textContent = `coolest: ${names(cool.v)}`;
+  const nMod = pts.filter(p => p.v >= LOW && p.v < HIGH).length, nHigh = pts.filter(p => p.v >= HIGH).length;
+  let h;
+  if (nHigh) h = `High heat stress at ${nHigh === 1 ? ST[hot.i].name : `${nHigh} stations`}${nMod ? `, moderate at ${nMod} more` : ''}`;
+  else if (nMod) h = `Moderate heat stress at ${nMod === 1 ? ST[hot.i].name : `${nMod} of ${pts.length} stations`}; low elsewhere`;
+  else h = cool.v >= 29 ? 'Hot and sticky, but low heat stress everywhere' : 'Low heat stress across the island';
+  $('headline').textContent = h;
+  // share bar
+  const pct = f => f === 0 ? '0%' : f < .005 ? '<1%' : `${Math.round(f * 100)}%`;
+  $('share').innerHTML = ['Low', 'Moderate', 'High'].map(k => `<i style="flex-grow:${share[k]};background:${CAT[k].c}"></i>`).join('');
+  $('share').setAttribute('aria-label', `Estimated share of the land: low ${pct(share.Low)}, moderate ${pct(share.Moderate)}, high ${pct(share.High)}`);
+  $('share-key').innerHTML = ['Low', 'Moderate', 'High'].map(k => `<span><i style="background:${CAT[k].c}"></i>${k} <b>${pct(share[k])}</b></span>`).join('') + '<span>of the land (estimate)</span>';
+  // screen-reader table
+  $('sr-rows').innerHTML = pts.slice().sort((a, b) => b.v - a.v).map(p => `<tr><td>${esc(ST[p.i].name)}</td><td>${nf1(p.v)}</td><td>${category(p.v)}</td></tr>`).join('');
+  // the light warms with the heat
+  const mean = pts.reduce((s, p) => s + p.v, 0) / pts.length;
+  document.documentElement.style.setProperty('--heat', Math.max(0, Math.min(1, (mean - 25) / 7)).toFixed(3));
+  $('now').hidden = latest;
+  $('scrub').value = ti;
+  $('scrub').setAttribute('aria-valuetext', `${hhmm(TIMES[ti])}, hottest ${nf1(hot.v)} degrees at ${ST[hot.i].name}`);
+  drawChart();
+  if (askAt) feel(askAt.lon, askAt.lat, askAt.name, false);
+  else if (selSt >= 0) stationFeel(selSt, false);
+}
+
+/* ---------- today strip ---------- */
+const mins = iso => { const [h, m] = hhmm(iso).split(':').map(Number); return h * 60 + m; };
+function drawChart() {
+  const svg = $('chart-svg'), W = Math.max(200, svg.clientWidth || 300), H = svg.clientHeight || 92;
+  const L = 22, R = W - 2, T = 4, B = H - 14;
+  let lo = 99, hi = 0;
+  for (const row of V) for (const v of row) if (v != null) { lo = Math.min(lo, v / 10); hi = Math.max(hi, v / 10); }
+  lo = Math.floor(Math.min(lo, 25)); hi = Math.ceil(Math.max(hi + .3, 33.5));
+  const sx = m => L + m / 1440 * (R - L), sy = v => B - (v - lo) / (hi - lo) * (B - T);
+  let s = `<rect x="${L}" y="${sy(hi)}" width="${R - L}" height="${sy(HIGH) - sy(hi)}" fill="${CAT.High.c}" opacity=".16"/>`;
+  s += `<rect x="${L}" y="${sy(HIGH)}" width="${R - L}" height="${sy(LOW) - sy(HIGH)}" fill="${CAT.Moderate.c}" opacity=".14"/>`;
+  for (const v of [LOW, HIGH]) s += `<line x1="${L}" x2="${R}" y1="${sy(v)}" y2="${sy(v)}" stroke="#5A1E2E" stroke-opacity=".45" stroke-dasharray="3 2"/><text class="th" x="${L - 3}" y="${sy(v) + 3}" text-anchor="end">${v}</text>`;
+  s += `<text x="${L - 3}" y="${sy(lo) + 3}" text-anchor="end">${lo}</text>`;
+  for (const h of [0, 6, 12, 18, 24]) s += `<line x1="${sx(h * 60)}" x2="${sx(h * 60)}" y1="${B}" y2="${B + 3}" stroke="rgba(58,31,36,.35)"/><text x="${sx(h * 60)}" y="${H - 2}" text-anchor="${h === 0 ? 'start' : h === 24 ? 'end' : 'middle'}">${h === 12 ? 'noon' : String(h).padStart(2, '0') + ':00'}</text>`;
+  s += `<line x1="${L}" x2="${R}" y1="${B}" y2="${B}" stroke="rgba(58,31,36,.3)"/>`;
+  const line = i => { let d = '', pen = false; TIMES.forEach((t, k) => { const v = V[k][i]; if (v == null) { pen = false; return; } d += `${pen ? 'L' : 'M'}${sx(mins(t)).toFixed(1)},${sy(v / 10).toFixed(1)}`; pen = true; }); return d; };
+  const lines = ST.map((_, i) => `<path d="${line(i)}" fill="none" stroke="#5A2E2A" stroke-opacity=".17" stroke-width="1"/>`).join('');
+  // the hottest station at each moment
+  let dh = '';
+  TIMES.forEach((t, k) => { const m = Math.max(...V[k].filter(v => v != null)); dh += `${k ? 'L' : 'M'}${sx(mins(t)).toFixed(1)},${sy(m / 10).toFixed(1)}`; });
+  s += lines + `<path d="${dh}" fill="none" stroke="${DAY.accent}" stroke-width="1.8" stroke-linejoin="round"/>`;
+  if (selSt >= 0) s += `<path d="${line(selSt)}" fill="none" stroke="#3A1F24" stroke-width="1.6" stroke-linejoin="round"/>`;
+  const cx = sx(mins(TIMES[ti]));
+  s += `<line x1="${cx}" x2="${cx}" y1="${T}" y2="${B}" stroke="#3A1F24" stroke-width="1.2"/>`;
+  const vals = V[ti].filter(v => v != null), m = Math.max(...vals) / 10;
+  s += `<circle cx="${cx}" cy="${sy(m)}" r="3.6" fill="${DAY.accent}" stroke="#fff" stroke-width="1.5"/>`;
+  s += `<text x="${Math.min(R - 2, Math.max(L + 2, cx + (cx > (L + R) / 2 ? -5 : 5)))}" y="${T + 8}" text-anchor="${cx > (L + R) / 2 ? 'end' : 'start'}" style="font-weight:700;fill:#3A1F24">${hhmm(TIMES[ti])}</text>`;
+  svg.innerHTML = s;
+  // the scrubber covers just the plotted span of the day
+  const sc = $('scrub'), x0 = sx(mins(TIMES[0])), x1 = sx(mins(TIMES[TIMES.length - 1]));
+  sc.style.left = `${x0 - 6}px`; sc.style.width = `${Math.max(14, x1 - x0 + 12)}px`;
+  // the day's peak so far
+  let pv = -1;
+  for (const row of V) for (const v of row) if (v != null && v > pv) pv = v;
+  const pks = [];
+  V.forEach((row, k) => row.forEach((v, i) => { if (v === pv) pks.push({ k, i }); }));
+  const pk = { v: pv, k: pks[0].k, i: pks[0].i };
+  const sameT = pks.every(p => p.k === pk.k);
+  const pkWhere = pks.length === 1 ? `${esc(ST[pk.i].name)}, ${hhmm(TIMES[pk.k])}`
+    : sameT ? `${pks.map(p => esc(ST[p.i].name)).join(' and ')}, both at ${hhmm(TIMES[pk.k])}`
+    : pks.map(p => `${esc(ST[p.i].name)} (${hhmm(TIMES[p.k])})`).join(' and ');
+  const first = hhmm(TIMES[0]), lastT = hhmm(TIMES[TIMES.length - 1]);
+  $('strip-kick').textContent = `${fmtD.format(new Date(TIMES[TIMES.length - 1]))}, ${first} to ${lastT}`;
+  $('peak').innerHTML = `Peak so far: <b>${nf1(pk.v / 10)} &deg;C</b> at ${pkWhere} (${category(pk.v / 10).toLowerCase()} heat stress). <i class="lg" style="background:${DAY.accent}"></i>hottest station${selSt >= 0 ? `, <i class="lg"></i>${esc(ST[selSt].name)}` : ''}. Drag along the day to replay it.`;
+}
+$('scrub').addEventListener('input', e => { queueShow(+e.target.value); });
+let showQ = -1;
+function queueShow(t) { if (showQ < 0) requestAnimationFrame(() => { const k = showQ; showQ = -1; show(k); }); showQ = t; }
+$('now').addEventListener('click', () => show(TIMES.length - 1));
+addEventListener('resize', () => { if (TIMES.length) drawChart(); });
+
+/* ---------- how does it feel here? ---------- */
+let askAt = null, selSt = -1, pin = null;
+function setSel(i) {
+  if (selSt >= 0 && map.getSource('stations')) map.setFeatureState({ source: 'stations', id: selSt }, { sel: false });
+  selSt = i;
+  if (i >= 0) map.setFeatureState({ source: 'stations', id: i }, { sel: true });
+  labels.forEach(l => l.el.classList.toggle('sel', l.i === i));
+  queuePlace();
+}
+function setPin(lon, lat, text) {
+  if (!pin) {
+    const el = document.createElement('div'); el.className = 'pin dmc-chrome'; el.setAttribute('aria-hidden', 'true');
+    el.innerHTML = '<div class="tag"></div><div class="stem"></div><div class="dot"></div>';
+    pin = new maplibregl.Marker({ element: el, anchor: 'bottom', offset: [0, 4] });
+  }
+  pin.getElement().querySelector('.tag').textContent = text;
+  pin.setLngLat([lon, lat]).addTo(map);
+}
+function clearFeel() {
+  askAt = null; setSel(-1); if (pin) pin.remove();
+  $('feel').hidden = true; drawChart();
+}
+$('feel-x').addEventListener('click', clearFeel);
+// on small screens the answer may sit below the fold of the panel: bring it up
+const reveal = () => { const f = $('feel'); if (!f.hidden) requestAnimationFrame(() => f.scrollIntoView({ block: 'nearest', behavior: reduceMotion ? 'auto' : 'smooth' })); };
+const distKm = (a, b) => Math.hypot((a.lon - b.lon) * KX, (a.lat - b.lat) * KY) / 1000;
+const fmtKm = d => d < 1 ? `${Math.round(d * 1000 / 50) * 50} m` : `${d.toFixed(1)} km`;
+function paintFeel(where, v, word, catLine, est) {
+  const c = category(v);
+  $('feel').hidden = false;
+  $('feel').style.setProperty('--feel-c', colourOf(v));
+  $('f-where').textContent = where;
+  $('f-v').innerHTML = `${nf1(v)}<small>&deg;C</small>`;
+  $('f-word').textContent = word;
+  $('f-cat').innerHTML = `<span class="pill${c === 'Low' ? ' lo' : ''}" style="--pill:${CAT[c].pill}">${c} heat stress</span> ${catLine || CAT[c].do}`;
+  $('f-est').innerHTML = est;
+}
+function inFrame(lon, lat) { return lon > FRAME[0][0] && lon < FRAME[1][0] && lat > FRAME[0][1] && lat < FRAME[1][1]; }
+function onLand(lon, lat) {
+  if (!inFrame(lon, lat)) return false;
+  const x = Math.floor((lon - FRAME[0][0]) / (FRAME[1][0] - FRAME[0][0]) * GW), y = Math.floor((FRAME[1][1] - lat) / (FRAME[1][1] - FRAME[0][1]) * GH);
+  for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) if (MASK[(y + dy) * GW + x + dx]) return true;
+  return false;
+}
+function feel(lon, lat, name, fly) {
+  setSel(-1);
+  askAt = { lon, lat, name };
+  if (!onLand(lon, lat)) {
+    if (pin) pin.remove();
+    $('feel').hidden = false; $('feel').style.setProperty('--feel-c', '#bbb');
+    $('f-where').textContent = name; $('f-v').textContent = ''; $('f-word').textContent = inFrame(lon, lat) ? 'Out at sea' : 'Outside Singapore';
+    $('f-cat').textContent = 'There are no heat-stress readings here. Try a place on the island.'; $('f-est').textContent = '';
+    drawChart(); return;
+  }
+  const pts = readings(ti), v = idwAt(lon, lat, pts);
+  const near = pts.map(p => ({ ...p, d: distKm({ lon, lat }, p) })).sort((a, b) => a.d - b.d);
+  const n0 = near[0];
+  const est = n0.d < .3
+    ? `Measured: this is the <b>${esc(ST[n0.i].name)}</b> station's own reading, a 15-minute average to ${hhmm(TIMES[ti])}.`
+    : `<b>An estimate</b>, blended from the stations around it. Nearest: <b>${esc(ST[n0.i].name)}</b>, ${fmtKm(n0.d)} away, read <b>${nf1(n0.v)} &deg;C</b>${near[1] ? `; next, ${esc(ST[near[1].i].name)} (${fmtKm(near[1].d)}) read ${nf1(near[1].v)} &deg;C` : ''}.`;
+  paintFeel(name, v, feeling(v), null, est);
+  setPin(lon, lat, `${nf1(v)}°`);
+  if (fly) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 12.4), padding: DMC.overlayPadding(), duration: reduceMotion ? 0 : 1800, essential: true });
+  drawChart();
+}
+// NEA gives each station a name and a "town centre"; show both only when the second adds something.
+function stationLabel(s) {
+  const words = t => (t || '').toLowerCase().match(/[a-z0-9]+/g) || [];
+  const nw = new Set(words(s.name));
+  if (!s.town || words(s.town).every(w => nw.has(w))) return s.name;
+  if (s.town.toLowerCase().startsWith(s.name.toLowerCase())) return s.town;
+  return `${s.name}, at ${s.town}`;
+}
+function stationFeel(i, fly) {
+  askAt = null; if (pin) pin.remove();
+  setSel(i);
+  const v = V[ti][i] / 10, s = ST[i];
+  if (V[ti][i] == null) { $('feel').hidden = true; return; }
+  paintFeel(`Station ${s.id}: ${stationLabel(s)}`, v, feeling(v), null,
+    `Measured here: a 15-minute average to ${hhmm(TIMES[ti])}. Its line is drawn dark in the strip below.`);
+  if (fly) map.flyTo({ center: [s.lon, s.lat], zoom: Math.max(map.getZoom(), 12), padding: DMC.overlayPadding(), duration: reduceMotion ? 0 : 1600, essential: true });
+  drawChart();
+}
+$('go-hot').addEventListener('click', () => { stationFeel(hiSt, true); reveal(); });
+$('go-cool').addEventListener('click', () => { stationFeel(loSt, true); reveal(); });
+
+// tap the map: a station if one is under the finger, otherwise the spot itself
+function stationAt(pt, r) {
+  if (!map.getLayer('st')) return null;
+  const f = map.queryRenderedFeatures([[pt.x - r, pt.y - r], [pt.x + r, pt.y + r]], { layers: ['st'] });
+  if (!f.length) return null;
+  return f.map(x => x.properties.i).sort((a, b) => {
+    const pa = map.project([ST[a].lon, ST[a].lat]), pb = map.project([ST[b].lon, ST[b].lat]);
+    return Math.hypot(pa.x - pt.x, pa.y - pt.y) - Math.hypot(pb.x - pt.x, pb.y - pt.y);
+  })[0];
+}
+map.on('click', e => {
+  if (!TIMES.length) return;
+  const i = stationAt(e.point, matchMedia('(pointer: coarse)').matches ? 14 : 8);
+  if (i != null) stationFeel(i, false);
+  else feel(e.lngLat.lng, e.lngLat.lat, `The spot you tapped`, false);
+  reveal();
+});
+const tip = $('tip');
+map.on('mousemove', e => {
+  if (!TIMES.length || !matchMedia('(hover: hover)').matches) return;
+  const i = stationAt(e.point, 7);
+  if (i == null) { tip.hidden = true; return; }
+  const v = V[ti][i] / 10;
+  tip.innerHTML = `<b>${nf1(v)} &deg;C</b> &middot; ${category(v)} heat stress<small>${esc(ST[i].name)}</small>`;
+  const p = map.project([ST[i].lon, ST[i].lat]);
+  tip.style.left = `${p.x}px`; tip.style.top = `${p.y}px`; tip.hidden = false;
+});
+mapEl.addEventListener('mouseleave', () => { tip.hidden = true; });
+
+/* ---------- search (OneMap) and "near me" ---------- */
+const q = $('q'), hits = $('hits');
+let searchCtl = null, sTimer = 0, found = [], cur = -1;
+const titleCase = s => String(s || '').toLowerCase().replace(/\b([a-z])/g, c => c.toUpperCase()).replace(/\bSt\b/g, 'St');
+function openHits(open) { hits.hidden = !open; q.setAttribute('aria-expanded', String(open)); if (!open) { cur = -1; q.removeAttribute('aria-activedescendant'); } }
+async function search(text) {
+  if (searchCtl) searchCtl.abort();
+  searchCtl = new AbortController();
+  const u = `https://www.onemap.gov.sg/api/common/elastic/search?searchVal=${encodeURIComponent(text)}&returnGeom=Y&getAddrDetails=Y&pageNum=1`;
+  try {
+    const r = await fetch(u, { signal: searchCtl.signal });
+    if (!r.ok) throw new Error(`OneMap ${r.status}`);
+    const j = await r.json();
+    found = (j.results || []).slice(0, 6).map(x => ({ name: titleCase(x.SEARCHVAL), detail: x.ADDRESS && x.ADDRESS !== 'NIL' ? titleCase(x.ADDRESS) : '', lon: +x.LONGITUDE, lat: +x.LATITUDE }));
+    hits.innerHTML = found.length ? found.map((f, k) => `<li role="none"><button id="hit-${k}" type="button" role="option" aria-selected="false" data-k="${k}">${esc(f.name)}${f.detail && f.detail !== f.name ? `<small>${esc(f.detail)}</small>` : ''}</button></li>`).join('')
+      : '<li role="none"><button type="button" role="option" aria-disabled="true" disabled>No places found</button></li>';
+    openHits(true);
+  } catch (err) {
+    if (err.name === 'AbortError') return;
+    hits.innerHTML = '<li role="none"><button type="button" role="option" aria-disabled="true" disabled>Search is not reachable just now. Tap the map instead.</button></li>';
+    openHits(true);
+  }
+}
+function pick(k) {
+  const f = found[k];
+  if (!f) return;
+  openHits(false); q.value = f.name;
+  feel(f.lon, f.lat, f.name, true);
+  reveal();
+}
+q.addEventListener('input', () => {
+  clearTimeout(sTimer);
+  const t = q.value.trim();
+  if (t.length < 2) { openHits(false); return; }
+  sTimer = setTimeout(() => search(t), 320);
+});
+q.addEventListener('keydown', e => {
+  const btns = [...hits.querySelectorAll('button[data-k]')];
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    if (!btns.length) return;
+    e.preventDefault();
+    cur = (cur + (e.key === 'ArrowDown' ? 1 : -1) + btns.length) % btns.length;
+    btns.forEach((b, k) => b.setAttribute('aria-selected', String(k === cur)));
+    q.setAttribute('aria-activedescendant', btns[cur].id);
+  } else if (e.key === 'Enter') {
+    e.preventDefault();
+    if (found.length) pick(cur >= 0 ? cur : 0);
+    else if (q.value.trim().length >= 2) search(q.value.trim());
+  } else if (e.key === 'Escape') openHits(false);
+});
+hits.addEventListener('click', e => { const b = e.target.closest('button[data-k]'); if (b) pick(+b.dataset.k); });
+document.addEventListener('click', e => { if (!e.target.closest('.search')) openHits(false); });
+$('me').addEventListener('click', () => {
+  if (!navigator.geolocation) { $('ask-hint').textContent = 'This browser cannot share its location. Search or tap the map instead.'; return; }
+  $('ask-hint').textContent = 'Finding you…';
+  navigator.geolocation.getCurrentPosition(p => {
+    $('ask-hint').textContent = 'Or tap anywhere on the island.';
+    feel(p.coords.longitude, p.coords.latitude, 'Where you are', true);
+    reveal();
+  }, () => { $('ask-hint').textContent = 'Your location is not available. Search or tap the map instead.'; }, { enableHighAccuracy: false, timeout: 10000, maximumAge: 300000 });
+});
+
+/* ---------- data: live from data.gov.sg, or the bundled snapshot ---------- */
+const API = 'https://api-open.data.gov.sg/v2/real-time/api/weather?api=wbgt';
+async function getJSON(url, ms = 9000) {
+  const ctl = new AbortController(), timer = setTimeout(() => ctl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctl.signal, cache: 'no-store' });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const j = await r.json();
+    if (j.code !== 0) throw new Error(`API ${j.code}`);
+    return j.data;
+  } finally { clearTimeout(timer); }
+}
+// API records (newest first, strings) -> the snapshot's shape
+function fromRecords(records) {
+  const stations = new Map();
+  const recs = records.filter(r => r.item && r.item.readings && r.item.readings.length).sort((a, b) => (a.datetime < b.datetime ? -1 : 1));
+  for (const r of recs) for (const x of r.item.readings) if (!stations.has(x.station.id))
+    stations.set(x.station.id, { id: x.station.id, name: x.station.name, town: x.station.townCenter || x.station.name, lon: +x.location.longitude, lat: +x.location.latitude });
+  const st = [...stations.values()].sort((a, b) => (a.id < b.id ? -1 : 1)), col = new Map(st.map((s, i) => [s.id, i]));
+  const times = [], v = [];
+  for (const r of recs) {
+    if (times.length && times[times.length - 1] === r.datetime) continue;
+    const row = new Array(st.length).fill(null);
+    for (const x of r.item.readings) { const n = parseFloat(x.wbgt); if (isFinite(n)) row[col.get(x.station.id)] = Math.round(n * 10); }
+    if (row.some(n => n != null)) { times.push(r.datetime); v.push(row); }
+  }
+  return { st, times, v };
+}
+function adopt(d) { ST = d.st; TIMES = d.times; V = d.v; }
+async function fetchToday(onFirst) {
+  const date = sgDate(new Date());
+  let data = await getJSON(`${API}&date=${date}`);
+  let recs = data.records || [];
+  if (!recs.length) { data = await getJSON(API); recs = data.records || []; }   // just past midnight
+  if (!recs.length) throw new Error('no records');
+  onFirst(fromRecords(recs));
+  // the rest of the day, a page at a time, gently; whatever arrives is kept
+  let token = data.paginationToken, pages = 1;
+  while (token && pages < 8) {
+    await new Promise(r => setTimeout(r, 1200));
+    try {
+      const more = await getJSON(`${API}&date=${date}&paginationToken=${encodeURIComponent(token)}`);
+      if (!more.records || !more.records.length) break;
+      recs = recs.concat(more.records); token = more.paginationToken; pages++;
+    } catch (err) { break; }
+  }
+  return fromRecords(recs);
+}
+let allRecs = null;
+// If the API stopped paging early (it rate-limits), fill the start of the day from the bundled snapshot.
+function withSnapshot(live) {
+  const snap = snapshotData();
+  if (!snap.times.length || !live.times.length) return live;
+  if (sgDate(new Date(snap.times[0])) !== sgDate(new Date(live.times[0])) || snap.times[0] >= live.times[0]) return live;
+  const ids = [...new Set([...live.st.map(s => s.id), ...snap.st.map(s => s.id)])].sort();
+  const byId = new Map([...snap.st, ...live.st].map(s => [s.id, s]));
+  const st = ids.map(id => byId.get(id)), times = [], v = [];
+  const put = (src, k) => { const row = new Array(ids.length).fill(null); src.st.forEach((s, i) => { row[ids.indexOf(s.id)] = src.v[k][i]; }); times.push(src.times[k]); v.push(row); };
+  snap.times.forEach((t, k) => { if (t < live.times[0]) put(snap, k); });
+  live.times.forEach((t, k) => put(live, k));
+  return { st, times, v };
+}
+function snapshotData() {
+  const s = G.snapshot;
+  return { st: s.stations.map(([id, name, town, lon, lat]) => ({ id, name, town, lon, lat })), times: s.times, v: s.v };
+}
+
+function layout() {
+  const st = $('dmc-stamp');
+  if (!st.classList.contains('open')) document.documentElement.style.setProperty('--fl-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+}
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+addEventListener('resize', layout);
+new ResizeObserver(layout).observe($('dmc-stamp'));
+
+/* ---------- the colour scale ---------- */
+(function scale() {
+  const at = v => ((v - VMIN) / (VMAX - VMIN) * 100).toFixed(2) + '%';
+  $('scale-bar').style.background = `linear-gradient(90deg, ${STOPS.map(([v, c]) => `${c} ${at(v)}`).join(', ')})`;
+  $('scale-ticks').innerHTML = [25, 27, 29, 31, 33, 35].map(v => `<span class="${v === LOW || v === HIGH ? 'th' : ''}" style="left:${at(v)}${v === 35 ? ';transform:translateX(-100%)' : ''}">${v}${v === 35 ? ' °C' : ''}</span>`).join('');
+  $('scale-bands').innerHTML = `<span style="left:${at(27)}">Low heat stress</span><span style="left:${at(32)}">Moderate</span><span style="left:${at(34)}">High</span>`;
+})();
+
+const dataP = fetch('data/day28/feeling.json').then(r => { if (!r.ok) throw new Error(`feeling.json: ${r.status}`); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(async ([g]) => {
+  G = g;
+  buildMask(polys(G.land));
+  addLayers();
+  let started = false;
+  const start = d => {
+    adopt(d); makeLabels();
+    const at = params.get('t');
+    let k = TIMES.length - 1;
+    if (at) { const j = TIMES.findIndex(t => hhmm(t) === at); if (j >= 0) k = j; }
+    show(k);
+    if (!started) {
+      started = true;
+      const deck = document.querySelector('.dmc-deck');
+      if (deck) deck.textContent = DAY.deck.replace(/\b30 stations\b/, `${ST.length} stations`);
+      $('loading').hidden = true;
+      startHaze();
+      const a = params.get('at');
+      if (a) { const [lo, la] = a.split(',').map(Number); if (isFinite(lo) && isFinite(la)) feel(lo, la, params.get('name') || 'Here', false); }
+    }
+  };
+  if (params.has('snapshot')) { snapWhy = ''; start(snapshotData()); return; }
+  try {
+    const full = await fetchToday(d => { LIVE = true; start(d); });
+    const wasLatest = ti === TIMES.length - 1, keepT = TIMES[ti], nSt = ST.length;
+    adopt(withSnapshot(full));
+    if (ST.length !== nSt) makeLabels();
+    show(wasLatest ? TIMES.length - 1 : Math.max(0, TIMES.indexOf(keepT)));
+    // new readings every 15 minutes: look again every 5, while the page is visible
+    setInterval(async () => {
+      if (document.hidden) return;
+      try {
+        const d = await getJSON(API);
+        const r = (d.records || [])[0];
+        if (!r || TIMES.includes(r.datetime)) return;
+        const latest = ti === TIMES.length - 1;
+        // a new day starts a new strip
+        const sameDay = sgDate(new Date(r.datetime)) === sgDate(new Date(TIMES[TIMES.length - 1]));
+        const merged = fromRecords([r]);
+        if (!sameDay || merged.st.length !== ST.length || merged.st.some((s, i) => s.id !== ST[i].id)) { adopt(merged); makeLabels(); show(0); return; }
+        TIMES.push(merged.times[0]); V.push(merged.v[0]);
+        $('scrub').max = TIMES.length - 1;
+        show(latest ? TIMES.length - 1 : ti);
+      } catch (err) { /* keep the last good reading */ }
+    }, 5 * 60 * 1000);
+  } catch (err) {
+    if (!started) { snapWhy = ' · live readings could not be reached'; start(snapshotData()); }
+  }
+}).catch(err => {
+  $('loading').textContent = 'The heat data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
