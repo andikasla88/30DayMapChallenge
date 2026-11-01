@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#050A16">
+<title>Day 18 · SVY21's own Null Island</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 18, NULL: Singapore's national map grid, SVY21, counts metres east and north from a point it calls 28,001.642, 38,744.572. Count both down to zero and you land in open sea off Karimun, Indonesia. A globe flight to SVY21's own Null Island, then on to the world's at 0°, 0°.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23050A16'/%3E%3Ccircle cx='16' cy='16' r='8.5' fill='none' stroke='%23E43DF0' stroke-width='2.4'/%3E%3Cpath d='M16 3v26M3 16h26' stroke='%23CBDEEF' stroke-width='1.4'/%3E%3Ccircle cx='16' cy='16' r='2.2' fill='%23E43DF0'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 18: a globe voyage to the two Null Islands, with a chartplotter readout ===== */
+:root {
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --sea: #CBDEEF; --ink: #17324D; --buoy: #FFD21F;
+  --log-w: 312px;
+}
+/* deep space behind the globe */
+.dmc-map { background: radial-gradient(120% 90% at 50% 45%, #0C1A33 0%, #070E1E 48%, #03060E 100%); }
+.dmc-map::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .55;
+  background-image: radial-gradient(1px 1px at 12% 18%, #fff, transparent), radial-gradient(1px 1px at 82% 12%, #cfe3ff, transparent),
+    radial-gradient(1.2px 1.2px at 64% 78%, #fff, transparent), radial-gradient(1px 1px at 28% 66%, #dfe9ff, transparent),
+    radial-gradient(1px 1px at 92% 58%, #fff, transparent), radial-gradient(1px 1px at 46% 8%, #fff, transparent),
+    radial-gradient(1.1px 1.1px at 6% 86%, #e9f0ff, transparent), radial-gradient(1px 1px at 74% 36%, #fff, transparent),
+    radial-gradient(1px 1px at 36% 92%, #fff, transparent), radial-gradient(1px 1px at 56% 52%, #cfe3ff, transparent); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- the logbook: one entry per waypoint ---- */
+.nl-log {
+  top: var(--log-top, 112px); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  width: var(--log-w); max-height: calc(100% - var(--log-top, 112px) - var(--gutter)); overflow-y: auto; overscroll-behavior: contain;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent;
+  padding: 11px 13px 10px; display: grid; gap: 8px;
+}
+.nl-entry { display: grid; gap: 7px; animation: nl-in .45s ease both; }
+.nl-entry[hidden] { display: none; }
+@keyframes nl-in { from { opacity: 0; transform: translateY(4px); } }
+.nl-kick { display: flex; justify-content: space-between; gap: 8px; font-family: var(--mono); font-size: 10px; font-weight: 500; letter-spacing: .04em; text-transform: uppercase; color: var(--day-accent); }
+.nl-kick span { color: var(--text-2); }
+.nl-entry h2 { margin: 0; font-size: 15.5px; font-weight: 600; line-height: 1.2; letter-spacing: -.005em; text-wrap: balance; }
+.nl-entry p { margin: 0; font-size: 12px; line-height: 1.5; color: var(--text-2); }
+.nl-entry p b, .nl-entry li b { color: var(--text); font-weight: 600; }
+.nl-entry a { color: inherit; text-decoration-color: rgba(255, 255, 255, .3); text-underline-offset: 2px; }
+.nl-entry a:hover { color: var(--text); }
+.nl-hero { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 6px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.nl-hero div { display: grid; gap: 2px; min-width: 0; }
+.nl-hero b { font-family: var(--mono); font-size: 15px; font-weight: 600; line-height: 1.1; color: var(--text); font-variant-numeric: tabular-nums; letter-spacing: -.02em; white-space: nowrap; }
+.nl-hero b.acc { color: var(--day-accent); }
+.nl-hero span { font-size: 10.5px; line-height: 1.25; color: var(--text-2); }
+.nl-src { font-size: 10px !important; line-height: 1.45 !important; }
+.nl-tbl { width: 100%; border-collapse: collapse; font-size: 11px; font-variant-numeric: tabular-nums; }
+.nl-tbl th, .nl-tbl td { padding: 2px 0 2px 8px; text-align: right; font-weight: 500; color: var(--text-2); border-bottom: 1px solid rgba(255, 255, 255, .06); white-space: nowrap; }
+.nl-tbl th:first-child, .nl-tbl td:first-child { text-align: left; white-space: normal; padding-right: 6px; }
+.nl-tbl th { font-size: 10px; font-weight: 600; color: var(--text-2); }
+.nl-tbl td.z { color: var(--text-2); opacity: .55; }
+.nl-tbl td.nz { color: var(--day-accent); font-weight: 600; }
+.nl-tbl-wrap { max-height: 168px; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent; }
+.nl-sources summary { cursor: pointer; font-size: 10.5px; font-weight: 600; color: var(--text-2); list-style: none; display: inline-flex; align-items: center; gap: 5px; min-height: 24px; }
+.nl-sources summary::-webkit-details-marker { display: none; }
+.nl-sources summary::before { content: "+"; display: inline-grid; place-items: center; width: 14px; height: 14px; border: 1px solid var(--line); border-radius: 4px; font-size: 10px; }
+.nl-sources[open] summary::before { content: "\2212"; }
+.nl-sources .dmc-credits { margin-top: 4px; }
+.nl-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.nl-list li { display: grid; grid-template-columns: 18px 1fr; gap: 0 7px; align-items: start; font-size: 11.5px; line-height: 1.35; color: var(--text); }
+.nl-list li i { grid-row: span 2; display: grid; place-items: center; width: 18px; height: 18px; border-radius: 50%; font-style: normal; font-family: var(--mono); font-size: 10px; font-weight: 600; color: #16021E; background: var(--buoy); }
+.nl-list li span { font-size: 10.5px; color: var(--text-2); }
+.nl-more { display: none; justify-self: start; position: relative; font: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 999px; padding: 3px 11px; min-height: 26px; cursor: pointer; }
+.nl-more::after { content: ""; position: absolute; inset: -8px -4px; }
+.nl-key { display: flex; flex-wrap: wrap; gap: 3px 10px; font-size: 10.5px; color: var(--text-2); }
+.nl-key i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; vertical-align: 3px; margin-right: 4px; }
+.nl-key i.dash { border-top-style: dashed; }
+.nl-key i.dot { width: 8px; height: 8px; border: 0; border-radius: 50%; vertical-align: 0; }
+
+/* ---- the chartplotter: live readout + waypoints ---- */
+.nl-hud {
+  left: var(--hud-left, calc(var(--gutter) + var(--log-w) + 16px)); right: calc(var(--gutter) + 52px + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  max-width: 660px; margin-inline: auto; padding: 9px 11px 9px; display: grid; gap: 8px;
+  background: rgba(6, 11, 22, .86);
+}
+.nl-read { display: grid; grid-template-columns: auto 1fr 1fr; align-items: end; gap: 4px 12px; }
+.nl-read .lbl { grid-row: span 2; align-self: center; font-family: var(--mono); font-size: 9.5px; line-height: 1.3; letter-spacing: .06em; text-transform: uppercase; color: var(--text-2); }
+.nl-read .lbl b { display: block; color: var(--day-accent); font-weight: 600; }
+.nl-cell { display: flex; align-items: baseline; gap: 6px; min-width: 0; padding: 3px 8px 3px; border-radius: 8px; background: rgba(203, 222, 239, .06); box-shadow: inset 0 0 0 1px rgba(203, 222, 239, .1); }
+.nl-cell .k { font-family: var(--mono); font-size: 11px; font-weight: 600; color: var(--day-accent); }
+.nl-cell output { flex: 1; min-width: 0; font-family: var(--mono); font-size: 19px; font-weight: 500; line-height: 1.15; text-align: right; color: #F4F8FD; font-variant-numeric: tabular-nums; letter-spacing: -.03em; white-space: nowrap; overflow: hidden; text-overflow: clip; }
+.nl-cell output.neg { color: #FFB4F6; }
+.nl-cell output.inf { color: var(--day-accent); }
+.nl-cell .u { font-family: var(--mono); font-size: 10px; color: var(--text-2); }
+.nl-sub { grid-column: 2 / -1; display: flex; justify-content: space-between; gap: 10px; font-family: var(--mono); font-size: 10.5px; color: var(--text-2); white-space: nowrap; overflow: hidden; }
+.nl-sub #r-note { overflow: hidden; text-overflow: ellipsis; text-align: right; }
+.nl-sub #r-note.hot { color: var(--day-accent); }
+.nl-route { display: flex; align-items: center; gap: 6px; }
+.nl-steps { flex: 1; display: flex; margin: 0; padding: 3px; list-style: none; gap: 2px; background: rgba(255, 255, 255, .05); border: 1px solid var(--line); border-radius: 999px; min-width: 0; }
+.nl-steps li { flex: 1; min-width: 0; display: flex; }
+.nl-steps button { position: relative; flex: 1; min-width: 0; display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-height: 30px; padding: 3px 8px;
+  font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text-2); background: transparent; border: 0; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+.nl-steps button::after { content: ""; position: absolute; inset: -7px 0; }
+.nl-steps button i { flex: none; display: inline-grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; font-style: normal; font-family: var(--mono); font-size: 10px; border: 1px solid currentColor; }
+.nl-steps button span { overflow: hidden; text-overflow: ellipsis; }
+.nl-steps button:hover { color: var(--text); }
+.nl-steps button[aria-current="step"] { color: #12021A; background: var(--day-accent); box-shadow: 0 0 14px rgba(var(--day-accent-rgb), .45); }
+.nl-play { position: relative; flex: none; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 4px 13px 4px 10px; font: inherit; font-size: 12px; font-weight: 700;
+  color: #12021A; background: linear-gradient(180deg, #F27CFA, var(--day-accent)); border: 0; border-radius: 999px; cursor: pointer; box-shadow: 0 4px 16px rgba(var(--day-accent-rgb), .35); }
+.nl-play::after { content: ""; position: absolute; inset: -4px; }
+.nl-play svg { width: 14px; height: 14px; fill: currentColor; }
+.nl-play:hover { filter: brightness(1.08); }
+
+/* the reticle at the centre of the free map: the point the readout describes */
+.nl-ret { position: absolute; z-index: 1; width: 26px; height: 26px; margin: -13px 0 0 -13px; pointer-events: none; left: var(--rx, 50%); top: var(--ry, 50%); opacity: .8; }
+.nl-ret::before, .nl-ret::after { content: ""; position: absolute; background: #0B1A30; box-shadow: 0 0 0 1px rgba(255, 255, 255, .55); }
+.nl-ret::before { left: 12px; top: 0; width: 2px; height: 26px; clip-path: polygon(0 0, 100% 0, 100% 38%, 0 38%, 0 62%, 100% 62%, 100% 100%, 0 100%); }
+.nl-ret::after { top: 12px; left: 0; height: 2px; width: 26px; clip-path: polygon(0 0, 38% 0, 38% 100%, 0 100%, 0 0, 62% 0, 100% 0, 100% 100%, 62% 100%); }
+
+/* ---- markers ---- */
+.mk { pointer-events: none; display: grid; justify-items: center; }
+.mk .tag { padding: 3px 7px 4px; border-radius: 7px; background: rgba(6, 11, 22, .88); border: 1px solid rgba(255, 255, 255, .16); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); text-align: center; white-space: nowrap; }
+.mk .tag b { display: block; font-size: 11px; font-weight: 600; line-height: 1.25; color: var(--text); }
+.mk .tag i { display: block; font-style: normal; font-family: var(--mono); font-size: 9.5px; line-height: 1.3; color: var(--text-2); }
+.mk .stem { width: 1.5px; height: 16px; background: rgba(6, 11, 22, .8); }
+.mk .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--c, #fff); box-shadow: 0 0 0 2px rgba(6, 11, 22, .85); }
+.mk.zero .tag { background: var(--day-accent); border-color: rgba(255, 255, 255, .5); }
+.mk.zero .tag b, .mk.zero .tag i { color: #16021E; }
+.mk.zero .dot { display: none; }
+.mk.zero .stem { height: 22px; background: var(--day-accent); }
+.mk.left { justify-items: start; }
+.mk.left .stem, .mk.left .dot { margin-left: 3px; }
+.mk.right { justify-items: end; }
+.mk.right .stem, .mk.right .dot { margin-right: 3px; }
+.mk.below { grid-template-areas: "dot" "stem" "tag"; }
+.mk.below .tag { grid-area: tag; } .mk.below .stem { grid-area: stem; } .mk.below .dot { grid-area: dot; }
+.mk { opacity: 0; transition: opacity .5s .2s; }
+.mk.show { opacity: 1; }
+.fan { position: relative; width: 0; height: 0; pointer-events: none; }
+.fan svg { position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); overflow: visible; }
+.fan svg line { stroke: #16021E; stroke-width: 1.4; stroke-dasharray: 3 2; opacity: .8; }
+.fan .hub { position: absolute; left: -6px; top: -6px; width: 12px; height: 12px; border-radius: 50%; background: var(--day-accent); box-shadow: 0 0 0 2px #fff, 0 0 12px var(--day-accent); }
+.fan .chip { position: absolute; display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; border-radius: 999px; white-space: nowrap;
+  font-size: 11px; font-weight: 600; color: var(--text); background: rgba(6, 11, 22, .9); border: 1px solid rgba(255, 210, 31, .55); box-shadow: 0 4px 12px rgba(0, 0, 0, .35); transform: translate(-50%, -50%); }
+.fan .chip.l { transform: translate(-100%, -50%); }
+.fan .chip.r { transform: translate(0, -50%); }
+.fan .chip em { font-style: normal; }
+.fan .chip i { display: grid; place-items: center; width: 17px; height: 17px; border-radius: 50%; font-style: normal; font-family: var(--mono); font-size: 10px; color: #16021E; background: var(--buoy); }
+.zring { width: 64px; height: 64px; margin: -32px; border-radius: 50%; pointer-events: none; border: 2px solid var(--day-accent); box-shadow: 0 0 18px rgba(var(--day-accent-rgb), .7), inset 0 0 12px rgba(var(--day-accent-rgb), .5); animation: zr 2.4s ease-out infinite; }
+@keyframes zr { 0% { transform: scale(.3); opacity: 1; } 100% { transform: scale(1.5); opacity: 0; } }
+
+/* ---- tap popup ---- */
+.maplibregl-popup.nl-pop .maplibregl-popup-content { padding: 8px 10px; border-radius: 10px; background: rgba(6, 11, 22, .94); border: 1px solid var(--line); color: var(--text); box-shadow: 0 10px 26px rgba(0, 0, 0, .45); font-size: 11.5px; }
+.maplibregl-popup.nl-pop .maplibregl-popup-tip { display: none; }
+.nl-pop b { font-family: var(--mono); font-weight: 500; font-variant-numeric: tabular-nums; }
+.nl-pop .t { font-size: 10px; letter-spacing: .05em; text-transform: uppercase; color: var(--day-accent); font-family: var(--mono); }
+.nl-pop .g { display: grid; grid-template-columns: auto auto; gap: 1px 8px; margin-top: 3px; }
+.nl-pop .g span { color: var(--text-2); font-family: var(--mono); font-size: 10.5px; }
+.nl-pop .ll { margin-top: 3px; font-family: var(--mono); font-size: 10px; color: var(--text-2); }
+.nl-pop .maplibregl-popup-close-button { color: var(--text-2); font-size: 16px; width: 24px; height: 24px; }
+
+.loading { position: absolute; z-index: 3; left: 50%; top: 46%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text-2); }
+.loading[hidden] { display: none; }
+.maplibregl-ctrl-attrib, .maplibregl-ctrl-logo { display: none !important; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .nl-log { padding: 9px 11px 8px; gap: 7px; }
+  .mk:not(.zero) .tag i { display: none; }
+  .nl-entry h2 { font-size: 14px; }
+  .nl-cell output { font-size: 16px; }
+  .nl-hero b { font-size: 13.5px; }
+  .fan .chip em { display: none; }
+  .fan .chip { padding: 2px; }
+}
+/* phones upright: the readout and the log share a bottom sheet; the map keeps the top half */
+@media (max-width: 640px) and (orientation: portrait) {
+  .nl-hud { left: 0; right: 0; bottom: 0; max-width: none; border-radius: 16px 16px 0 0; border-bottom: 0; padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)); gap: 7px; }
+  .nl-log { top: auto; left: 8px; right: 8px; width: auto; bottom: calc(var(--hud-h, 120px) + 6px); max-height: var(--log-max, 28vh); }
+  .nl-read { grid-template-columns: 1fr 1fr; }
+  .nl-read .lbl { display: none; }
+  .nl-sub { grid-column: 1 / -1; }
+  .nl-steps button { padding: 3px 5px; font-size: 11px; gap: 4px; }
+  .nl-steps button span.long { display: none; }
+  .nl-play { padding: 4px 11px 4px 9px; }
+  .nl-play span { display: none; }
+  .nl-tbl-wrap { max-height: 120px; }
+  .nl-more { display: inline-flex; }
+  .nl-log.short .nl-entry > :not(.nl-kick):not(h2):not(.nl-hero), .nl-log.short .nl-sources { display: none; }
+  .nl-log.short .nl-hero { border-bottom: 0; padding-bottom: 0; }
+}
+/* phones sideways: log and readout stack in a right-hand column */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --side-w: min(330px, 44vw); }
+  .nl-log { top: var(--gutter); left: auto; right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); width: var(--side-w); bottom: calc(var(--hud-h, 110px) + var(--gutter) + 6px); max-height: none; }
+  .nl-hud { left: auto; right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); width: var(--side-w); max-width: none; padding: 7px 9px; gap: 6px; }
+  .nl-read { grid-template-columns: 1fr 1fr; }
+  .nl-read .lbl { display: none; }
+  .nl-sub { grid-column: 1 / -1; }
+  .nl-cell output { font-size: 14.5px; }
+  .nl-steps button { padding: 3px 4px; font-size: 10.5px; gap: 3px; }
+  .nl-steps button span.long { display: none; }
+  .nl-play span { display: none; }
+  .nl-play { padding: 4px 10px 4px 8px; min-height: 32px; }
+  .nl-tbl-wrap { max-height: 96px; }
+}
+@media (prefers-reduced-motion: reduce) { .zring { display: none; } }
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Globe map: Singapore's SVY21 grid in kilometre lines, its zero point in the sea off Karimun, Indonesia, and the world's Null Island at 0 degrees north, 0 degrees east"></div>
+<div id="ret" class="nl-ret dmc-chrome" aria-hidden="true"></div>
+<p id="loading" class="loading dmc-chrome">Plotting a course to zero&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="log" class="dmc-glass nl-log" data-dmc-overlay aria-label="Logbook" aria-live="polite">
+  <article class="nl-entry" data-wp="0">
+    <p class="nl-kick">Waypoint 1 of 4 <span>the origin</span></p>
+    <h2>Singapore's map grid doesn't start at zero</h2>
+    <div class="nl-hero">
+      <div><b class="acc">28,001.642 m</b><span>false easting: the origin's &ldquo;E&rdquo;</span></div>
+      <div><b class="acc">38,744.572 m</b><span>false northing: the origin's &ldquo;N&rdquo;</span></div>
+    </div>
+    <p>SVY21, Singapore's national map grid, gives every spot two numbers: metres east (<b>E</b>) and metres north (<b>N</b>). Its maths starts at an unmarked point at <b data-v="lat0"></b>, <b data-v="lon0"></b>. That point could have been called 0, 0. Instead it was given the numbers above, so every corner of Singapore gets positive numbers.</p>
+    <p>So the grid's real zero is <b data-v="gridkm"></b> to the south-west, where the two magenta lines cross. Singapore's own lowest numbers are E&nbsp;<b data-v="minE"></b> on its western edge and N&nbsp;<b data-v="minN"></b> at <span data-v="minNname"></span>, its southern tip.</p>
+    <div class="nl-key"><span><i style="border-color:var(--day-accent)"></i>zero lines</span><span><i style="border-color:#17324D"></i>1, 5 and 10 km grid</span><span><i class="dash" style="border-color:var(--day-accent)"></i>the false origin</span></div>
+    <p class="nl-src">Parameters: <a href="https://epsg.org/conversion_19864/Singapore-Transverse-Mercator.html" target="_blank" rel="noopener noreferrer">EPSG conversion 19864</a> (source: Singapore Land Authority) and the <a href="https://sso.agc.gov.sg/SL/BSMA1998-R5" target="_blank" rel="noopener noreferrer">Boundaries and Survey Maps (Conduct of Cadastral Surveys) Rules 2005</a>, rule 2(1). Lowest numbers: SLA National Map Polygon coastline.</p>
+  </article>
+
+  <article class="nl-entry" data-wp="1" hidden>
+    <p class="nl-kick">Waypoint 2 of 4 <span>E 0 &middot; N 0</span></p>
+    <h2>Welcome to SVY21's Null Island</h2>
+    <div class="nl-hero">
+      <div><b class="acc" data-v="zlat"></b><span data-v="zlatdms"></span></div>
+      <div><b class="acc" data-v="zlon"></b><span data-v="zlondms"></span></div>
+    </div>
+    <p>Zero east, zero north is open sea, <b data-v="zfrom"></b> south-west of the origin, in <b data-v="zarch"></b>. The nearest land is <b data-v="zland"></b>, an islet in <span data-v="zlandc"></span>, <b data-v="zlandkm"></b> to the <span data-v="zlanddir"></span>. The nearest Singapore land is <b data-v="zsgkm"></b> to the <span data-v="zsgdir"></span>.</p>
+    <p data-if="s2">It isn't quite empty, though. OpenStreetMap charts a yellow anchorage buoy <b data-v="zbuoy"></b> from the spot, and the edge of an anchorage <b data-v="zanch"></b> away. When the Sentinel-2 satellite passed on <b data-v="s2date"></b>, it caught <b data-v="s2ships"></b> within <b data-v="s2r"></b> (ringed in yellow).</p>
+    <p>It even misses SVY21's own patch of the world: EPSG's area of use for the grid stops <b data-v="aous"></b> further north. Nor is it in the Singapore Strait: by the International Hydrographic Organization's sea limits it lies <b data-v="zstrait"></b> south of the strait, in the <span data-v="ziho"></span>.</p>
+    <p class="nl-src">Coordinates: PROJ (pyproj), EPSG:3414 to EPSG:4326; SVY21 sits on WGS&nbsp;84 to within <a href="https://epsg.org/transformation_8886/SVY21-to-WGS-84-1.html" target="_blank" rel="noopener noreferrer">1&nbsp;m (EPSG 8886)</a>. Waters: <a href="https://www.marineregions.org/" target="_blank" rel="noopener noreferrer">Marine Regions</a>. Coast, buoy: OpenStreetMap. <span data-if="s2">Ships: counted by machine as bright objects on dark water in the near-infrared band, so approximate.</span></p>
+  </article>
+
+  <article class="nl-entry" data-wp="2" hidden>
+    <p class="nl-kick">Waypoint 3 of 4 <span>strays</span></p>
+    <h2 data-v="strayh"></h2>
+    <div class="nl-hero">
+      <div><b class="acc" data-v="nzero"></b><span>records sitting exactly on SVY21&nbsp;0,&nbsp;0</span></div>
+      <div><b data-v="nrec"></b><span data-v="nds"></span></div>
+    </div>
+    <p>We checked <b data-v="nds2"></b> of places on data.gov.sg. None had an empty location, and none sat at 0&deg;,&nbsp;0&deg;. But <b data-v="nzero2"></b> sit on SVY21's Null Island, to the last decimal place:</p>
+    <ul class="nl-list" id="strays"></ul>
+    <p>The likely story: a blank postal code, or an X and Y keyed in as 0, became SVY21 0,&nbsp;0. Then it was turned into latitude and longitude like any other point, and landed out here in the anchorage.</p>
+    <div class="nl-tbl-wrap" tabindex="0" aria-label="The datasets we checked"><table class="nl-tbl" id="scan-tbl"></table></div>
+    <p class="nl-src">All from <a href="https://data.gov.sg/" target="_blank" rel="noopener noreferrer">data.gov.sg</a> (<a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>), downloaded 1&nbsp;Nov&nbsp;2026; the list was fixed before any file was opened. <span data-v="landnull"></span></p>
+  </article>
+
+  <article class="nl-entry" data-wp="3" hidden>
+    <p class="nl-kick">Waypoint 4 of 4 <span>0&deg; N &middot; 0&deg; E</span></p>
+    <h2>And the original Null Island</h2>
+    <div class="nl-hero">
+      <div><b class="acc" data-v="wkm"></b><span>from SVY21's Null Island, as the crow flies</span></div>
+      <div><b class="acc" data-v="wland"></b><span data-v="wlandp"></span></div>
+    </div>
+    <p>Records that lose their position often end up here, at latitude 0, longitude 0: open ocean on the high seas, outside every country's waters. There is no land, but NOAA lists one weather buoy right on the spot, PIRATA station 13010, <b>&ldquo;Soul&rdquo;</b>. Natural Earth, a widely used free world map, even includes the island: a square of &ldquo;land&rdquo; of <b data-v="nekm"></b>, labelled &ldquo;Null island&rdquo;.</p>
+    <p>Fun fact: it isn't strictly in the Gulf of Guinea. By the International Hydrographic Organization's sea limits it is <b data-v="wgulf"></b> outside it, in the South Atlantic.</p>
+    <p>And SVY21? Ask it for this spot's address and it answers E&nbsp;<b data-v="we"></b>, N&nbsp;<b data-v="wn"></b>. On the way here its numbers ran off to infinity at 0&deg;, 13&deg;50&prime;&nbsp;E, a quarter of the way round the world from Singapore's central meridian.</p>
+    <p class="nl-src">Buoy: <a href="https://www.ndbc.noaa.gov/station_page.php?station=13010" target="_blank" rel="noopener noreferrer">NOAA NDBC station 13010</a>. Waters and sea limits: <a href="https://www.marineregions.org/" target="_blank" rel="noopener noreferrer">Marine Regions</a> (high seas; IHO Sea Areas). Coast: OpenStreetMap, found via Natural Earth. SVY21 numbers: PROJ.</p>
+  </article>
+
+  <button id="more" class="nl-more" type="button" aria-expanded="false" aria-controls="log">Read the whole entry</button>
+  <details class="nl-sources">
+    <summary>Sources and credits</summary>
+    <p id="credits" class="dmc-credits"></p>
+  </details>
+</section>
+
+<nav id="hud" class="dmc-glass nl-hud" data-dmc-overlay aria-label="Voyage controls and the SVY21 readout">
+  <div class="nl-read">
+    <p class="lbl">SVY21<b>map centre</b></p>
+    <div class="nl-cell"><span class="k">E</span><output id="r-e" aria-label="Easting">&ndash;</output><span class="u">m</span></div>
+    <div class="nl-cell"><span class="k">N</span><output id="r-n" aria-label="Northing">&ndash;</output><span class="u">m</span></div>
+    <p class="nl-sub"><span id="r-ll"></span><span id="r-note"></span></p>
+  </div>
+  <div class="nl-route">
+    <ol class="nl-steps" id="steps">
+      <li><button type="button" data-wp="0"><i>1</i><span>Origin</span></button></li>
+      <li><button type="button" data-wp="1"><i>2</i><span><span class="long">SVY21&nbsp;</span>0,&nbsp;0</span></button></li>
+      <li><button type="button" data-wp="2"><i>3</i><span>Strays</span></button></li>
+      <li><button type="button" data-wp="3"><i>4</i><span>0&deg;,&nbsp;0&deg;</span></button></li>
+    </ol>
+    <button id="play" class="nl-play" type="button" aria-label="Fly the whole voyage"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 2.5v11l9-5.5z"/></svg><span>Fly</span></button>
+  </div>
+</nav>
+
+<script src="https://unpkg.com/maplibre-gl@5.24.0/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+/* ---------- SVY21: Transverse Mercator by Krüger series to n^6 (Karney 2011), as PROJ does ----------
+   Checked against pyproj on 1,600 points: under a micrometre within 3,000 km, and the same answer as PROJ at 0°, 0°. */
+const SVY21 = (() => {
+  const a = 6378137, f = 1 / 298.257223563, n = f / (2 - f), e = Math.sqrt(f * (2 - f));
+  const n2 = n * n, n3 = n2 * n, n4 = n3 * n, n5 = n4 * n, n6 = n5 * n;
+  const A = a / (1 + n) * (1 + n2 / 4 + n4 / 64 + n6 / 256);
+  const al = [0,
+    n / 2 - 2 * n2 / 3 + 5 * n3 / 16 + 41 * n4 / 180 - 127 * n5 / 288 + 7891 * n6 / 37800,
+    13 * n2 / 48 - 3 * n3 / 5 + 557 * n4 / 1440 + 281 * n5 / 630 - 1983433 * n6 / 1935360,
+    61 * n3 / 240 - 103 * n4 / 140 + 15061 * n5 / 26880 + 167603 * n6 / 181440,
+    49561 * n4 / 161280 - 179 * n5 / 168 + 6601661 * n6 / 7257600,
+    34729 * n5 / 80640 - 3418889 * n6 / 1995840,
+    212378941 * n6 / 319334400];
+  const RAD = Math.PI / 180, lat0 = (1 + 22 / 60) * RAD, lon0 = (103 + 50 / 60) * RAD, FE = 28001.642, FN = 38744.572;
+  const conf = phi => { const s = Math.sin(phi); return Math.sinh(Math.atanh(s) - e * Math.atanh(e * s)); };
+  const xi0 = (() => { const xp = Math.atan(conf(lat0)); let x = xp; for (let j = 1; j <= 6; j++) x += al[j] * Math.sin(2 * j * xp); return x; })();
+  // PROJ refuses (returns infinity) where |eta'| exceeds this; so do we.
+  const ETA_MAX = 2.623395162778;
+  function fwd(lon, lat) {
+    const t = conf(lat * RAD);
+    let dl = lon * RAD - lon0;
+    dl = Math.atan2(Math.sin(dl), Math.cos(dl));
+    const xp = Math.atan2(t, Math.cos(dl)), ep = Math.atanh(Math.sin(dl) / Math.sqrt(1 + t * t));
+    if (!isFinite(ep) || Math.abs(ep) > ETA_MAX) return [Infinity, Infinity];
+    let xi = xp, eta = ep;
+    for (let j = 1; j <= 6; j++) { xi += al[j] * Math.sin(2 * j * xp) * Math.cosh(2 * j * ep); eta += al[j] * Math.cos(2 * j * xp) * Math.sinh(2 * j * ep); }
+    return [FE + A * eta, FN + A * (xi - xi0)];
+  }
+  return { fwd, lon0: lon0 / RAD };
+})();
+
+/* ---------- the map ---------- */
+const ACCENT = '#E43DF0', INK = '#17324D', SEA = '#CBDEEF', LAND = '#F1F0EA';
+const OFM = '<a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>';
+const OSM = '&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors';
+const fade = (z0, z1, from = 0, to = 1) => ['interpolate', ['linear'], ['zoom'], z0, from, z1, to];
+const STYLE = {
+  version: 8,
+  projection: { type: 'globe' },
+  sky: { 'sky-color': '#0A1A36', 'horizon-color': '#7FB2E5', 'fog-color': '#CBDEEF', 'sky-horizon-blend': .6, 'horizon-fog-blend': .7, 'fog-ground-blend': .9,
+    'atmosphere-blend': ['interpolate', ['linear'], ['zoom'], 0, 1, 4, 1, 7, 0] },
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: {
+    ocean: { type: 'raster', tiles: ['https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer/tile/{z}/{y}/{x}'], tileSize: 256, maxzoom: 10 },
+    ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' },
+  },
+  layers: [
+    { id: 'sea', type: 'background', paint: { 'background-color': SEA } },
+    { id: 'ocean', type: 'raster', source: 'ocean', paint: { 'raster-opacity': fade(9.8, 10.8, 1, 0), 'raster-fade-duration': 150 } },
+    // past z10 Esri has no ocean tiles here, so OpenFreeMap's vectors take over in the same chart colours
+    { id: 'v-land', type: 'background', minzoom: 9.6, paint: { 'background-color': LAND, 'background-opacity': fade(9.8, 10.8) } },
+    { id: 'v-water', type: 'fill', source: 'ofm', 'source-layer': 'water', minzoom: 9.6, paint: { 'fill-color': SEA, 'fill-opacity': fade(9.8, 10.8) } },
+    { id: 'v-coast', type: 'line', source: 'ofm', 'source-layer': 'water', minzoom: 9, paint: { 'line-color': '#7E9CB5', 'line-width': fade(9, 13, .4, 1), 'line-opacity': fade(9, 10.5, 0, .9) } },
+    { id: 'v-country', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 2, maxzoom: 6, filter: ['==', ['get', 'class'], 'country'],
+      layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Bold'], 'text-size': 10.5, 'text-transform': 'uppercase', 'text-letter-spacing': .12, 'text-max-width': 7 },
+      paint: { 'text-color': '#5D6B78', 'text-halo-color': 'rgba(255,255,255,.75)', 'text-halo-width': 1.2 } },
+    { id: 'v-town', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 8, filter: ['in', ['get', 'class'], ['literal', ['city', 'town']]],
+      layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Regular'], 'text-size': ['interpolate', ['linear'], ['zoom'], 8, 10, 12, 12], 'text-max-width': 8 },
+      paint: { 'text-color': '#4E5A66', 'text-halo-color': 'rgba(255,255,255,.85)', 'text-halo-width': 1.2 } },
+    { id: 'v-island', type: 'symbol', source: 'ofm', 'source-layer': 'place', minzoom: 10.5, filter: ['in', ['get', 'class'], ['literal', ['island', 'islet']]],
+      layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Italic'], 'text-size': 10.5, 'text-max-width': 7 },
+      paint: { 'text-color': '#5E6A57', 'text-halo-color': 'rgba(255,255,255,.85)', 'text-halo-width': 1.1 } },
+    { id: 'v-sea', type: 'symbol', source: 'ofm', 'source-layer': 'water_name', minzoom: 3,
+      layout: { 'text-field': ['coalesce', ['get', 'name:en'], ['get', 'name']], 'text-font': ['Noto Sans Italic'], 'text-size': 11, 'text-letter-spacing': .08, 'text-max-width': 8 },
+      paint: { 'text-color': '#3E6A94', 'text-halo-color': 'rgba(203,222,239,.8)', 'text-halo-width': 1 } },
+  ],
+};
+
+const DAY = {
+  n: 18,
+  title: 'SVY21’s own Null Island',
+  deck: 'Singapore’s map grid, SVY21, counts metres east and north from a point it calls 28,001.642, 38,744.572. Count both numbers down to zero and you land in open sea in Indonesia’s Riau Islands, east of Karimun Besar. Fly there, then on round the globe to the world’s own Null Island at 0°, 0°.',
+  accent: ACCENT,
+  style: STYLE,
+  styleCredit: 'Ocean basemap (to zoom 10): <a href="https://services.arcgisonline.com/ArcGIS/rest/services/Ocean/World_Ocean_Base/MapServer" target="_blank" rel="noopener noreferrer">Esri World Ocean Base</a>: Esri, Garmin, GEBCO, NOAA NGDC, and other contributors',
+  bounds: [[103.56, 0.99], [104.06, 1.48]],
+  minZoom: .4, maxZoom: 15.5, maxBounds: null,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 45 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Coastlines and labels (from zoom 10): ' + OFM + ', &copy; <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">OpenMapTiles</a>, ' + OSM,
+    'SVY21 definition: <a href="https://epsg.org/crs_3414/SVY21-Singapore-TM.html" target="_blank" rel="noopener noreferrer">EPSG registry, CRS 3414</a> (information source: Singapore Land Authority); grid and coordinates computed with <a href="https://pyproj4.github.io/pyproj/" target="_blank" rel="noopener noreferrer">PROJ / pyproj</a>',
+    'Singapore coastline: <a href="https://data.gov.sg/datasets/d_29f066d67df3eae91df8a42f443863c8/view" target="_blank" rel="noopener noreferrer">SLA National Map Polygon</a> via data.gov.sg',
+    'Maritime zones, high seas and IHO sea areas: Flanders Marine Institute, <a href="https://www.marineregions.org/" target="_blank" rel="noopener noreferrer">Marine Regions</a> (CC BY 4.0)',
+    'Islands, coastline, buoys and anchorages near the zero point; coast near 0&deg;, 0&deg;: ' + OSM + ' (ODbL), via Overpass',
+    'Nearest coast to 0&deg;, 0&deg; found with <a href="https://www.naturalearthdata.com/" target="_blank" rel="noopener noreferrer">Natural Earth</a> 1:10m land',
+    'Picture of the zero point: contains modified <a href="https://dataspace.copernicus.eu/" target="_blank" rel="noopener noreferrer">Copernicus Sentinel-2</a> data (2026; contrast stretched), via <a href="https://registry.opendata.aws/sentinel-2-l2a-cogs/" target="_blank" rel="noopener noreferrer">Element 84 Earth Search</a>',
+    'Buoy at 0&deg;, 0&deg;: <a href="https://www.ndbc.noaa.gov/station_page.php?station=13010" target="_blank" rel="noopener noreferrer">NOAA National Data Buoy Center</a>, PIRATA',
+    'Null-record check: <a href="https://data.gov.sg/" target="_blank" rel="noopener noreferrer">data.gov.sg</a> datasets, <a href="https://data.gov.sg/open-data-licence" target="_blank" rel="noopener noreferrer">Singapore Open Data Licence</a>',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY, { renderWorldCopies: false });
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const MINUS = '−';
+const fmt = (v, d = 3) => (v < 0 ? MINUS : '') + new Intl.NumberFormat('en-SG', { minimumFractionDigits: d, maximumFractionDigits: d }).format(Math.abs(v));
+const km = (v, d = 1) => new Intl.NumberFormat('en-SG', { minimumFractionDigits: d, maximumFractionDigits: d }).format(v) + ' km';
+const latlon = (lon, lat, d = 4) => `${Math.abs(lat).toFixed(d)}° ${lat < 0 ? 'S' : 'N'} ${Math.abs(lon).toFixed(d)}° ${lon < 0 ? 'W' : 'E'}`;
+let D = null;
+
+/* ---------- the readout ---------- */
+const rE = $('r-e'), rN = $('r-n'), rLL = $('r-ll'), rNote = $('r-note');
+function readout() {
+  const c = map.getCenter().wrap(), lon = c.lng, lat = c.lat;
+  const [E, N] = SVY21.fwd(lon, lat);
+  const show = (el, v) => {
+    const inf = !isFinite(v);
+    if (Math.abs(v) < 5e-4) v = 0;   // no “−0.000”
+    el.textContent = inf ? '∞' : fmt(v, Math.abs(v) >= 1e6 ? 0 : 3);
+    el.classList.toggle('inf', inf);
+    el.classList.toggle('neg', !inf && v < 0);
+  };
+  show(rE, E); show(rN, N);
+  rLL.textContent = latlon(lon, lat, 4);
+  let dl = Math.abs(((lon - SVY21.lon0 + 540) % 360) - 180), note = '', hot = false;
+  const aou = D && D.svy21.aou;
+  if (!isFinite(E)) { note = 'SVY21 breaks down here'; hot = true; }
+  else if (dl > 90) { note = 'past 90° from SVY21’s meridian'; hot = true; }
+  else if (Math.abs(E) < 50 && Math.abs(N) < 50) { note = 'you are at zero'; hot = true; }
+  else if (aou && lat >= aou.SouthBoundLatitude && lat <= aou.NorthBoundLatitude && lon >= aou.WestBoundLongitude && lon <= aou.EastBoundLongitude) note = 'inside SVY21’s area';
+  else if (E < 0 || N < 0) { note = 'negative territory'; hot = true; }
+  else note = 'outside SVY21’s area';
+  rNote.textContent = note;
+  rNote.classList.toggle('hot', hot);
+}
+let rq = 0;
+map.on('move', () => { if (!rq) rq = requestAnimationFrame(() => { rq = 0; readout(); placeReticle(); }); });
+
+/* the reticle sits at the centre of the map area the panels leave free */
+function placeReticle() {
+  const p = map.getPadding(), r = map.getContainer().getBoundingClientRect();
+  const x = p.left + (r.width - p.left - p.right) / 2, y = p.top + (r.height - p.top - p.bottom) / 2;
+  $('ret').style.setProperty('--rx', `${x}px`); $('ret').style.setProperty('--ry', `${y}px`);
+}
+
+/* ---------- tap anywhere: its SVY21 address ---------- */
+const popup = new maplibregl.Popup({ className: 'nl-pop', closeButton: true, closeOnClick: true, maxWidth: '240px', offset: 8 });
+map.on('click', e => {
+  const { lng, lat } = e.lngLat.wrap();
+  const [E, N] = SVY21.fwd(lng, lat);
+  const v = x => isFinite(x) ? fmt(x, Math.abs(x) >= 1e6 ? 0 : 3) + ' m' : '∞';
+  popup.setLngLat(e.lngLat).setHTML(`<div class="t">SVY21 address</div><div class="g"><span>E</span><b>${v(E)}</b><span>N</span><b>${v(N)}</b></div><div class="ll">${latlon(lng, lat, 5)}</div>`).addTo(map);
+});
+
+/* ---------- data -> layers ---------- */
+const fc = features => ({ type: 'FeatureCollection', features });
+const line = (c, p = {}) => ({ type: 'Feature', properties: p, geometry: { type: 'LineString', coordinates: c } });
+const pt = (c, p = {}) => ({ type: 'Feature', properties: p, geometry: { type: 'Point', coordinates: c } });
+function hatch() {
+  const S = 12, c = document.createElement('canvas'); c.width = c.height = S * 2;
+  const g = c.getContext('2d'); g.scale(2, 2);
+  g.strokeStyle = 'rgba(190,40,205,.5)'; g.lineWidth = .8;
+  for (const o of [-S, 0, S]) { g.beginPath(); g.moveTo(o, S); g.lineTo(o + S, 0); g.stroke(); }
+  return g.getImageData(0, 0, S * 2, S * 2);
+}
+
+function addLayers() {
+  const z = [D.zero.lon, D.zero.lat];
+  const gridF = [];
+  for (const [axis, list] of [['E', D.grid.x], ['N', D.grid.y]]) for (const [k, c] of list) {
+    const s = k === 0 ? 0 : k % 10 === 0 ? 10 : k % 5 === 0 ? 5 : 1;
+    gridF.push(line(c, { a: axis, k, s, t: k === 0 ? `${axis} 0` : `${axis} ${k < 0 ? MINUS + Math.abs(k) : k} km` }));
+  }
+  map.addImage('hatch', hatch(), { pixelRatio: 2 });
+  map.addSource('neg', { type: 'geojson', data: fc([{ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: D.neg } }]) });
+  map.addSource('grid', { type: 'geojson', data: fc(gridF), tolerance: 0 });
+  map.addSource('box', { type: 'geojson', data: fc([
+    line(D.box.top, { t: `false easting ${fmt(D.svy21.fe)} m` }), line(D.box.right, { t: `false northing ${fmt(D.svy21.fn)} m` })]) });
+  map.addSource('anch', { type: 'geojson', data: fc([line(D.zero.anchorage.c)]) });
+  map.addSource('mbound', { type: 'geojson', data: fc(D.zero.boundaries.map(b => line(b.c, { t: b.between }))) });
+  map.addSource('links', { type: 'geojson', data: fc([
+    line([z, D.zero.land.pt], { w: 1, t: km(D.zero.land.km) }), line([z, D.zero.sg.pt], { w: 2, t: km(D.zero.sg.km) }),
+    line([[0, 0], D.wgs.land.pt], { w: 3, t: km(D.wgs.land.km, 0) }), line([[0, 0], D.wgs.gulf_pt], { w: 3, t: km(D.wgs.gulf_km, 0) })]) });
+  map.addSource('lines0', { type: 'geojson', data: fc([
+    line([[-180, 0], [-90, 0], [0, 0], [90, 0], [180, 0]], { t: 'Equator' }), line([[0, -85], [0, 0], [0, 85]], { t: 'Prime meridian' }),
+    line([[SVY21.lon0, -85], [SVY21.lon0, 0], [SVY21.lon0, 85]], { t: 'SVY21 central meridian 103°50′ E' })]) });
+  map.addSource('gulf', { type: 'geojson', data: fc(D.gulf.map(c => line(c, { t: 'Gulf of Guinea limit (IHO)' }))) });
+  map.addSource('trail', { type: 'geojson', data: fc([line(D.path.slice(0, 2))]) });
+  map.addSource('ships', { type: 'geojson', data: fc((D.s2 ? D.s2.ships : []).map(s => pt([s[0], s[1]]))) });
+  if (D.s2) {   // the 5 km circle the vessels were counted in
+    const ring = [], R = D.s2.radius_km * 1000, kx = 111320 * Math.cos(D.zero.lat * Math.PI / 180);
+    for (let k = 0; k <= 96; k++) { const a = k / 96 * 2 * Math.PI; ring.push([D.zero.lon + R * Math.sin(a) / kx, D.zero.lat + R * Math.cos(a) / 110574]); }
+    const d = new Date(D.s2.date + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+    map.addSource('s2ring', { type: 'geojson', data: fc([line(ring, { t: `Sentinel-2, ${d}: vessels counted inside ${D.s2.radius_km} km` })]) });
+  }
+  if (D.s2) {
+    const [w, s, e, n] = D.s2.bounds;
+    map.addSource('s2', { type: 'image', url: 'data/day18/zero-s2.webp', coordinates: [[w, n], [e, n], [e, s], [w, s]] });
+    map.addLayer({ id: 's2', type: 'raster', source: 's2', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 900 }, 'raster-fade-duration': 0, 'raster-saturation': -.12 } });
+  }
+  const T = { duration: reduceMotion ? 0 : 800 };
+  const L = (spec) => { spec.paint = spec.paint || {}; for (const k of Object.keys(spec.paint)) if (/opacity$/.test(k)) spec.paint[k + '-transition'] = T; map.addLayer(spec); };
+  L({ id: 'neg', type: 'fill', source: 'neg', minzoom: 6, paint: { 'fill-pattern': 'hatch', 'fill-opacity': .0 } });
+  if (map.getLayer('s2')) map.moveLayer('neg', 's2');   // the hatch stays under the satellite picture
+  L({ id: 'grid-1', type: 'line', source: 'grid', minzoom: 10.6, filter: ['==', ['get', 's'], 1], paint: { 'line-color': INK, 'line-width': .6, 'line-opacity': .28 } });
+  L({ id: 'grid-5', type: 'line', source: 'grid', minzoom: 8.6, filter: ['==', ['get', 's'], 5], paint: { 'line-color': INK, 'line-width': .9, 'line-opacity': .45 } });
+  L({ id: 'grid-10', type: 'line', source: 'grid', minzoom: 6, filter: ['==', ['get', 's'], 10], paint: { 'line-color': INK, 'line-width': 1.3, 'line-opacity': .62 } });
+  L({ id: 'grid-0-glow', type: 'line', source: 'grid', minzoom: 5, filter: ['==', ['get', 's'], 0], paint: { 'line-color': ACCENT, 'line-width': 8, 'line-blur': 6, 'line-opacity': .35 } });
+  L({ id: 'grid-0', type: 'line', source: 'grid', minzoom: 5, filter: ['==', ['get', 's'], 0], paint: { 'line-color': ACCENT, 'line-width': 2.4, 'line-opacity': 1 } });
+  L({ id: 'mbound', type: 'line', source: 'mbound', minzoom: 7, paint: { 'line-color': '#2E5E8C', 'line-width': 1.4, 'line-dasharray': [4, 2, 1, 2], 'line-opacity': .85 } });
+  L({ id: 'anch', type: 'line', source: 'anch', minzoom: 10, paint: { 'line-color': '#8A3FA8', 'line-width': 1.4, 'line-dasharray': [3, 2], 'line-opacity': 0 } });
+  L({ id: 'box', type: 'line', source: 'box', minzoom: 6, paint: { 'line-color': ACCENT, 'line-width': 1.6, 'line-dasharray': [3, 2.5], 'line-opacity': 0 } });
+  L({ id: 'lines0', type: 'line', source: 'lines0', maxzoom: 9, paint: { 'line-color': ['match', ['get', 't'], 'Equator', '#2E5E8C', 'Prime meridian', '#2E5E8C', ACCENT], 'line-width': 1.3, 'line-opacity': 0, 'line-dasharray': [2, 2] } });
+  L({ id: 'gulf', type: 'line', source: 'gulf', maxzoom: 9, paint: { 'line-color': '#2E5E8C', 'line-width': 1.2, 'line-dasharray': [5, 3], 'line-opacity': 0 } });
+  L({ id: 'trail', type: 'line', source: 'trail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ACCENT, 'line-width': 2.6, 'line-opacity': .9 } });
+  L({ id: 'links', type: 'line', source: 'links', paint: { 'line-color': INK, 'line-width': 1.5, 'line-dasharray': [2, 2], 'line-opacity': 0 } });
+  if (D.s2) {
+    L({ id: 's2ring', type: 'line', source: 's2ring', minzoom: 10, paint: { 'line-color': '#FFFFFF', 'line-width': 1.2, 'line-dasharray': [1, 2.5], 'line-opacity': 0 } });
+    L({ id: 's2ring-lbl', type: 'symbol', source: 's2ring', minzoom: 10.5, layout: { 'symbol-placement': 'line', 'symbol-spacing': 900, 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 10.5, 'text-offset': [0, -.8], 'text-keep-upright': true },
+      paint: { 'text-color': '#0E3B4E', 'text-halo-color': 'rgba(255,255,255,.9)', 'text-halo-width': 1.4, 'text-opacity': 0 } });
+  }
+  L({ id: 'anch-lbl', type: 'symbol', source: 'anch', minzoom: 11, layout: { 'symbol-placement': 'line', 'symbol-spacing': 400, 'text-field': 'anchorage (OpenStreetMap)', 'text-font': ['Noto Sans Italic'], 'text-size': 10, 'text-offset': [0, .9], 'text-keep-upright': true },
+    paint: { 'text-color': '#6B2C86', 'text-halo-color': 'rgba(255,255,255,.85)', 'text-halo-width': 1.2, 'text-opacity': 0 } });
+  L({ id: 'ships', type: 'circle', source: 'ships', minzoom: 10, paint: { 'circle-radius': 7, 'circle-color': 'rgba(0,0,0,0)', 'circle-stroke-color': '#FFD21F', 'circle-stroke-width': 1.4, 'circle-opacity': 0, 'circle-stroke-opacity': 0 } });
+  // labels
+  const halo = { 'text-halo-color': 'rgba(255,255,255,.92)', 'text-halo-width': 1.6 };
+  L({ id: 'grid-lbl-10', type: 'symbol', source: 'grid', minzoom: 7.4, filter: ['==', ['get', 's'], 10],
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 260, 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 10.5, 'text-keep-upright': true },
+    paint: { 'text-color': INK, ...halo, 'text-opacity': 1 } });
+  L({ id: 'grid-lbl-5', type: 'symbol', source: 'grid', minzoom: 9.6, filter: ['==', ['get', 's'], 5],
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 280, 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 10, 'text-keep-upright': true },
+    paint: { 'text-color': INK, ...halo, 'text-opacity': 1 } });
+  L({ id: 'grid-lbl-1', type: 'symbol', source: 'grid', minzoom: 12.4, filter: ['==', ['get', 's'], 1],
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 320, 'text-field': ['get', 't'], 'text-font': ['Noto Sans Regular'], 'text-size': 9.5, 'text-keep-upright': true },
+    paint: { 'text-color': INK, 'text-halo-color': 'rgba(255,255,255,.9)', 'text-halo-width': 1.3, 'text-opacity': .85 } });
+  L({ id: 'grid-lbl-0', type: 'symbol', source: 'grid', minzoom: 6, filter: ['==', ['get', 's'], 0],
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 220, 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 12, 'text-keep-upright': true, 'text-letter-spacing': .05 },
+    paint: { 'text-color': '#7A0F86', 'text-halo-color': '#FFFFFF', 'text-halo-width': 2, 'text-opacity': 1 } });
+  L({ id: 'box-lbl', type: 'symbol', source: 'box', minzoom: 8.5,
+    layout: { 'symbol-placement': 'line-center', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-offset': [0, -.9], 'text-keep-upright': true, 'text-allow-overlap': true, 'text-ignore-placement': true },
+    paint: { 'text-color': '#7A0F86', 'text-halo-color': '#FFFFFF', 'text-halo-width': 1.8, 'text-opacity': 0 } });
+  L({ id: 'neg-lbl', type: 'symbol', source: 'neg', minzoom: 9.5,
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 420, 'text-field': 'negative territory', 'text-font': ['Noto Sans Italic'], 'text-size': 10, 'text-offset': [0, 1.1], 'text-letter-spacing': .06 },
+    paint: { 'text-color': '#8E2A9C', 'text-halo-color': 'rgba(255,255,255,.85)', 'text-halo-width': 1.2, 'text-opacity': 0 } });
+  L({ id: 'mbound-lbl', type: 'symbol', source: 'mbound', minzoom: 9.2,
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 360, 'text-field': ['concat', ['get', 't'], ' sea boundary'], 'text-font': ['Noto Sans Italic'], 'text-size': 10, 'text-offset': [0, .9], 'text-keep-upright': true },
+    paint: { 'text-color': '#2E5E8C', 'text-halo-color': 'rgba(255,255,255,.85)', 'text-halo-width': 1.2, 'text-opacity': .95 } });
+  L({ id: 'links-lbl', type: 'symbol', source: 'links',
+    layout: { 'symbol-placement': 'line-center', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Bold'], 'text-size': 11, 'text-offset': [0, -.8], 'text-keep-upright': true, 'text-allow-overlap': true },
+    paint: { 'text-color': INK, ...halo, 'text-opacity': 0 } });
+  L({ id: 'lines0-lbl', type: 'symbol', source: 'lines0', maxzoom: 9,
+    layout: { 'symbol-placement': 'line', 'symbol-spacing': 400, 'text-field': ['get', 't'], 'text-font': ['Noto Sans Italic'], 'text-size': 10.5, 'text-offset': [0, -.8], 'text-keep-upright': true },
+    paint: { 'text-color': '#2E5E8C', 'text-halo-color': 'rgba(255,255,255,.8)', 'text-halo-width': 1.2, 'text-opacity': 0 } });
+  L({ id: 'gulf-lbl', type: 'symbol', source: 'gulf', maxzoom: 9,
+    layout: { 'symbol-placement': 'line-center', 'text-field': ['get', 't'], 'text-font': ['Noto Sans Italic'], 'text-size': 10.5, 'text-offset': [0, -.8], 'text-keep-upright': true },
+    paint: { 'text-color': '#2E5E8C', 'text-halo-color': 'rgba(255,255,255,.8)', 'text-halo-width': 1.2, 'text-opacity': 0 } });
+}
+
+/* ---------- markers ---------- */
+function marker(lngLat, cls, title, sub, anchor = 'bottom') {
+  const el = document.createElement('div');
+  el.className = `mk dmc-chrome ${cls}`;
+  el.innerHTML = `<div class="tag"><b>${title}</b>${sub ? `<i>${sub}</i>` : ''}</div><div class="stem"></div><div class="dot"></div>`;
+  return new maplibregl.Marker({ element: el, anchor }).setLngLat(lngLat);
+}
+let MK = {};
+function buildMarkers() {
+  const s = D.svy21, z = D.zero;
+  const ring = document.createElement('div'); ring.className = 'zring dmc-chrome';
+  MK = {
+    origin: [marker([s.lon0, s.lat0], '', 'Projection origin', `E ${fmt(s.fe)} · N ${fmt(s.fn)}`)],
+    sgW: [marker(D.sg_land.min_e_pt, 'left', 'Lowest E on land', `E ${fmt(D.sg_land.min_e, 1)} m`, 'bottom-left')],
+    sgS: [marker(D.sg_land.min_n_pt, 'below', 'Lowest N on land', `N ${fmt(D.sg_land.min_n, 1)} m`, 'top')],
+    zero: [marker([z.lon, z.lat], 'zero left', 'SVY21 0, 0', `${z.lat.toFixed(7)}° N ${z.lon.toFixed(7)}° E`, 'bottom-left')],
+    zeroB: [marker([z.lon, z.lat], 'zero below', 'SVY21 0, 0', `${z.lat.toFixed(7)}° N ${z.lon.toFixed(7)}° E`, 'top'), new maplibregl.Marker({ element: ring }).setLngLat([z.lon, z.lat])],
+    land: [marker(z.land.pt, 'left', z.land.name, 'nearest land', 'bottom-left')],
+    buoy: [marker(z.buoy.pt, 'right', 'Anchorage buoy', `${z.buoy.m} m away · OSM`, 'bottom-right')],
+    wgs: [marker([0, 0], 'zero below', '0° N, 0° E', 'buoy "Soul" · NOAA 13010', 'top')],
+    ghana: [marker(D.wgs.land.pt, '', `Near ${D.wgs.land.near}`, `${D.wgs.land.country} · nearest land`)],
+    inf: [marker(D.wgs.inf, 'below', 'SVY21 = ∞', '0°, 13°50′ E', 'top')],
+    strays: D.scan.strays.length ? [strayFan(), new maplibregl.Marker({ element: Object.assign(document.createElement('div'), { className: 'zring dmc-chrome' }) }).setLngLat([z.lon, z.lat])] : [],
+  };
+  MK.origin[0].getElement().style.setProperty('--c', ACCENT);
+  MK.buoy[0].getElement().style.setProperty('--c', '#FFD21F');
+}
+let shown = new Set();
+function showMarkers(keys) {
+  if (matchMedia(DMC.COMPACT_Q).matches) keys = keys.filter(k => k !== 'sgW' && k !== 'sgS');   // too crowded on a phone
+  for (const [k, list] of Object.entries(MK)) {
+    const on = keys.includes(k);
+    if (on && !shown.has(k)) { list.forEach(m => { m.addTo(map); const el = m.getElement(); requestAnimationFrame(() => requestAnimationFrame(() => el.classList.add('show'))); }); shown.add(k); }
+    if (!on && shown.has(k)) { list.forEach(m => m.remove()); shown.delete(k); }
+  }
+}
+
+/* ---------- waypoints ---------- */
+const PAINT = {   // [layer, property, value per waypoint 0..3]
+  neg: ['fill-opacity', [.3, .22, 0, 0]], 'neg-lbl': ['text-opacity', [1, 1, 0, 0]], trail: ['line-opacity', [.9, .9, .3, .9]],
+  box: ['line-opacity', [1, .7, 0, 0]], 'box-lbl': ['text-opacity', [1, 0, 0, 0]],
+  anch: ['line-opacity', [0, .9, 0, 0]], 'anch-lbl': ['text-opacity', [0, 1, 0, 0]], s2ring: ['line-opacity', [0, .9, 0, 0]], 's2ring-lbl': ['text-opacity', [0, 1, 0, 0]], links: ['line-opacity', [0, .9, 0, .9]], 'links-lbl': ['text-opacity', [0, 1, 0, 1]],
+  lines0: ['line-opacity', [0, 0, 0, .9]], 'lines0-lbl': ['text-opacity', [0, 0, 0, 1]],
+  gulf: ['line-opacity', [0, 0, 0, .9]], 'gulf-lbl': ['text-opacity', [0, 0, 0, 1]],
+  s2: ['raster-opacity', [0, 1, 1, 0]], ships: ['circle-stroke-opacity', [0, .95, .95, 0]],
+};
+const LINKS = [[], [0, 1], [], [2, 3]];   // which dashed distance lines each waypoint shows
+// Each waypoint centres the map on the point the readout should show (the origin reads E 28,001.642, N 38,744.572;
+// the zero point reads 0, 0) and zooms out just enough to keep its other points in view.
+const WP = [
+  { center: () => [D.svy21.lon0, D.svy21.lat0], keep: () => [[D.zero.lon, D.zero.lat], [103.62, 1.47], [104.04, 1.33], [103.74, 1.15]], markers: ['origin', 'sgW', 'sgS', 'zero'], pad: .06 },
+  { center: () => [D.zero.lon, D.zero.lat], keep: () => [D.zero.land.pt, [D.zero.lon + .062, D.zero.lat + .062]], markers: ['zeroB', 'land', 'buoy'], pad: .006 },
+  { center: () => [D.zero.lon, D.zero.lat], keep: () => [[D.zero.lon - .012, D.zero.lat - .011], [D.zero.lon + .012, D.zero.lat + .011]], markers: ['strays'], pad: 0 },
+  { center: () => [0, 0], keep: () => [D.wgs.land.pt, D.wgs.inf, D.wgs.gulf_pt], markers: ['wgs', 'ghana', 'inf'], far: true, pad: 1.2, pitch: 32 },
+];
+let wp = -1;
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+function freePadding() {
+  const W = innerWidth, H = innerHeight, g = 14;
+  const log = $('log').getBoundingClientRect(), hud = $('hud').getBoundingClientRect(), st = $('dmc-stamp').getBoundingClientRect();
+  if (document.documentElement.classList.contains('dmc-focus')) return { top: 30, right: 30, bottom: 30, left: 30 };
+  if (isSheet()) return { top: Math.round(st.bottom + 8), right: 46, bottom: Math.round(H - Math.min(log.top, hud.top) + 10), left: 12 };
+  if (log.left > W / 2) return { top: g + 10, right: Math.round(W - log.left + 10), bottom: g + 10, left: g + 8 };   // phone sideways
+  return { top: g + 18, right: 62, bottom: Math.round(H - hud.top + 12), left: Math.round(log.right + 16) };
+}
+function cameraFor(i) {
+  const padding = freePadding(), w = WP[i], center = w.center();
+  const W = map.getContainer().clientWidth, H = map.getContainer().clientHeight;
+  const fw = Math.max(80, W - padding.left - padding.right), fh = Math.max(80, H - padding.top - padding.bottom);
+  // the farthest kept point, either way, sets the half-width and half-height (Web Mercator units)
+  const c = maplibregl.MercatorCoordinate.fromLngLat(center);
+  let hx = 1e-9, hy = 1e-9;
+  for (const [lon, lat] of w.keep()) for (const s of [-1, 1]) {
+    const m = maplibregl.MercatorCoordinate.fromLngLat([lon + s * w.pad, lat + s * w.pad]);
+    hx = Math.max(hx, Math.abs(m.x - c.x)); hy = Math.max(hy, Math.abs(m.y - c.y));
+  }
+  const zoom = Math.log2(Math.min(fw / (2 * hx * 512), fh / (2 * hy * 512)));
+  return { center, zoom: Math.min(zoom, 13.6) - (w.pitch ? .25 : 0), padding, bearing: 0, pitch: w.pitch || 0 };
+}
+function setTrail(frac) {
+  const n = Math.round(D.path.length * frac);
+  map.getSource('trail').setData(fc(n >= 2 ? [line(D.path.slice(0, n))] : []));
+}
+let trailRaf = 0;
+function animateTrail(from, to, ms) {
+  cancelAnimationFrame(trailRaf);
+  if (reduceMotion || ms <= 0) { setTrail(to); return; }
+  const t0 = performance.now();
+  const step = t => { const k = Math.min(1, (t - t0) / ms), e = k < .5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2; setTrail(from + (to - from) * e); if (k < 1) trailRaf = requestAnimationFrame(step); };
+  trailRaf = requestAnimationFrame(step);
+}
+const TRAIL = [0, 22 / 383, 22 / 383, 1];   // fraction of the flight path drawn at each waypoint (origin, zero, zero, 0°0°)
+function go(i, opts = {}) {
+  i = Math.max(0, Math.min(WP.length - 1, i));
+  const prev = wp; wp = i;
+  document.querySelectorAll('.nl-entry').forEach(el => { el.hidden = +el.dataset.wp !== i; });
+  document.querySelectorAll('#steps button').forEach(b => { if (+b.dataset.wp === i) b.setAttribute('aria-current', 'step'); else b.removeAttribute('aria-current'); });
+  $('log').scrollTop = 0;
+  for (const [id, [prop, vals]] of Object.entries(PAINT)) if (map.getLayer(id)) map.setPaintProperty(id, prop, vals[i]);
+  const lk = ['in', ['get', 'w'], ['literal', i === 1 ? [1] : i === 3 ? [3] : [-1]]];
+  map.setFilter('links', lk); map.setFilter('links-lbl', lk);
+  popup.remove();
+  const cam = cameraFor(i);
+  const long = (WP[i].far || (prev >= 0 && WP[prev].far)) && prev !== i;
+  const dur = opts.instant || reduceMotion ? 0 : long ? 9000 : prev < 0 ? 4200 : 2600;
+  if (opts.noCam) { /* keep the camera */ }
+  else if (!dur) map.jumpTo(cam);
+  else if (long) map.flyTo({ ...cam, minZoom: 1.1, speed: .5, duration: dur, essential: true });
+  else map.flyTo({ ...cam, duration: dur, curve: 1.4, essential: true });
+  animateTrail(prev < 0 ? 0 : TRAIL[prev], TRAIL[i], dur * .92);
+  if (!dur) showMarkers(WP[i].markers);
+  else {
+    showMarkers([]);
+    map.once('moveend', () => { if (wp === i) showMarkers(WP[i].markers); });
+  }
+  if (params.has('debug')) console.log('wp', i, cam);
+}
+document.querySelectorAll('#steps button').forEach(b => b.addEventListener('click', () => { stopVoyage(); go(+b.dataset.wp); }));
+document.addEventListener('keydown', e => {
+  if (e.ctrlKey || e.metaKey || e.altKey || e.target.closest('input, textarea, select, .dmc-stamp, .maplibregl-canvas')) return;
+  if (e.key === 'ArrowRight' || e.key === 'PageDown') { stopVoyage(); go(wp + 1); e.preventDefault(); }
+  if (e.key === 'ArrowLeft' || e.key === 'PageUp') { stopVoyage(); go(wp - 1); e.preventDefault(); }
+});
+
+/* ---------- the voyage: all four waypoints in one go ---------- */
+let voyage = null;
+const HOLD = [3200, 6500, 5500, 0];
+function stopVoyage() {
+  if (!voyage) return;
+  clearTimeout(voyage); voyage = null;
+  $('play').setAttribute('aria-label', 'Fly the whole voyage');
+  $('play').querySelector('span').textContent = 'Fly';
+  $('play').querySelector('svg').innerHTML = '<path d="M4 2.5v11l9-5.5z"/>';
+}
+function playVoyage() {
+  if (voyage) { stopVoyage(); return; }
+  $('play').setAttribute('aria-label', 'Stop the voyage');
+  $('play').querySelector('span').textContent = 'Stop';
+  $('play').querySelector('svg').innerHTML = '<path d="M4 3h3v10H4zM9 3h3v10H9z"/>';
+  let i = 0;
+  const next = () => {
+    go(i);
+    map.once('moveend', () => {
+      if (!voyage) return;
+      if (i >= WP.length - 1) { stopVoyage(); return; }
+      i++;
+      voyage = setTimeout(next, HOLD[i - 1]);
+    });
+  };
+  voyage = setTimeout(next, 0);
+}
+$('play').addEventListener('click', playVoyage);
+map.on('dragstart', stopVoyage);
+map.on('wheel', stopVoyage);
+
+/* ---------- filling the logbook from the data ---------- */
+const compass = az => ['north', 'north-east', 'east', 'south-east', 'south', 'south-west', 'west', 'north-west'][Math.round(((az % 360) + 360) % 360 / 45) % 8];
+function fillLog() {
+  const s = D.svy21, z = D.zero, sc = D.scan;
+  const V = {
+    lat0: s.lat0_dms, lon0: s.lon0_dms, gridkm: km(z.from_origin_m / 1000, 1),
+    minE: `${fmt(D.sg_land.min_e / 1000, 2)} km`, minN: `${fmt(D.sg_land.min_n / 1000, 2)} km`, minNname: nice(D.sg_land.min_n_name),
+    zlat: `${z.lat.toFixed(7)}° N`, zlon: `${z.lon.toFixed(7)}° E`, zlatdms: z.lat_dms, zlondms: z.lon_dms,
+    zfrom: km(z.from_origin_m / 1000, 1), zarch: z.zones.archipelagic.replace('Indonesian Archipelagic Waters', 'Indonesia’s archipelagic waters'),
+    zland: z.land.name, zlandc: z.land.country, zlandkm: km(z.land.km, 2), zsgkm: km(z.sg.km), zbuoy: `${z.buoy.m} m`, zanch: `${z.anchorage.m} m`,
+    zlanddir: compass(z.land.azimuth), zsgdir: compass(z.sg.azimuth),
+    aous: km(z.aou_south_km), zstrait: km(z.zones.strait_km), ziho: z.zones.iho,
+    wkm: new Intl.NumberFormat('en-SG').format(Math.round(D.wgs.from_zero_km)) + ' km', wland: km(D.wgs.land.km, 0), wlandp: `to the nearest land, near ${D.wgs.land.near}, ${D.wgs.land.country}`, wgulf: km(D.wgs.gulf_km, 0),
+    nekm: `${(D.wgs.ne_null.area_m2 / 1e6).toFixed(2)} km²`,
+    we: fmt(D.wgs.svy_e, 0) + ' m', wn: fmt(D.wgs.svy_n, 0) + ' m',
+  };
+  if (D.s2) Object.assign(V, {
+    s2date: new Date(D.s2.date + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }),
+    s2ships: `${WORDS[D.s2.ships.length] ? WORDS[D.s2.ships.length].toLowerCase() : D.s2.ships.length} vessel${D.s2.ships.length === 1 ? '' : 's'}`, s2r: `${D.s2.radius_km} km`,
+  });
+  Object.assign(V, scanText(sc));
+  document.querySelectorAll('[data-v]').forEach(el => { if (V[el.dataset.v] != null) el.textContent = V[el.dataset.v]; });
+  document.querySelectorAll('[data-if="s2"]').forEach(el => { el.hidden = !D.s2; });
+  scanTable(sc);
+}
+const WORDS = ['No', 'One', 'Two', 'Three', 'Four', 'Five', 'Six', 'Seven', 'Eight', 'Nine', 'Ten', 'Eleven', 'Twelve'];
+const nfi = new Intl.NumberFormat('en-SG');
+const ACR = { 'Monetary Authority of Singapore': 'MAS', 'Health Promotion Board': 'HPB', 'Ministry of Health': 'MOH' };
+const acr = a => ACR[a] || a.split(/\s+/).filter(w => /^[A-Z]/.test(w)).map(w => w[0]).join('');
+// "MARINA BAY SANDS PTE. LTD." -> "Marina Bay Sands"; "Sushi Deli- Changi Airport Terminal 3" -> "Sushi Deli, Changi Airport Terminal 3"
+function nice(name) {
+  let s = name.replace(/\s+PTE\.?\s*LTD\.?$/i, '').replace(/\s*-\s+/g, ', ').trim();
+  if (s === s.toUpperCase()) s = s.toLowerCase().replace(/(^|[\s(@])([a-z])/g, (m, q, c) => q + c.toUpperCase()).replace(/ (At|Of|The|And) /g, w => w.toLowerCase());
+  return s;
+}
+const KIND = { 'Locations of Money Changer': 'licensed money changer', 'Healthier Eateries': 'Healthier Eateries outlet', 'CHAS Clinics': 'CHAS clinic' };
+const WHY = w => w.replace(/X_COORDINATE and Y_COORDINATE recorded as 0/, 'X and Y recorded as 0');
+function scanText(sc) {
+  const n = sc.svy21_zero;
+  return {
+    strayh: n ? `${WORDS[n] || nfi.format(n)} Singapore record${n === 1 ? '' : 's'} already live${n === 1 ? 's' : ''} here` : 'No strays here',
+    nzero: nfi.format(n), nzero2: `${WORDS[n] ? WORDS[n].toLowerCase() : nfi.format(n)}`, nrec: nfi.format(sc.records),
+    nds: `records checked, in ${sc.n} datasets`, nds2: `${sc.n} datasets (${nfi.format(sc.records)} records)`,
+    landnull: sc.land_null.length ? `Off the list, by chance: SLA's National Map Polygon, which drew our coastline, has ${WORDS[sc.land_null.length].toLowerCase()} shapes with no geometry at all (${[...new Set(sc.land_null)].join(', ')}).` : '',
+  };
+}
+function scanTable(sc) {
+  const ul = $('strays');
+  ul.innerHTML = sc.strays.map((s, i) => `<li><i>${i + 1}</i>${nice(s.name)}<span>${KIND[s.dataset] || s.dataset} (${acr(s.agency)}): ${WHY(s.why)}</span></li>`).join('');
+  const rows = [...sc.rows].sort((a, b) => b[5] - a[5] || a[0].localeCompare(b[0]));
+  $('scan-tbl').innerHTML = '<caption class="sr">Records checked per dataset, and how many sit at SVY21 0, 0 or at 0°, 0°</caption>'
+    + '<thead><tr><th scope="col">Dataset</th><th scope="col">Records</th><th scope="col">At 0,&nbsp;0</th></tr></thead><tbody>'
+    + rows.map(r => { const z = r[4] + r[5]; return `<tr><td>${r[0]} <span style="opacity:.6">${acr(r[1])}</span></td><td>${nfi.format(r[2])}</td><td class="${z ? 'nz' : 'z'}">${z}</td></tr>`; }).join('') + '</tbody>';
+}
+// the strays, fanned out round the one spot they all share
+function strayFan() {
+  const el = document.createElement('div');
+  el.className = 'fan dmc-chrome';
+  const list = D.scan.strays, n = list.length;
+  const R = isSheet() || innerHeight < 520 ? 74 : 112;
+  let svg = `<svg width="${2 * R + 40}" height="${2 * R + 40}" viewBox="${-R - 20} ${-R - 20} ${2 * R + 40} ${2 * R + 40}" aria-hidden="true">`;
+  let chips = '';
+  list.forEach((s, i) => {
+    const a = -Math.PI / 2 + (i + .5) * 2 * Math.PI / n, x = Math.cos(a) * R, y = Math.sin(a) * R;
+    svg += `<line x1="0" y1="0" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}"/>`;
+    chips += `<span class="chip ${x < -4 ? 'l' : x > 4 ? 'r' : 'c'}" style="left:${x.toFixed(1)}px;top:${y.toFixed(1)}px"><i>${i + 1}</i><em>${nice(s.name)}</em></span>`;
+  });
+  el.innerHTML = svg + '<circle/></svg>' + chips + '<b class="hub"></b>';
+  return new maplibregl.Marker({ element: el, anchor: 'center' }).setLngLat([D.zero.lon, D.zero.lat]);
+}
+
+/* ---------- layout ---------- */
+function layout() {
+  const st = $('dmc-stamp').getBoundingClientRect();
+  const root = document.documentElement.style;
+  if (!$('dmc-stamp').classList.contains('open')) root.setProperty('--log-top', `${Math.round(st.bottom + 8)}px`);
+  root.setProperty('--hud-h', `${Math.round($('hud').getBoundingClientRect().height)}px`);
+  if (isSheet()) {
+    const free = innerHeight - $('hud').getBoundingClientRect().height;
+    root.setProperty('--log-max', `${Math.max(120, Math.round(free * .42))}px`);
+  }
+}
+if (isSheet()) $('log').classList.add('short');
+$('more').addEventListener('click', () => {
+  const short = $('log').classList.toggle('short');
+  $('more').textContent = short ? 'Read the whole entry' : 'Show less';
+  $('more').setAttribute('aria-expanded', String(!short));
+  layout();
+  if (wp >= 0 && D) map.easeTo({ ...cameraFor(wp), duration: reduceMotion ? 0 : 500 });
+});
+layout();
+if (document.fonts) document.fonts.ready.then(layout);
+let rz = 0;
+addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { layout(); if (wp >= 0 && D) map.jumpTo(cameraFor(wp)); placeReticle(); }, 180); });
+document.addEventListener('dmc:focus', () => { if (wp >= 0 && D) map.easeTo({ ...cameraFor(wp), duration: reduceMotion ? 0 : 600 }); });
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day18/null.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([d]) => {
+  D = d;
+  fillLog();
+  addLayers();
+  buildMarkers();
+  layout();
+  const start = Math.max(0, Math.min(3, (parseInt(params.get('wp') || '1', 10) || 1) - 1));
+  if (params.has('view')) go(start, { instant: true, noCam: true });   // a shared ?view= keeps its own camera
+  else if (!reduceMotion && !params.has('wp')) {
+    map.jumpTo({ center: [96, 4], zoom: 1.3, padding: freePadding() });   // start from space, then fall towards Singapore
+    go(0);
+  } else go(start, { instant: true });
+  readout(); placeReticle();
+  map.once('idle', () => { $('loading').hidden = true; });
+}).catch(err => {
+  $('loading').textContent = 'The data could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
