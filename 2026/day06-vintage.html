@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#EFE3C6">
+<title>Day 06 · The Housing Estates, Sheet 06</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 6, Vintage: every HDB block in Singapore inked by the year it was completed, drawn as an old Survey Department topographic sheet. Press play to print the estates year by year.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=IM+Fell+English+SC&family=Old+Standard+TT:ital,wght@0,400;0,700;1,400&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 06: a printed map sheet. Paper, ink, neat line, cartouche, legend. ===== */
+:root {
+  --paper: #F1E6CA; --paper-2: #E8DABA; --sea: #E6E3CF;
+  --ink: #2B1D12; --ink-2: rgba(43, 29, 18, .74); --ink-3: rgba(43, 29, 18, .5);
+  --sepia: #6B4A2E; --red: #A63A24; --blue: #33617F;
+  --m: 40px;                                  /* sheet margin outside the neat line */
+  /* the kit's glass, re-inked as paper */
+  --glass: rgba(245, 237, 216, .95); --line: rgba(70, 45, 25, .34);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --display: "IM Fell English SC", "Iowan Old Style", Georgia, serif;
+  --font: "Old Standard TT", "Iowan Old Style", Georgia, serif;
+  --fell: "IM Fell English", "Iowan Old Style", Georgia, serif;
+  --radius: 2px;
+  color-scheme: light;
+  --grain: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .36  0 0 0 0 .25  0 0 0 0 .14  0 0 0 -.9 .62'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  --mottle: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='900' height='900'><filter id='m'><feTurbulence type='fractalNoise' baseFrequency='.0045' numOctaves='4' seed='7' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 .55  0 0 0 0 .38  0 0 0 0 .18  0 0 0 -1.6 1.02'/></filter><rect width='100%' height='100%' filter='url(%23m)'/></svg>");
+}
+body { background: var(--paper); color: var(--ink); font-family: var(--font); }
+#map { background: var(--sea); }
+.maplibregl-ctrl-top-right { top: calc(var(--m) + 14px + env(safe-area-inset-top, 0px)); right: calc(var(--m) + 14px + env(safe-area-inset-right, 0px)); }
+.dmc-focus .maplibregl-ctrl-top-right { top: 14px; right: 14px; }
+
+/* paper: grain, mottling, three folds, foxing and aged edges, multiplied over everything below the sheets */
+.paper { position: fixed; inset: 0; z-index: 1; pointer-events: none; mix-blend-mode: multiply;
+  background:
+    radial-gradient(circle at 12% 78%, rgba(150, 95, 40, .16) 0 5px, transparent 14px),
+    radial-gradient(circle at 71% 9%, rgba(150, 95, 40, .14) 0 4px, transparent 11px),
+    radial-gradient(circle at 88% 64%, rgba(150, 95, 40, .12) 0 7px, transparent 18px),
+    radial-gradient(circle at 37% 33%, rgba(150, 95, 40, .08) 0 3px, transparent 9px),
+    radial-gradient(ellipse 18% 12% at 4% 6%, rgba(160, 105, 45, .22), transparent 70%),
+    radial-gradient(ellipse 22% 14% at 97% 95%, rgba(160, 105, 45, .2), transparent 70%),
+    linear-gradient(90deg, transparent calc(33.33% - 14px), rgba(90, 60, 30, .05) calc(33.33% - 1px), rgba(70, 45, 20, .16) 33.33%, rgba(255, 255, 255, 0) calc(33.33% + 1px), rgba(90, 60, 30, .03) calc(33.33% + 9px), transparent calc(33.33% + 22px)),
+    linear-gradient(90deg, transparent calc(66.66% - 14px), rgba(90, 60, 30, .05) calc(66.66% - 1px), rgba(70, 45, 20, .16) 66.66%, rgba(255, 255, 255, 0) calc(66.66% + 1px), rgba(90, 60, 30, .03) calc(66.66% + 9px), transparent calc(66.66% + 22px)),
+    linear-gradient(180deg, transparent calc(50% - 14px), rgba(90, 60, 30, .05) calc(50% - 1px), rgba(70, 45, 20, .15) 50%, rgba(90, 60, 30, .03) calc(50% + 9px), transparent calc(50% + 20px)),
+    radial-gradient(ellipse 75% 70% at 50% 50%, transparent 62%, rgba(130, 85, 35, .22) 100%),
+    var(--mottle), var(--grain);
+  background-size: auto, auto, auto, auto, auto, auto, auto, auto, auto, auto, 900px 900px, 220px 220px;
+  opacity: .9; }
+
+/* the neat line, graduated frame and its lat/long figures */
+.sheet { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+.sheet svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.sheet text { font-family: var(--font); font-size: 10.5px; fill: var(--ink); }
+.sheet .sec { font-size: 9px; fill: var(--ink-2); }
+
+/* kit pieces re-inked */
+.dmc-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background-image: var(--grain); background-size: 220px;
+  border: 1px solid rgba(60, 38, 20, .55); box-shadow: 0 0 0 3px var(--glass), 0 0 0 4px rgba(60, 38, 20, .35), 0 10px 22px rgba(70, 45, 20, .16); }
+.dmc-stamp { top: calc(var(--m) + 14px + env(safe-area-inset-top, 0px)); left: calc(var(--m) + 14px + env(safe-area-inset-left, 0px)); }
+.dmc-num { color: var(--red); text-shadow: none; font-family: var(--fell); font-weight: 400; font-size: 31px; }
+.dmc-theme { font-weight: 400; letter-spacing: .12em; font-size: 15px; }
+.dmc-title { font-family: var(--fell); font-weight: 400; font-size: 14.5px; }
+.dmc-more, .dmc-btn { background: rgba(70, 45, 25, .06); color: var(--ink); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(70, 45, 25, .13); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(70, 45, 25, .25); font-family: var(--font); }
+.dmc-index li.done { background: rgba(70, 45, 25, .12); }
+.dmc-index li.today { color: #F6EEDA; box-shadow: none; }
+.maplibregl-ctrl-group { background: var(--glass) !important; border: 1px solid rgba(60, 38, 20, .55); border-radius: 2px !important; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: sepia(1) brightness(.55); }
+.dmc-ctrl button { color: var(--ink-2); }
+.dmc-ctrl button:hover { color: var(--ink); }
+.dmc-ctrl .lbl { font-family: var(--font); font-weight: 700; font-size: 10.5px; }
+.dmc-focus-credit { background: rgba(245, 237, 216, .9); color: var(--ink-2); font-family: var(--font); }
+.dmc-focus-exit { font-family: var(--font); }
+
+/* ---- cartouche ---- */
+.carto { top: calc(var(--m) + 14px); right: calc(var(--m) + 62px); width: 270px; padding: 12px 15px 10px; display: grid; gap: 7px; text-align: center; max-height: calc(100% - 2 * var(--m) - 28px); overflow-y: auto; scrollbar-width: thin; }
+.carto::before { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(60, 38, 20, .4); pointer-events: none; }
+.carto .eyebrow { font-family: var(--display); font-size: 11.5px; letter-spacing: .32em; color: var(--ink-2); }
+.carto h2 { margin: 0; font-family: var(--fell); font-weight: 400; font-size: 17px; line-height: 1.15; letter-spacing: .01em; }
+.carto h2 em { display: block; font-size: 12.5px; color: var(--ink-2); margin-top: 3px; }
+.rule { height: 5px; border-top: 1px solid var(--ink); border-bottom: 2px solid var(--ink); margin: 1px 18px; }
+.carto-row { display: grid; grid-template-columns: 62px 1fr; gap: 8px; align-items: center; text-align: left; }
+.rose { width: 62px; height: 62px; transition: transform .15s linear; }
+.scale { display: grid; gap: 1px; }
+.scale svg { width: 100%; height: auto; overflow: visible; }
+.scale text { font-family: var(--font); font-size: 9.5px; fill: var(--ink); }
+.scale .rf { font-size: 11px; color: var(--ink-2); font-style: italic; }
+.imprint { font-size: 11px; line-height: 1.4; color: var(--ink-2); font-style: italic; }
+.sheetno { display: flex; justify-content: space-between; font-family: var(--display); font-size: 11px; letter-spacing: .14em; color: var(--ink); border-top: 1px solid rgba(60, 38, 20, .35); padding-top: 6px; }
+.src { text-align: left; }
+.src > summary { display: none; }
+.src summary { cursor: pointer; font-family: var(--display); font-size: 11px; letter-spacing: .14em; color: var(--ink-2); list-style: none; }
+.src summary::-webkit-details-marker { display: none; }
+.src summary::before { content: "\25B8\00a0"; }
+.src[open] summary::before { content: "\25BE\00a0"; }
+.src { display: grid; gap: 4px; border-top: 1px solid rgba(60, 38, 20, .35); padding-top: 6px; }
+.src .dmc-credits { font-size: 10px; line-height: 1.4; color: var(--ink-2); }
+.src .dmc-credits a { text-decoration-color: rgba(60, 38, 20, .4); }
+.src .note { margin-top: 5px; font-size: 10.5px; line-height: 1.4; color: var(--ink-2); }
+
+/* ---- legend + timeline ---- */
+.legend { left: calc(var(--m) + 14px); bottom: calc(var(--m) + 14px); width: min(880px, calc(100% - 2 * var(--m) - 28px)); padding: 10px 14px 9px; display: grid; grid-template-columns: 172px 1fr; gap: 4px 16px; align-items: stretch; }
+.legend::before { content: ""; position: absolute; inset: 4px; border: 1px solid rgba(60, 38, 20, .4); pointer-events: none; }
+.lg-left { display: grid; align-content: space-between; gap: 6px; }
+.lg-top { display: flex; align-items: center; gap: 10px; }
+.play { position: relative; flex: none; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid var(--ink); background: radial-gradient(circle, rgba(166, 58, 36, .12), transparent 70%); color: var(--red); cursor: pointer; display: grid; place-items: center; }
+.play::after { content: ""; position: absolute; inset: 3px; border-radius: 50%; border: 1px solid rgba(43, 29, 18, .4); }
+.play svg { width: 18px; height: 18px; fill: currentColor; }
+.play:hover { background: rgba(166, 58, 36, .14); }
+.datestamp { display: grid; justify-items: center; padding: 6px 14px 5px; border: 2px solid var(--red); border-radius: 50%; color: var(--red); transform: rotate(-5deg); box-shadow: inset 0 0 0 2px var(--glass), inset 0 0 0 3px rgba(166, 58, 36, .7); opacity: .92; mix-blend-mode: multiply; }
+.datestamp small { font-family: var(--display); font-size: 9px; letter-spacing: .2em; line-height: 1.1; }
+.datestamp b { font-family: var(--font); font-weight: 700; font-size: 28px; line-height: .95; font-variant-numeric: tabular-nums lining-nums; letter-spacing: .02em; }
+.counts { display: grid; gap: 0; font-size: 12px; color: var(--ink-2); }
+.counts b { font-family: var(--font); font-weight: 700; color: var(--ink); font-size: 15px; font-variant-numeric: tabular-nums lining-nums; }
+.counts span { font-family: var(--display); letter-spacing: .1em; font-size: 11px; }
+.lg-chart { position: relative; min-width: 0; display: grid; grid-template-rows: auto 1fr auto; gap: 3px; }
+.lg-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; font-family: var(--display); font-size: 11px; letter-spacing: .16em; color: var(--ink-2); }
+.lg-head i { font-family: var(--font); letter-spacing: 0; font-size: 11px; }
+.hist { position: relative; height: 56px; }
+.hist svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.hist text { font-family: var(--font); font-size: 9.5px; fill: var(--ink-2); }
+.hist input { position: absolute; inset: -4px 0 -14px; width: 100%; height: auto; margin: 0; opacity: 0; cursor: ew-resize; }
+.hist:has(input:focus-visible) { outline: 2px solid var(--red); outline-offset: 3px; }
+.decades { display: flex; gap: 0; border: 1px solid var(--ink); }
+.decades button { position: relative; flex: var(--w) 1 0; min-width: 0; min-height: 26px; padding: 3px 2px 2px; display: grid; justify-items: center; gap: 2px; font-family: var(--display); font-size: 10.5px; letter-spacing: .06em; color: var(--ink); background: transparent; border: 0; border-left: 1px solid var(--ink); cursor: pointer; white-space: nowrap; overflow: hidden; }
+.decades button:first-child { border-left: 0; }
+.decades button i { width: 74%; height: 7px; background: var(--c); border: 1px solid rgba(30, 20, 10, .6); }
+.decades button:hover { background: rgba(70, 45, 25, .08); }
+.decades button[aria-pressed="true"] { background: rgba(166, 58, 36, .12); box-shadow: inset 0 -2px 0 var(--red); }
+.decades .s { display: none; }
+
+/* ---- town and water lettering ---- */
+.lbl-town { pointer-events: none; font-family: var(--display); font-size: 11.5px; letter-spacing: .2em; color: var(--ink); white-space: nowrap; transition: opacity .6s;
+  text-shadow: 1px 0 0 var(--paper), -1px 0 0 var(--paper), 0 1px 0 var(--paper), 0 -1px 0 var(--paper), 1px 1px 0 var(--paper), -1px -1px 0 var(--paper), 1px -1px 0 var(--paper), -1px 1px 0 var(--paper), 0 0 6px var(--paper), 0 0 10px rgba(241, 230, 202, .8); }
+.lbl-town.big { font-size: 12px; letter-spacing: .24em; }
+.lbl-town.off { opacity: 0 !important; }
+.lbl-water { pointer-events: none; font-family: var(--fell); font-style: italic; font-size: 12px; letter-spacing: .32em; color: var(--blue); white-space: nowrap; }
+.lbl-land { pointer-events: none; font-family: var(--display); font-size: 12px; letter-spacing: .5em; color: var(--sepia); white-space: nowrap; opacity: .85; }
+.lbl-isle { pointer-events: none; font-family: var(--fell); font-style: italic; font-size: 11px; letter-spacing: .12em; color: var(--sepia); white-space: nowrap; text-shadow: 0 0 3px var(--paper), 0 0 6px var(--paper); }
+.labels-off .lbl-town, .labels-off .lbl-isle { visibility: hidden; }
+
+/* ---- hover tag ---- */
+.tag { position: absolute; z-index: 4; pointer-events: none; transform: translate(-50%, calc(-100% - 14px)); padding: 6px 10px 5px; background: var(--glass); background-image: var(--grain); border: 1px solid rgba(60, 38, 20, .6); box-shadow: 0 6px 14px rgba(70, 45, 20, .2); font-size: 12px; line-height: 1.35; white-space: nowrap; text-align: center; }
+.tag b { display: block; font-family: var(--display); font-weight: 400; font-size: 12.5px; letter-spacing: .12em; }
+.tag i { color: var(--ink-2); }
+.tag em { font-style: normal; display: inline-block; width: 9px; height: 9px; margin-right: 5px; border: 1px solid rgba(30, 20, 10, .6); vertical-align: -1px; }
+.tag[hidden] { display: none; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); font-family: var(--fell); font-style: italic; font-size: 14px; color: var(--ink-2); }
+
+/* ---- compact screens ---- */
+@media (max-width: 900px) {
+  .carto { width: 240px; }
+  .legend { width: calc(100% - 2 * var(--m) - 28px); }
+}
+@media (max-width: 640px), (max-height: 520px) {
+  :root { --m: 24px; }
+  .sheet text { font-size: 10px; }
+  .dmc-stamp { top: calc(var(--m) + 8px); left: calc(var(--m) + 8px); width: min(250px, calc(100vw - 2 * var(--m) - 64px)); }
+  .legend { left: calc(var(--m) + 8px); right: calc(var(--m) + 8px); bottom: calc(var(--m) + 8px); width: auto; grid-template-columns: 1fr; padding: 9px 11px 8px; gap: 6px; }
+  .lg-left { grid-template-columns: auto 1fr; align-items: center; }
+  .lg-top { gap: 8px; }
+  .play { width: 40px; height: 40px; }
+  .datestamp b { font-size: 24px; }
+  .counts { justify-items: end; text-align: right; }
+  .hist { height: 44px; }
+  .decades .l { display: none; }
+  .decades .s { display: inline; }
+  .lg-head i { display: none; }
+  .carto { top: auto; right: calc(var(--m) + 8px); left: calc(var(--m) + 8px); bottom: calc(var(--m) + 8px + var(--legend-h, 170px) + 10px); width: auto; max-height: none; padding: 8px 11px 7px; gap: 5px; grid-template-columns: 1fr auto; text-align: left; align-items: center; }
+  .carto .eyebrow, .carto .rule, .imprint, .sheetno, .rose { display: none; }
+  .carto h2 { font-size: 14.5px; }
+  .carto h2 em { font-size: 11.5px; }
+  .carto-row { grid-template-columns: 1fr; }
+  .scale { width: 150px; }
+  .scale .rf { display: none; }
+  .src { grid-column: 1 / -1; padding-top: 4px; }
+  .src > summary { display: block; }
+  .src[open] .notes { display: none; }
+  .lbl-town { font-size: 10.5px; letter-spacing: .2em; }
+  .lbl-water, .lbl-land { font-size: 10.5px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .legend { left: auto; width: min(380px, 50vw); right: calc(var(--m) + 52px); }
+  .carto { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore drawn as an old printed survey sheet, with every HDB block coloured by the decade it was completed"></div>
+<div class="sheet dmc-chrome" aria-hidden="true"><svg id="frame"></svg></div>
+<div class="paper" aria-hidden="true"></div>
+<p id="loading" class="loading dmc-chrome">Inking the plates&hellip;</p>
+<div id="tag" class="tag" hidden></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="carto" class="dmc-glass carto" data-dmc-overlay aria-label="Map title, scale and sources">
+  <p class="eyebrow">Singapore</p>
+  <h2>The Housing Estates <em>every flat block, inked by its year of completion</em></h2>
+  <div class="rule" aria-hidden="true"></div>
+  <div class="carto-row">
+    <svg id="rose" class="rose" viewBox="-50 -50 100 100" role="img" aria-label="Compass rose, pointing to true north">
+      <circle r="44" fill="none" stroke="#2B1D12" stroke-width=".8"/>
+      <circle r="40" fill="none" stroke="#2B1D12" stroke-width=".4"/>
+      <g stroke="#2B1D12" stroke-width=".5">
+        <path d="M0-40 6-6 0 0Z" fill="#2B1D12"/><path d="M0-40-6-6 0 0Z" fill="#F4ECD6"/>
+        <path d="M0 40-6 6 0 0Z" fill="#2B1D12"/><path d="M0 40 6 6 0 0Z" fill="#F4ECD6"/>
+        <path d="M40 0 6 6 0 0Z" fill="#2B1D12"/><path d="M40 0 6-6 0 0Z" fill="#F4ECD6"/>
+        <path d="M-40 0-6-6 0 0Z" fill="#2B1D12"/><path d="M-40 0-6 6 0 0Z" fill="#F4ECD6"/>
+        <g transform="rotate(45)"><path d="M0-27 4-4 0 0Z" fill="#A63A24"/><path d="M0-27-4-4 0 0Z" fill="#F4ECD6"/><path d="M0 27-4 4 0 0Z" fill="#A63A24"/><path d="M0 27 4 4 0 0Z" fill="#F4ECD6"/><path d="M27 0 4 4 0 0Z" fill="#A63A24"/><path d="M27 0 4-4 0 0Z" fill="#F4ECD6"/><path d="M-27 0-4-4 0 0Z" fill="#A63A24"/><path d="M-27 0-4 4 0 0Z" fill="#F4ECD6"/></g>
+      </g>
+      <text y="-45" text-anchor="middle" font-family="IM Fell English SC, Georgia, serif" font-size="11" fill="#A63A24">N</text>
+    </svg>
+    <div class="scale">
+      <svg id="scalebar" viewBox="0 0 196 78" aria-hidden="true"></svg>
+      <p id="rf" class="rf"></p>
+    </div>
+  </div>
+  <p class="imprint">Compiled and drawn after the manner of the Survey Department, Singapore. A homage; not an official publication.</p>
+  <p class="sheetno"><span>Sheet Nº 06</span><span>Series 30DMC</span><span>Ed. 1&ndash;2026</span></p>
+  <details id="src" class="src" open>
+    <summary>Sources &amp; notes</summary>
+    <p id="credits" class="dmc-credits"></p>
+    <details class="notes">
+      <summary>Notes on the data</summary>
+      <p id="note" class="note"></p>
+    </details>
+  </details>
+</aside>
+
+<section id="legend" class="dmc-glass legend" data-dmc-overlay aria-label="Legend and timeline">
+  <div class="lg-left">
+    <div class="lg-top">
+      <button id="play" class="play" type="button" aria-label="Print the estates year by year"><svg viewBox="0 0 20 20" aria-hidden="true"><path id="play-ico" d="M6 3.5v13l11-6.5z"/></svg></button>
+      <div class="datestamp" aria-hidden="true"><small>Printed to</small><b id="yr">2024</b></div>
+    </div>
+    <p class="counts" aria-live="polite"><span><b id="n-blk">&ndash;</b> blocks of flats</span><span><b id="n-flat">&ndash;</b> flats standing</span></p>
+  </div>
+  <div class="lg-chart">
+    <p class="lg-head"><span>Flats completed each year</span><i>Drag along the years · pick a decade to isolate it</i></p>
+    <div class="hist">
+      <svg id="hist" aria-hidden="true"></svg>
+      <input id="year" type="range" min="1936" max="2024" step="1" value="2024" aria-label="Show blocks completed up to this year">
+    </div>
+    <div id="decades" class="decades" role="group" aria-label="Decades: pick one to show only its blocks"></div>
+  </div>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const PAPER = '#F1E6CA', SEA = '#E6E3CF', INK = '#2B1D12', BLUE = '#33617F', SEPIA = '#6B4A2E', RED = '#A63A24';
+const DAY = {
+  n: 6,
+  title: 'The Housing Estates, Sheet 06',
+  deck: 'Every HDB block that stands today, inked by the decade it was finished and printed on a sheet in the manner of the old Survey Department topographic maps. Press play and Singapore’s new towns appear year by year: Queenstown and Toa Payoh first, the great 1980s rush of Bedok, Ang Mo Kio, Yishun and Jurong, then Sengkang, Punggol and Tengah. Tilt the map and each block rises to its height.',
+  accent: RED,
+  style: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': SEA } }] },
+  basemapBg: PAPER,
+  buildings: false,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 52 },
+  maxZoom: 18.5,
+  maxBounds: [[103.2, 0.8], [104.5, 1.9]],   // the sheet's extent: the coast data stops here
+  creditsEl: 'credits',
+  author: '',
+  nav: null,
+  attribution: [
+    'Blocks: HDB Property Information and HDB Existing Building, <a href="https://data.gov.sg/" target="_blank" rel="noopener noreferrer">data.gov.sg</a>, Housing &amp; Development Board, Singapore Open Data Licence',
+    'Block matching: <a href="https://www.onemap.gov.sg/" target="_blank" rel="noopener noreferrer">OneMap</a> search, Singapore Land Authority',
+    'Coast, reservoirs, roads, rail: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors, ODbL',
+  ],
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+
+/* ---------- inks by decade ---------- */
+const DECADES = [
+  { a: 1900, b: 1959, l: 'Before 1960', s: '<60', c: '#4E3727' },   // sepia: SIT and early HDB
+  { a: 1960, b: 1969, l: '1960s', s: '60s', c: '#7E211B' },         // oxblood
+  { a: 1970, b: 1979, l: '1970s', s: '70s', c: '#B9521F' },         // burnt vermilion
+  { a: 1980, b: 1989, l: '1980s', s: '80s', c: '#C69628' },         // gamboge
+  { a: 1990, b: 1999, l: '1990s', s: '90s', c: '#6B7A2F' },         // sap green
+  { a: 2000, b: 2009, l: '2000s', s: '00s', c: '#2C7165' },         // viridian
+  { a: 2010, b: 2019, l: '2010s', s: '10s', c: '#2D4B86' },         // prussian blue
+  { a: 2020, b: 2099, l: '2020s', s: '20s', c: '#6B3A7A' },         // mauve
+];
+const WET = '#140C07', GHOST = '#DCCFB0';
+const decadeOf = y => (y <= 0 ? -1 : y < 1960 ? 0 : Math.min(7, Math.floor((y - 1960) / 10) + 1));
+
+/* ---------- state ---------- */
+let D = null, YMIN = 1936, YMAX = 2024, year = 2024, isolate = null, playing = false;
+let cumBlk = {}, cumFlat = {};
+
+/* ---------- data ---------- */
+const loaded = new Promise(res => map.once('load', res));
+fetch('data/day06/sheet.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(async data => {
+  D = data;
+  await loaded;
+  build();
+}).catch(err => { $('loading').textContent = 'The plates could not be loaded (' + err.message + ').'; console.error(err); });
+
+// Google-polyline strings of (x, y) integer pairs -> [[lng, lat]], closed if ring
+function decode(str, k, ox = 0, oy = 0, ring = false) {
+  const out = [];
+  let i = 0, x = 0, y = 0;
+  while (i < str.length) {
+    for (let c = 0; c < 2; c++) {
+      let shift = 0, res = 0, b;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (c === 0) x += d; else y += d;
+    }
+    out.push([ox + x / k, oy + y / k]);
+  }
+  if (ring && out.length) out.push(out[0]);
+  return out;
+}
+const unpack = g => g.t === 'P'
+  ? { type: 'MultiPolygon', coordinates: g.c.map(p => p.map(r => decode(r, 1e5, 0, 0, false))) }
+  : { type: 'MultiLineString', coordinates: g.c.map(l => decode(l, 1e5)) };
+const byYear = new Map();   // year -> feature ids, so the timeline only touches what changes
+function decodeBlocks() {
+  const [ox, oy] = D.o, k = D.k, feats = [];
+  D.b.forEach((r, i) => {
+    const [y, f, u, , , fl] = r;
+    if (y) { if (!byYear.has(y)) byYear.set(y, []); byYear.get(y).push(i); }
+    const rings = [];
+    for (let j = 6; j < r.length; j++) rings.push(decode(r[j], k, ox, oy, true));
+    feats.push({ type: 'Feature', id: i, properties: { y, f, u, fl, d: decadeOf(y) }, geometry: { type: 'Polygon', coordinates: rings } });
+  });
+  return { type: 'FeatureCollection', features: feats };
+}
+const fc = features => ({ type: 'FeatureCollection', features });
+const feat = (geometry, properties = {}) => ({ type: 'Feature', properties, geometry });
+
+function graticule() {
+  const f = [];
+  for (let m = 103 * 60 + 12; m <= 104 * 60 + 30; m++) f.push(feat({ type: 'LineString', coordinates: [[m / 60, 0.8], [m / 60, 1.9]] }, { major: m % 5 === 0 ? 1 : 0 }));
+  for (let m = 48; m <= 114; m++) f.push(feat({ type: 'LineString', coordinates: [[103.2, m / 60], [104.5, m / 60]] }, { major: m % 5 === 0 ? 1 : 0 }));
+  return fc(f);
+}
+
+function build() {
+  const C = D.ctx;
+  const years = Object.keys(D.yearly).map(Number).sort((a, b) => a - b);
+  YMIN = years[0]; YMAX = years[years.length - 1]; year = YMAX;
+  let sb = 0, sf = 0;
+  for (let y = YMIN; y <= YMAX; y++) { const v = D.yearly[y]; if (v) { sb += v[0]; sf += v[1]; } cumBlk[y] = sb; cumFlat[y] = sf; }
+  const yr = $('year');
+  yr.min = YMIN; yr.max = YMAX; yr.value = YMAX;
+
+  const add = (id, data) => map.addSource(id, { type: 'geojson', data, tolerance: 0.25 });
+  add('waterlines', fc(C.waterlines.map((g, i) => feat(unpack(g), { i }))));
+  add('land', feat(unpack(C.land)));
+  add('foreign', feat(unpack(C.foreign)));
+  add('coast', feat(unpack(C.coast)));
+  add('res', feat(unpack(C.reservoirs)));
+  add('reslines', fc(C.reslines.map((g, i) => feat(unpack(g), { i }))));
+  add('grid', graticule());
+  add('roads', fc(Object.entries(C.roads).map(([k, g]) => feat(unpack(g), { k }))));
+  add('rail', fc([feat(unpack(C.rail), { t: 0 }), feat(unpack(C.railTunnel), { t: 1 })]));
+  map.addSource('blocks', { type: 'geojson', data: decodeBlocks(), tolerance: 0.15 });
+
+  const N = C.waterlines.length;
+  map.addLayer({ id: 'waterlines', type: 'line', source: 'waterlines', paint: {
+    'line-color': BLUE,
+    'line-width': ['interpolate', ['linear'], ['zoom'], 10, ['-', 0.95, ['*', ['get', 'i'], 0.09]], 14, ['-', 1.5, ['*', ['get', 'i'], 0.12]]],
+    'line-opacity': ['-', 0.8, ['*', ['get', 'i'], 0.8 / (N + 1)]] } });
+  map.addLayer({ id: 'foreign', type: 'fill', source: 'foreign', paint: { 'fill-color': '#E9DCBC' } });   // the neighbours, in a duller buff
+  map.addLayer({ id: 'land', type: 'fill', source: 'land', paint: { 'fill-color': PAPER } });
+  map.addLayer({ id: 'grid', type: 'line', source: 'grid', paint: {
+    'line-color': SEPIA, 'line-width': ['case', ['==', ['get', 'major'], 1], 0.7, 0.4],
+    'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, ['case', ['==', ['get', 'major'], 1], 0.28, 0], 12, ['case', ['==', ['get', 'major'], 1], 0.3, 0.16]] } });
+  map.addLayer({ id: 'res', type: 'fill', source: 'res', paint: { 'fill-color': '#E1E2CF' } });
+  map.addLayer({ id: 'reslines', type: 'line', source: 'reslines', minzoom: 11, paint: { 'line-color': BLUE, 'line-width': 0.7, 'line-opacity': ['-', 0.6, ['*', ['get', 'i'], 0.17]] } });
+  map.addLayer({ id: 'res-edge', type: 'line', source: 'res', paint: { 'line-color': BLUE, 'line-width': 0.9, 'line-opacity': 0.85 } });
+  map.addLayer({ id: 'coast', type: 'line', source: 'coast', paint: { 'line-color': '#24465C', 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 15, 1.8] } });
+  // roads: expressways as cased double lines, main roads as single ink lines
+  const isK = k => ['==', ['get', 'k'], k];
+  map.addLayer({ id: 'road-primary', type: 'line', source: 'roads', filter: isK('primary'), minzoom: 11.5, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': SEPIA, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 16, 1.8], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 0, 12.5, 0.5] } });
+  for (const [k, w] of [['trunk', 0.8], ['motorway', 1.2]]) {
+    map.addLayer({ id: `road-${k}-case`, type: 'line', source: 'roads', filter: isK(k), layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': SEPIA, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 0.7 * w, 12, 2.2 * w, 13, 3.4 * w, 16, 8 * w],
+        'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.4, 12, 0.7] } });
+    map.addLayer({ id: `road-${k}`, type: 'line', source: 'roads', filter: isK(k), minzoom: 11.8, layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': k === 'motorway' ? '#EBD3AE' : PAPER, 'line-width': ['interpolate', ['linear'], ['zoom'], 11.8, 0.4 * w, 13, 1.9 * w, 16, 5.6 * w] } });
+  }
+  // rail: the old "railway" symbol (ink line with paper ticks); tunnels as a faint dashed line
+  map.addLayer({ id: 'rail-tunnel', type: 'line', source: 'rail', filter: ['==', ['get', 't'], 1], minzoom: 11, paint: { 'line-color': INK, 'line-width': 0.8, 'line-opacity': 0.4, 'line-dasharray': [3, 2.5] } });
+  map.addLayer({ id: 'rail', type: 'line', source: 'rail', filter: ['==', ['get', 't'], 0], paint: { 'line-color': INK, 'line-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 12, 2.2, 15, 4], 'line-opacity': ['interpolate', ['linear'], ['zoom'], 10, 0.55, 12, 0.9] } });
+  map.addLayer({ id: 'rail-ticks', type: 'line', source: 'rail', filter: ['==', ['get', 't'], 0], minzoom: 11.5, paint: { 'line-color': PAPER, 'line-width': ['interpolate', ['linear'], ['zoom'], 11.5, 0.8, 15, 2], 'line-dasharray': [2.5, 2.5] } });
+
+  // blocks: flat ink, and the same blocks popped up when the sheet tilts
+  // Blocks: flat ink, and the same blocks popped up when the sheet tilts. The timeline hides
+  // unprinted blocks and wets new ones through feature-state, so playing never re-tiles the data.
+  const shown = v => ['case', ['boolean', ['feature-state', 'h'], false], 0, v];
+  map.addLayer({ id: 'blocks-unk', type: 'fill', source: 'blocks', filter: ['==', ['get', 'y'], 0], paint: { 'fill-color': GHOST, 'fill-outline-color': SEPIA, 'fill-opacity': 0.9 } });
+  map.addLayer({ id: 'blocks', type: 'fill', source: 'blocks', filter: ['>', ['get', 'y'], 0], paint: { 'fill-color': fillColor(), 'fill-opacity': shown(0.94), 'fill-antialias': true } });
+  map.addLayer({ id: 'blocks-edge', type: 'line', source: 'blocks', maxzoom: 14, filter: ['>', ['get', 'y'], 0], paint: { 'line-color': fillColor(), 'line-width': ['interpolate', ['linear'], ['zoom'], 9, 1.1, 11, 0.9, 13, 0.3], 'line-opacity': shown(0.9) } });
+  map.addLayer({ id: 'blocks-ink', type: 'line', source: 'blocks', minzoom: 14, filter: ['>', ['get', 'y'], 0], paint: { 'line-color': '#1E140C', 'line-width': ['interpolate', ['linear'], ['zoom'], 14, 0.4, 17, 1], 'line-opacity': shown(0.7) } });
+  map.addLayer({ id: 'blocks-3d', type: 'fill-extrusion', source: 'blocks', filter: yearFilter(), layout: { visibility: 'none' }, paint: {
+    'fill-extrusion-color': fillColor(), 'fill-extrusion-height': 0, 'fill-extrusion-opacity': 0.92, 'fill-extrusion-vertical-gradient': true } });
+  map.addLayer({ id: 'blocks-hover', type: 'line', source: 'blocks', paint: { 'line-color': RED, 'line-width': 2.2, 'line-opacity': ['case', ['boolean', ['feature-state', 'hov'], false], 1, 0] } });
+
+  addLabels();
+  map.once('idle', declutter);
+  drawHist();
+  buildDecades();
+  setYear(YMAX, false);
+  wire();
+  map.on('pitch', pop); pop();
+  reframe();
+  $('loading').remove();
+  const s = D.stats, pct = (100 * s.matchedFootprints / s.footprints).toFixed(1);
+  const nofoot = s.how['no footprint'] || 0;
+  $('note').innerHTML = `HDB lists ${nf.format(s.rows)} buildings; ${nf.format(s.rows - nofoot)} of them were matched to a footprint by block number and street code (street names resolved through OneMap search, a few blocks by postal code), and ${nf.format(s.matchedFootprints)} of ${nf.format(s.footprints)} footprints (${pct}%) carry a year. Unmatched footprints are left uninked. Only blocks standing today are recorded: estates cleared for redevelopment (SERS) are missing, so early decades are under-counted. Counts of blocks and flats are residential blocks only, from the full list.`;
+}
+
+/* ---------- year, isolate and wet ink ---------- */
+const yearFilter = () => ['all', ['>', ['get', 'y'], 0], ['<=', ['get', 'y'], Math.floor(year)]];
+// Freshly printed blocks are wet black ink (feature-state w = 1) that dries to the decade's colour.
+function fillColor() {
+  let col = ['match', ['get', 'd'], ...DECADES.flatMap((d, i) => [i, d.c]), GHOST];
+  if (isolate !== null) col = ['case', ['==', ['get', 'd'], isolate], col, GHOST];
+  return ['interpolate', ['linear'], ['number', ['feature-state', 'w'], 0], 0, col, 1, WET];
+}
+function setIsolate(i) {
+  isolate = i;
+  const col = fillColor();
+  map.setPaintProperty('blocks', 'fill-color', col);
+  map.setPaintProperty('blocks-edge', 'line-color', col);
+  map.setPaintProperty('blocks-3d', 'fill-extrusion-color', col);
+}
+const fs = (id, st) => map.setFeatureState({ source: 'blocks', id }, st);
+let lastYear = null, wetIds = new Set();
+function setYear(t, wet) {
+  year = t;
+  const y = Math.min(YMAX, Math.floor(t));
+  if (y !== lastYear) {
+    const prev = lastYear ?? YMAX;
+    if (y > prev) for (let q = prev + 1; q <= y; q++) for (const id of byYear.get(q) || []) fs(id, { h: false });
+    else for (let q = y + 1; q <= prev; q++) for (const id of byYear.get(q) || []) fs(id, { h: true });
+    lastYear = y;
+    if (map.getLayoutProperty('blocks-3d', 'visibility') === 'visible') map.setFilter('blocks-3d', yearFilter());
+    map.setLayoutProperty('blocks-unk', 'visibility', y >= YMAX ? 'visible' : 'none');
+    $('yr').textContent = y;
+    $('year').value = y;
+    $('year').setAttribute('aria-valuetext', `Up to ${y}: ${nf.format(cumBlk[y] || 0)} blocks, ${nf.format(cumFlat[y] || 0)} flats`);
+    $('n-blk').textContent = nf.format(cumBlk[y] || 0);
+    $('n-flat').textContent = nf.format(cumFlat[y] || 0);
+    markHist(y);
+    for (const m of townMarkers) m.getElement().classList.toggle('off', y < m._yr);
+    declutter();
+  }
+  // wet ink on the last year and a half of printing
+  const now = new Set();
+  if (wet && !reduceMotion) {
+    for (let q = Math.floor(t - 1.6); q <= Math.floor(t); q++) {
+      const w = 1 - (t - q) / 1.6;
+      if (w <= 0 || w > 1 || q > YMAX) continue;
+      for (const id of byYear.get(q) || []) { fs(id, { w }); now.add(id); }
+    }
+  }
+  for (const id of wetIds) if (!now.has(id)) fs(id, { w: 0 });
+  wetIds = now;
+}
+
+/* ---------- play: print the estates year by year ---------- */
+let raf = 0, t0 = 0, from = 1959;
+const SECS_PER_YEAR = 0.36;
+function play(on) {
+  playing = on;
+  $('play').setAttribute('aria-label', on ? 'Pause printing' : 'Print the estates year by year');
+  $('play-ico').setAttribute('d', on ? 'M5 3.5h3.6v13H5zM11.4 3.5H15v13h-3.6z' : 'M6 3.5v13l11-6.5z');
+  document.querySelector('.counts').setAttribute('aria-live', on ? 'off' : 'polite');
+  cancelAnimationFrame(raf);
+  if (!on) { setYear(Math.floor(year), false); return; }
+  if (year >= YMAX) year = 1959;
+  from = year; t0 = performance.now();
+  let lastPaint = 0;
+  const step = now => {
+    const t = Math.min(YMAX + 1.6, from + (now - t0) / 1000 / SECS_PER_YEAR);
+    if (now - lastPaint > 60 || Math.floor(t) !== lastYear) { setYear(Math.min(t, YMAX + 1.6), true); lastPaint = now; }
+    if (t >= YMAX + 1.6) { play(false); setYear(YMAX, false); return; }
+    raf = requestAnimationFrame(step);
+  };
+  raf = requestAnimationFrame(step);
+}
+
+/* ---------- histogram ---------- */
+let histW = 0;
+function drawHist() {
+  const svg = $('hist'), w = svg.clientWidth || 600, h = svg.clientHeight || 56;
+  histW = w;
+  const n = YMAX - YMIN + 1, bw = w / n;
+  let max = 0;
+  for (let y = YMIN; y <= YMAX; y++) max = Math.max(max, (D.yearly[y] || [0, 0])[1]);
+  const ns = 'http://www.w3.org/2000/svg';
+  svg.replaceChildren();
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  const g = document.createElementNS(ns, 'g');
+  for (let y = YMIN; y <= YMAX; y++) {
+    const v = (D.yearly[y] || [0, 0])[1], bh = Math.max(v ? 1 : 0, (h - 12) * v / max);
+    const r = document.createElementNS(ns, 'rect');
+    r.setAttribute('x', ((y - YMIN) * bw + 0.5).toFixed(1)); r.setAttribute('width', Math.max(1, bw - 1).toFixed(1));
+    r.setAttribute('y', (h - 12 - bh).toFixed(1)); r.setAttribute('height', bh.toFixed(1));
+    r.setAttribute('fill', DECADES[decadeOf(y)].c);
+    r.setAttribute('stroke', '#1E140C'); r.setAttribute('stroke-width', '.4');
+    r.dataset.y = y;
+    g.append(r);
+  }
+  svg.append(g);
+  const axis = document.createElementNS(ns, 'path');
+  axis.setAttribute('d', `M0 ${h - 11.5}H${w}`); axis.setAttribute('stroke', INK); axis.setAttribute('stroke-width', '1');
+  svg.append(axis);
+  const step = w < 420 ? 20 : 10;
+  for (let y = Math.ceil(YMIN / step) * step; y <= YMAX; y += step) {
+    const x = (y - YMIN) * bw;
+    const tk = document.createElementNS(ns, 'path');
+    tk.setAttribute('d', `M${x} ${h - 11.5}v3`); tk.setAttribute('stroke', INK);
+    const tx = document.createElementNS(ns, 'text');
+    tx.setAttribute('x', x); tx.setAttribute('y', h - 1); tx.setAttribute('text-anchor', 'middle'); tx.textContent = y;
+    svg.append(tk, tx);
+  }
+  const peak = Object.entries(D.yearly).reduce((a, b) => (b[1][1] > a[1][1] ? b : a));
+  const px = (peak[0] - YMIN + 0.5) * bw;
+  const pt = document.createElementNS(ns, 'text');
+  pt.setAttribute('x', px + 5); pt.setAttribute('y', 8); pt.setAttribute('font-style', 'italic');
+  pt.textContent = `${peak[0]}: ${nf.format(peak[1][1])} flats`;
+  svg.append(pt);
+  const cur = document.createElementNS(ns, 'path');
+  cur.id = 'hist-cur'; cur.setAttribute('stroke', RED); cur.setAttribute('stroke-width', '1.6');
+  svg.append(cur);
+  markHist(Math.floor(year));
+}
+function markHist(y) {
+  const svg = $('hist'); if (!svg.firstChild) return;
+  const h = svg.clientHeight || 56, bw = histW / (YMAX - YMIN + 1);
+  for (const r of svg.querySelectorAll('rect')) r.setAttribute('fill-opacity', +r.dataset.y <= y ? (isolate === null || decadeOf(+r.dataset.y) === isolate ? 1 : 0.25) : 0.12);
+  const x = (y - YMIN + 1) * bw;
+  const cur = $('hist-cur');
+  if (cur) cur.setAttribute('d', `M${x} -2V${h - 9}M${x - 4} -4h8l-4 4z`);
+}
+
+/* ---------- decades legend ---------- */
+function buildDecades() {
+  const box = $('decades');
+  DECADES.forEach((d, i) => {
+    const a = Math.max(d.a, YMIN), b = Math.min(d.b, YMAX);
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.style.setProperty('--w', Math.max(4, b - a + 1));
+    btn.style.setProperty('--c', d.c);
+    btn.setAttribute('aria-pressed', 'false');
+    btn.setAttribute('aria-label', `${d.l}: show only blocks completed ${i === 0 ? 'before 1960' : `in the ${d.l}`}`);
+    btn.innerHTML = `<i></i><span class="l">${d.l}</span><span class="s">${d.s}</span>`;
+    btn.addEventListener('click', () => {
+      setIsolate(isolate === i ? null : i);
+      for (const o of box.children) o.setAttribute('aria-pressed', String(o === btn && isolate !== null));
+      markHist(Math.floor(year));
+    });
+    box.append(btn);
+  });
+}
+
+/* ---------- 3D: the blocks pop up as the sheet tilts ---------- */
+let popK = -1;
+function pop() {
+  const p = map.getPitch(), k = Math.max(0, Math.min(1, (p - 4) / 36));
+  const on = p > 4;
+  const was = map.getLayoutProperty('blocks-3d', 'visibility') === 'visible';
+  if (on && !was) map.setFilter('blocks-3d', yearFilter());
+  map.setLayoutProperty('blocks-3d', 'visibility', on ? 'visible' : 'none');
+  map.setLayoutProperty('blocks', 'visibility', on ? 'none' : 'visible');
+  map.setLayoutProperty('blocks-ink', 'visibility', on ? 'none' : 'visible');
+  map.setLayoutProperty('blocks-edge', 'visibility', on ? 'none' : 'visible');
+  const kq = Math.ceil(k * 4) / 4;   // the paper pops up in four steps: each change re-tiles the blocks
+  if (on && kq !== popK) { popK = kq; map.setPaintProperty('blocks-3d', 'fill-extrusion-height', ['*', ['max', ['get', 'f'], 1], 3 * kq]); }
+}
+
+/* ---------- lettering ---------- */
+const townMarkers = [];
+function addLabels() {
+  const mk = (cls, text, ll, rot = 0) => {
+    const e = document.createElement('div');
+    e.className = cls; e.textContent = text;
+    return new maplibregl.Marker({ element: e, rotation: rot, rotationAlignment: rot ? 'map' : 'viewport', pitchAlignment: 'viewport' }).setLngLat(ll).addTo(map);
+  };
+  for (const [code, [name, lng, lat, y1, n]] of Object.entries(D.towns)) {
+    if (code === 'CT') continue;
+    const m = mk('lbl-town' + (n > 500 ? ' big' : ''), name.toUpperCase().replace('/', ' · '), [lng, lat]);
+    m._yr = y1; m._n = n;
+    townMarkers.push(m);
+  }
+  mk('lbl-water', 'STRAIT OF JOHOR', [103.665, 1.415], -62);
+  mk('lbl-water', 'SINGAPORE STRAIT', [103.97, 1.262], -12);
+  mk('lbl-water', 'Keppel Harbour'.toUpperCase(), [103.818, 1.257], -8);
+  mk('lbl-land', 'JOHOR', [103.935, 1.472]);
+  mk('lbl-land', 'MALAYSIA', [103.5, 1.56]);
+  mk('lbl-land', 'RIAU ISLANDS', [104.07, 1.06]);
+  mk('lbl-isle', 'Pulau Batam', [104.03, 1.12]);
+  mk('lbl-isle', 'Pulau Bintan', [104.42, 1.07]);
+  mk('lbl-isle', 'Pulau Ubin', [103.955, 1.413]);
+  mk('lbl-isle', 'Pulau Tekong', [104.045, 1.398]);
+  mk('lbl-isle', 'Sentosa', [103.828, 1.2475]);
+  mk('lbl-isle', 'Jurong Island', [103.69, 1.262]);
+  const syncLabels = () => document.body.classList.toggle('labels-off', map.getZoom() < (COMPACT.matches ? 9.9 : 10.2));
+  map.on('zoom', syncLabels); syncLabels();
+  townMarkers.sort((a, b) => b._n - a._n);
+  map.on('moveend', declutter);
+}
+// Town names that would overprint a bigger town's name are left off, as a draughtsman would.
+function declutter() {
+  const kept = [];
+  for (const m of townMarkers) {
+    const e = m.getElement();
+    e.style.visibility = '';
+    if (e.classList.contains('off')) continue;
+    const r = e.getBoundingClientRect();
+    const hit = kept.some(k => r.left < k.right + 6 && r.right > k.left - 6 && r.top < k.bottom + 2 && r.bottom > k.top - 2);
+    if (hit) e.style.visibility = 'hidden'; else kept.push(r);
+  }
+}
+
+/* ---------- hover tag ---------- */
+const TITLE = s => s.replace(/\b([A-Z])([A-Z']*)\b/g, (m, a, b) => a + b.toLowerCase());
+function wire() {
+  const tag = $('tag');
+  let hid = -1;
+  const show = e => {
+    const f = e.features && e.features[0];
+    if (!f) return;
+    const r = D.b[f.id], [y, fl, u, blk, s, flags] = r;
+    if (y > Math.floor(year)) { hide(); return; }
+    if (f.id !== hid) { if (hid >= 0) fs(hid, { hov: false }); hid = f.id; fs(hid, { hov: true }); }
+    const kind = flags & 1 ? `${nf.format(u)} flats` : flags & 4 ? 'multi-storey car park' : flags & 8 ? 'market and hawker centre' : flags & 2 ? 'shops and offices' : 'service block';
+    const sw = DECADES[decadeOf(y)].c;
+    tag.innerHTML = y ? `<b>Blk ${blk} ${D.streets[s] ? TITLE(D.streets[s]) : ''}</b><em style="background:${sw}"></em>Completed <strong>${y}</strong> · ${fl} storey${fl === 1 ? '' : 's'}<br><i>${kind}</i>`
+      : `<b>Blk ${blk}</b><i>Not in HDB’s property list</i>`;
+    tag.hidden = false;
+    tag.style.left = e.point.x + 'px';
+    tag.style.top = e.point.y + 'px';
+    map.getCanvas().style.cursor = 'crosshair';
+  };
+  const hide = () => { tag.hidden = true; if (hid >= 0) fs(hid, { hov: false }); hid = -1; map.getCanvas().style.cursor = ''; };
+  for (const id of ['blocks', 'blocks-3d', 'blocks-unk']) {
+    map.on('mousemove', id, show);
+    map.on('mouseleave', id, hide);
+    map.on('click', id, show);
+  }
+  map.on('movestart', () => { if (!tag.hidden && matchMedia('(hover: none)').matches) hide(); });
+  map.on('click', e => { if (!map.queryRenderedFeatures(e.point, { layers: ['blocks', 'blocks-3d', 'blocks-unk'].filter(l => map.getLayoutProperty(l, 'visibility') !== 'none') }).length) hide(); });
+
+  $('play').addEventListener('click', () => play(!playing));
+  $('year').addEventListener('input', e => { if (playing) play(false); setYear(+e.target.value, false); });
+  addEventListener('keydown', e => {
+    if (e.target.closest('input, textarea, select, button')) return;
+    if (e.key === ' ' || e.key === 'p' || e.key === 'P') { e.preventDefault(); play(!playing); }
+  });
+  addEventListener('resize', () => { drawHist(); legendH(); });
+}
+
+/* ---------- the graduated neat line and its figures ---------- */
+const svgNS = 'http://www.w3.org/2000/svg';
+const STEPS = [5 / 3600, 10 / 3600, 15 / 3600, 30 / 3600, 1 / 60, 2 / 60, 5 / 60, 10 / 60, 15 / 60, 30 / 60, 1];
+function dms(v, axis, step) {
+  const s = Math.round(Math.abs(v) * 3600), d = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), sec = s % 60;
+  const h = axis === 'x' ? (v >= 0 ? 'E' : 'W') : (v >= 0 ? 'N' : 'S');
+  return step < 1 / 60 ? `${d}°${String(m).padStart(2, '0')}′${String(sec).padStart(2, '0')}″` : `${d}°${String(m).padStart(2, '0')}′${h}`;
+}
+function drawFrame() {
+  const svg = $('frame');
+  const c = map.getContainer(), VW = c.clientWidth, VH = c.clientHeight;
+  const M = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m')) || 40;
+  const ox = M, oy = M, W = VW - 2 * M, H = VH - 2 * M;
+  if (W < 50 || H < 50) return;
+  const compact = COMPACT.matches, band = compact ? 4 : 5;
+  const out = [`<path fill-rule="evenodd" fill="${PAPER}" d="M0 0H${VW}V${VH}H0zM${ox} ${oy}v${H}h${W}v${-H}z"/>`];
+  out.push(`<rect x="${ox - band - 4.5}" y="${oy - band - 4.5}" width="${W + 2 * band + 9}" height="${H + 2 * band + 9}" fill="none" stroke="${INK}" stroke-width="1.6"/>`);
+  out.push(`<path fill-rule="evenodd" fill="#F4ECD6" stroke="${INK}" stroke-width=".8" d="M${ox - band - 0.5} ${oy - band - 0.5}h${W + 2 * band + 1}v${H + 2 * band + 1}h${-(W + 2 * band + 1)}zM${ox} ${oy}v${H}h${W}v${-H}z"/>`);
+  out.push(`<rect x="${ox - 0.5}" y="${oy - 0.5}" width="${W + 1}" height="${H + 1}" fill="none" stroke="${INK}" stroke-width=".8"/>`);
+  // each edge: where it crosses the meridians (top, bottom) or parallels (left, right)
+  const edges = [
+    { side: 't', axis: 'x', n: W, at: i => [ox + i, oy], band: (a, b) => [ox + a, oy - band, b - a, band] },
+    { side: 'b', axis: 'x', n: W, at: i => [ox + i, oy + H], band: (a, b) => [ox + a, oy + H, b - a, band] },
+    { side: 'l', axis: 'y', n: H, at: i => [ox, oy + i], band: (a, b) => [ox - band, oy + a, band, b - a] },
+    { side: 'r', axis: 'y', n: H, at: i => [ox + W, oy + i], band: (a, b) => [ox + W, oy + a, band, b - a] },
+  ];
+  for (const e of edges) {
+    const S = 3, vals = [];
+    for (let i = 0; i <= e.n; i += S) { const ll = map.unproject(e.at(i)); vals.push([i, e.axis === 'x' ? ll.lng : ll.lat]); }
+    if (vals[vals.length - 1][0] !== e.n) { const ll = map.unproject(e.at(e.n)); vals.push([e.n, e.axis === 'x' ? ll.lng : ll.lat]); }
+    const span = Math.abs(vals[vals.length - 1][1] - vals[0][1]);
+    if (!isFinite(span) || span === 0) continue;
+    const want = span / e.n * (compact ? 18 : 22);
+    const step = STEPS.find(s => s >= want) || 1;
+    const labelEvery = Math.max(1, Math.ceil((span / e.n * (compact ? 100 : 120)) / step));
+    // crossings
+    const xs = [];
+    for (let j = 1; j < vals.length; j++) {
+      const [i0, v0] = vals[j - 1], [i1, v1] = vals[j];
+      const lo = Math.min(v0, v1), hi = Math.max(v0, v1);
+      for (let k = Math.ceil(lo / step - 1e-9); k * step <= hi + 1e-12; k++) {
+        const v = k * step;
+        if (v1 === v0) continue;
+        xs.push([i0 + (i1 - i0) * (v - v0) / (v1 - v0), k]);
+      }
+    }
+    xs.sort((a, b) => a[0] - b[0]);
+    // alternate black and white between crossings: the parity of the step a segment lies in,
+    // so the pattern stays put on the ground while the map pans
+    const valAt = p => {
+      const j = Math.min(vals.length - 1, Math.max(1, vals.findIndex(v => v[0] >= p)));
+      const [i0, v0] = vals[j - 1], [i1, v1] = vals[j];
+      return v0 + (v1 - v0) * (p - i0) / ((i1 - i0) || 1);
+    };
+    const bounds = [0, ...xs.map(x => x[0]), e.n];
+    for (let j = 0; j < bounds.length - 1; j++) {
+      const a = bounds[j], b = bounds[j + 1];
+      if (b - a < 0.3) continue;
+      const k = Math.floor(valAt((a + b) / 2) / step);
+      if (((k % 2) + 2) % 2 === 0) { const [x, y, w, h] = e.band(a, b); out.push(`<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${w.toFixed(1)}" height="${h.toFixed(1)}" fill="${INK}"/>`); }
+    }
+    let lastLabel = -1e9;
+    for (const [p, k] of xs) {
+      if (((k % labelEvery) + labelEvery) % labelEvery !== 0) continue;
+      if (p < 26 || p > e.n - 26 || p - lastLabel < (compact ? 70 : 90)) continue;   // tilted sheets bunch the figures up
+      lastLabel = p;
+      const v = k * step, txt = dms(v, e.axis, step);
+      if (e.side === 't') out.push(`<path d="M${ox + p} ${oy - band - 4}v-5" stroke="${INK}"/><text x="${ox + p}" y="${oy - band - 11}" text-anchor="middle">${txt}</text>`);
+      else if (e.side === 'b') out.push(`<path d="M${ox + p} ${oy + H + band + 4}v5" stroke="${INK}"/><text x="${ox + p}" y="${oy + H + band + 19}" text-anchor="middle">${txt}</text>`);
+      else if (e.side === 'l') out.push(`<path d="M${ox - band - 4} ${oy + p}h-5" stroke="${INK}"/><text transform="translate(${ox - band - 12} ${oy + p}) rotate(-90)" text-anchor="middle">${txt}</text>`);
+      else out.push(`<path d="M${ox + W + band + 4} ${oy + p}h5" stroke="${INK}"/><text transform="translate(${ox + W + band + 12} ${oy + p}) rotate(90)" text-anchor="middle">${txt}</text>`);
+    }
+  }
+  svg.innerHTML = out.join('');
+}
+
+/* ---------- scale bars (metres, feet, chains) and the compass ---------- */
+function niceLen(maxUnits) {
+  const p = 10 ** Math.floor(Math.log10(maxUnits));
+  for (const m of [5, 4, 2, 1]) if (m * p <= maxUnits) return m * p;
+  return p;
+}
+function drawScale() {
+  const c = map.getCenter(), z = map.getZoom();
+  const mpp = 40075016.686 * Math.cos(c.lat * Math.PI / 180) / (512 * 2 ** z);
+  const maxPx = 150, rows = [['Metres', 1], ['Feet', 0.3048], ['Chains', 20.1168]];
+  const out = [];
+  rows.forEach(([name, um], r) => {
+    let L = niceLen(maxPx * mpp / um), unit = name.toLowerCase(), shown = L;
+    if (name === 'Metres' && L >= 1000) { unit = 'km'; shown = L / 1000; }
+    if (name === 'Feet' && maxPx * mpp / um >= 5280) { shown = niceLen(maxPx * mpp / 1609.344); L = shown * 5280; unit = shown === 1 ? 'mile' : 'miles'; }
+    const px = L * um / mpp, y = 6 + r * 25, x0 = 40;
+    const seg = px / 4;
+    out.push(`<text x="0" y="${y + 6}" font-style="italic">${unit.startsWith('mile') ? 'Miles' : name}</text>`);
+    for (let i = 0; i < 4; i++) out.push(`<rect x="${(x0 + i * seg).toFixed(1)}" y="${y}" width="${seg.toFixed(1)}" height="4" fill="${i % 2 ? '#F4ECD6' : INK}" stroke="${INK}" stroke-width=".6"/>`);
+    out.push(`<text x="${x0}" y="${y + 14}" text-anchor="middle">0</text><text x="${(x0 + px).toFixed(1)}" y="${y + 14}" text-anchor="end">${nf.format(shown)} ${unit}</text>`);
+  });
+  $('scalebar').innerHTML = out.join('');
+  const rf = mpp / (0.0254 / 96);
+  const sig = 10 ** Math.max(0, Math.floor(Math.log10(rf)) - 2);
+  const rfr = Math.round(rf / sig) * sig;
+  $('rf').textContent = Math.abs(rf / 63360 - 1) < 0.06 ? `1 : ${nf.format(rfr)}, about one inch to the mile` : `Scale 1 : ${nf.format(rfr)} on this screen`;
+  $('rose').style.transform = `rotate(${-map.getBearing()}deg)`;
+}
+
+/* ---------- layout ---------- */
+// Fit Singapore into the space the sheets and the margin leave, until the viewer moves the map.
+// (The kit's fit keeps 16 px from the screen edge; this sheet also needs its printed margin.)
+let viewerMoved = new URLSearchParams(location.search).has('view');
+map.on('movestart', e => { if (e.originalEvent) viewerMoved = true; });
+function reframe() {
+  if (viewerMoved) return;
+  const M = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--m')) || 40;
+  const focus = document.documentElement.classList.contains('dmc-focus');
+  const vw = innerWidth, vh = innerHeight, p = { top: M + 10, right: M + 10, bottom: M + 10, left: M + 10 };
+  if (focus) Object.assign(p, { top: 16, right: 16, bottom: 16, left: 16 });
+  else {
+    // The legend and cartouche claim the bottom and the right (or, on phones, the bottom).
+    // The small stamp is allowed to sit over the north-west corner, which is sea and farmland.
+    const vis = id => { const r = $(id).getBoundingClientRect(); return r.width && r.height ? r : null; };
+    const lg = vis('legend'), ct = vis('carto'), st = vis('dmc-stamp');
+    if (lg) p.bottom = Math.max(p.bottom, vh - lg.top + 10);
+    if (ct) {
+      if (ct.top > vh * 0.4) p.bottom = Math.max(p.bottom, vh - ct.top + 10);
+      else p.right = Math.max(p.right, vw - ct.left + 12);
+    }
+    if (st && COMPACT.matches) p.top = Math.max(p.top, st.bottom + 8);
+    if (lg && lg.left > vw * 0.4) p.right = Math.max(p.right, vw - lg.left + 12);   // phones held sideways
+  }
+  const cam = map.cameraForBounds(DMC.SG_BOUNDS, { padding: p, bearing: map.getBearing() });
+  if (!cam) return;
+  map.jumpTo({ center: cam.center, zoom: cam.zoom, bearing: map.getBearing(), pitch: map.getPitch() });
+}
+const SRC = $('src');
+const syncSrc = () => { SRC.open = !COMPACT.matches; };
+syncSrc(); COMPACT.addEventListener('change', syncSrc);
+SRC.addEventListener('toggle', () => { legendH(); });
+function legendH() { document.documentElement.style.setProperty('--legend-h', $('legend').offsetHeight + 'px'); }
+legendH();
+let roT = 0;
+new ResizeObserver(() => { legendH(); clearTimeout(roT); roT = setTimeout(() => { if (D && map.getSource('blocks')) reframe(); }, 120); }).observe($('legend'));
+let frameQueued = false;
+const redraw = () => { if (frameQueued) return; frameQueued = true; requestAnimationFrame(() => { frameQueued = false; drawFrame(); drawScale(); }); };
+map.on('move', redraw); map.on('resize', redraw); map.on('load', redraw);
+document.addEventListener('dmc:focus', () => { reframe(); redraw(); });
+let rt = 0;
+addEventListener('resize', () => { clearTimeout(rt); rt = setTimeout(reframe, 220); });
+if (document.fonts) document.fonts.ready.then(() => { legendH(); redraw(); if (D && map.getSource('blocks')) { drawHist(); reframe(); declutter(); } });
+</script>
+</body></html>
