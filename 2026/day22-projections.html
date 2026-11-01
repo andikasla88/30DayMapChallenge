@@ -1,0 +1,1161 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F2F5EA">
+<title>Day 22 · Why my favourite is SVY21</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 22, Projections: Singapore measured on an engineer's computation pad in Web Mercator, Mercator, UTM 48N, SVY21 and an equal-area control. Web maps draw it 0.73% too big, about five Gardens by the Bay; SVY21 is off by four parts in a million.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F2F5EA'/%3E%3Cpath d='M4 11h24M4 21h24M11 4v24M21 4v24' stroke='%2336805F' stroke-opacity='.35'/%3E%3Cellipse cx='16' cy='16' rx='7' ry='10' fill='none' stroke='%232A78D6' stroke-width='2'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23D62839' stroke-width='2.4'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Caveat:wght@500;600;700&display=swap">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 22: an engineer's computation pad. Paper, pencil, ink and five projections. ===== */
+:root {
+  --paper: #F2F5EA; --paper-2: #FBFCF7;
+  --ink: #1F2723; --ink-2: rgba(31, 39, 35, .76); --ink-3: rgba(31, 39, 35, .55);
+  --grid-rgb: 54, 128, 98;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --hand: "Caveat", "Segoe Print", "Bradley Hand", cursive;
+  --c-webmerc: #2A78D6; --c-merc: #B07400; --c-utm: #7C3AED; --c-svy21: #D62839; --c-laea: #56605A;
+  /* the kit's glass, re-inked as paper */
+  --glass: rgba(251, 252, 247, .97); --line: rgba(40, 72, 58, .2);
+  --text: var(--ink); --text-2: var(--ink-2);
+  --sheet-w: 392px;
+  color-scheme: light;
+}
+body { background: var(--paper); color: var(--ink); }
+.dmc-glass { -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: 0 1px 0 rgba(255, 255, 255, .7) inset, 0 10px 26px rgba(30, 60, 45, .12), 0 1px 3px rgba(30, 60, 45, .1); }
+.dmc-num { text-shadow: none; }
+.dmc-more, .dmc-btn { background: rgba(30, 60, 45, .06); color: var(--ink); }
+.dmc-more:hover, .dmc-btn:hover { background: rgba(30, 60, 45, .12); }
+.dmc-index li { box-shadow: inset 0 0 0 1px rgba(30, 60, 45, .2); }
+.dmc-index li.done { background: rgba(30, 60, 45, .1); }
+.dmc-index li.today { color: #fff; box-shadow: none; }
+.dmc-keys kbd { color: var(--ink); }
+.dmc-focus-credit { background: rgba(251, 252, 247, .9); }
+
+/* ---- the stage: one SVG over the whole window ---- */
+.stage { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: manipulation; user-select: none; -webkit-user-select: none; }
+.stage.drag { cursor: grab; touch-action: none; }
+.stage.drag.grabbing { cursor: grabbing; }
+.stage .g-minor { stroke: rgba(var(--grid-rgb), .13); stroke-width: 1; fill: none; shape-rendering: crispEdges; }
+.stage .g-major { stroke: rgba(var(--grid-rgb), .3); stroke-width: 1; fill: none; shape-rendering: crispEdges; }
+.stage .g-lab { font: 500 9px var(--mono); fill: rgba(var(--grid-rgb), .9); }
+.stage .ghost { fill: none; stroke: var(--ink); stroke-opacity: .78; stroke-width: 1.1; stroke-dasharray: 4 3; }
+.stage .land { stroke-width: 1.4; stroke-linejoin: round; }
+.stage .tis { stroke-width: .9; }
+.stage .tis-g { fill: none; stroke: var(--ink); stroke-opacity: .45; stroke-width: .8; stroke-dasharray: 1.5 2; }
+.stage .cont { fill: none; stroke-width: .9; stroke-linecap: round; }
+.stage .cont-l { font: 600 9.5px var(--mono); paint-order: stroke; stroke: var(--paper); stroke-width: 3px; stroke-linejoin: round; }
+.stage .guide { fill: none; stroke-width: 1.2; }
+.stage .pencil { font: 600 16px var(--hand); fill: var(--ink-2); paint-order: stroke; stroke: var(--paper); stroke-width: 4px; stroke-linejoin: round; }
+.stage .arrow { fill: none; stroke: var(--ink-2); stroke-width: 1.3; stroke-linecap: round; stroke-linejoin: round; }
+.stage .p-name { font: 800 27px var(--display); letter-spacing: .01em; }
+.stage .p-code { font: 500 10.5px var(--mono); fill: var(--ink-3); }
+.stage .p-area { font: 500 11.5px var(--mono); fill: var(--ink); }
+.stage .rstamp text { font: 800 14px var(--display); letter-spacing: .1em; }
+.stage .legend { font: 400 10.5px var(--font); fill: var(--ink-2); }
+.stage .ruler { stroke: var(--ink); stroke-width: 1; fill: none; shape-rendering: crispEdges; }
+.stage .ruler-l { font: 500 10px var(--mono); fill: var(--ink-2); }
+.stage .fade { transition: opacity .35s; }
+.stage .hide { opacity: 0; }
+
+/* ---- the worksheet ---- */
+.sheet { top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--sheet-w); overflow-y: auto; overscroll-behavior: contain; padding: 0 14px 12px; display: grid; align-content: start; gap: 10px; border-radius: 6px;
+  background-color: var(--paper-2);
+  background-image: linear-gradient(rgba(var(--grid-rgb), .05) 1px, transparent 1px), linear-gradient(90deg, rgba(var(--grid-rgb), .05) 1px, transparent 1px);
+  background-size: 12px 12px; scrollbar-width: thin; }
+.sheet :is(p, h2, h3, table, ul, dl) { margin: 0; }
+.tabs { position: sticky; top: 0; z-index: 2; margin: 0 -14px; padding: 10px 14px 8px; background: var(--paper-2); border-bottom: 1px solid var(--line); display: flex; gap: 6px; align-items: center; }
+.tabs .dmc-seg { flex: 1; display: flex; }
+.tabs .dmc-seg button { flex: 1; color: var(--ink-2); }
+.tabs .dmc-seg button[aria-selected="true"] { color: #fff; background: var(--day-accent); box-shadow: none; }
+.tabs .dmc-seg { background: rgba(30, 60, 45, .05); }
+.pane { display: grid; gap: 10px; }
+.pane[hidden] { display: none; }
+.kick { font-size: 10.5px; font-weight: 600; letter-spacing: .09em; text-transform: uppercase; color: var(--ink-3); }
+.claim { position: relative; padding: 8px 11px 9px; background: #FFF6B8; border-radius: 2px; box-shadow: 0 1px 2px rgba(60, 50, 0, .18), 0 6px 14px -8px rgba(60, 50, 0, .35); transform: rotate(-.6deg); }
+.claim .kick { color: rgba(80, 64, 0, .7); }
+.claim q { display: block; margin-top: 2px; font: 600 18px/1.12 var(--hand); color: #2B2A1E; quotes: "\201C" "\201D"; }
+.verdict { display: grid; gap: 7px; }
+.verdict p { display: grid; grid-template-columns: 20px 1fr; gap: 8px; font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+.verdict p b { color: var(--ink); font-weight: 600; }
+.verdict .mk { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font: 700 13px var(--font); color: #fff; margin-top: 1px; }
+.verdict .ok { background: #2F8A5B; }
+.verdict .no { background: var(--day-accent); }
+.num { font-family: var(--mono); font-size: .94em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* the table: each projection is a radio button that redraws the island */
+.tbl { display: grid; gap: 4px; }
+.tbl-h { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tbl-h .dmc-seg button { min-height: 24px; padding: 2px 9px; font-size: 10.5px; color: var(--ink-2); }
+.tbl-h .dmc-seg button[aria-pressed="true"] { color: #fff; box-shadow: none; }
+.tbl-h .dmc-seg { background: rgba(30, 60, 45, .05); padding: 2px; }
+.row { position: relative; display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; grid-template-rows: auto auto; gap: 1px 9px; align-items: center; width: 100%; text-align: left;
+  padding: 6px 9px 6px 8px; font: inherit; color: var(--ink); background: rgba(255, 255, 255, .55); border: 1px solid var(--line); border-radius: 7px; cursor: pointer; }
+.row:hover { background: #fff; }
+.row[aria-checked="true"] { background: #fff; border-color: var(--c); box-shadow: inset 3px 0 0 var(--c); }
+.row.truth { cursor: default; background: transparent; border-style: dashed; }
+.row .sw { grid-row: 1 / 3; width: 12px; height: 12px; border-radius: 3px; background: var(--c); }
+.row.truth .sw { background: none; border: 1.5px dashed var(--ink); border-radius: 50%; }
+.row .nm { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.row .nm small { font: 400 9.5px var(--mono); color: var(--ink-3); margin-left: 6px; }
+.row .ar { justify-self: end; font: 600 12px var(--mono); font-variant-numeric: tabular-nums; }
+.row .er { font: 400 10.5px var(--mono); color: var(--ink-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .gb { justify-self: end; display: inline-flex; align-items: center; gap: 5px; font: 500 10px var(--mono); color: var(--ink-2); }
+.row .gb svg { display: block; overflow: visible; }
+.tbl-f { font-size: 10.5px; line-height: 1.4; color: var(--ink-3); }
+.tbl-f .sq { display: inline-block; width: 8px; height: 8px; background: var(--ink-3); border-radius: 1px; vertical-align: -0px; margin-right: 2px; }
+
+.knobs { display: grid; gap: 7px; padding: 9px 10px; border: 1px solid var(--line); border-radius: 7px; background: rgba(255, 255, 255, .5); }
+.knob { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: 11.5px; font-weight: 600; }
+.knob output { font: 700 12px var(--mono); color: var(--day-accent); min-width: 46px; text-align: right; }
+input[type="range"] { width: 100%; accent-color: var(--day-accent); margin: 0; height: 22px; }
+.checks { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11.5px; }
+.checks label { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; min-height: 26px; }
+.checks input { width: 15px; height: 15px; accent-color: var(--day-accent); margin: 0; }
+.hint { font-size: 10.5px; line-height: 1.4; color: var(--ink-3); }
+
+.why h3, .drag-h { font-size: 13px; font-weight: 700; letter-spacing: -.005em; }
+.why { display: grid; gap: 7px; }
+.why p { font-size: 12px; line-height: 1.5; color: var(--ink-2); }
+.why p b { color: var(--ink); font-weight: 600; }
+.scales { display: grid; grid-template-columns: 1fr auto; gap: 0 10px; align-items: baseline; font-size: 11.5px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); padding: 6px 0; }
+.scales dt { font-weight: 600; display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+.scales dt i { width: 9px; height: 9px; border-radius: 2px; background: var(--c); }
+.scales dd { margin: 0; font: 400 10px var(--mono); color: var(--ink-3); font-variant-numeric: tabular-nums; }
+.scales dd.pk { font-size: 11px; color: var(--ink); font-weight: 600; text-align: right; margin-top: 4px; }
+.scales dd.sf { grid-column: 1 / -1; padding-left: 15px; }
+.scales .cap { grid-column: 1 / -1; font: 400 10.5px var(--font); color: var(--ink-3); }
+
+/* drag it north */
+.world { position: relative; border: 1px solid var(--line); border-radius: 7px; background: #fff; overflow: hidden; touch-action: none; cursor: crosshair; }
+.world svg { display: block; width: 100%; height: auto; }
+.world .w-land { fill: #DCE5D5; stroke: rgba(31, 39, 35, .4); stroke-width: .5; }
+.world .w-grat { fill: none; stroke: rgba(var(--grid-rgb), .28); stroke-width: .6; }
+.world .w-eq { fill: none; stroke: rgba(var(--grid-rgb), .75); stroke-width: 1; }
+.world .w-lab { font: 500 8.5px var(--mono); fill: rgba(var(--grid-rgb), .95); }
+.world .w-city { fill: var(--ink); }
+.world .w-par { stroke: var(--day-accent); stroke-width: 1; stroke-dasharray: 3 2; }
+.world .w-home { fill: none; stroke: var(--ink); stroke-width: 1.2; }
+.world .w-mk { cursor: grab; outline: none; }
+.world .w-mk circle.halo { fill: rgba(214, 40, 57, .18); }
+.world .w-mk circle.dot { fill: var(--day-accent); stroke: #fff; stroke-width: 2; }
+.world .w-mk:focus-visible circle.halo { stroke: var(--day-accent); stroke-width: 2; }
+.latrow { display: grid; grid-template-columns: auto 1fr auto; gap: 8px; align-items: center; font-size: 11.5px; font-weight: 600; }
+.latrow output { font: 700 12px var(--mono); color: var(--day-accent); min-width: 62px; text-align: right; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; }
+.chips button { position: relative; font: inherit; font-size: 11px; font-weight: 600; color: var(--ink); background: rgba(255, 255, 255, .7); border: 1px solid var(--line); border-radius: 999px; padding: 3px 9px; min-height: 26px; cursor: pointer; }
+.chips button::after { content: ""; position: absolute; inset: -6px -2px; }
+.chips button:hover { background: #fff; }
+.chips button[aria-pressed="true"] { border-color: var(--day-accent); color: var(--day-accent); }
+.readout { display: grid; gap: 5px; padding: 9px 11px; border-radius: 7px; background: #fff; border: 1px solid var(--line); }
+.readout .big { display: flex; align-items: baseline; gap: 8px; }
+.readout .big b { font: 800 36px/.9 var(--display); color: var(--c-webmerc); font-variant-numeric: tabular-nums; }
+.readout .big span { font-size: 12px; color: var(--ink-2); }
+.readout p { font-size: 12px; line-height: 1.45; color: var(--ink-2); }
+.readout p b { color: var(--ink); font-weight: 600; }
+.readout .sm { font-size: 10.5px; color: var(--ink-3); }
+
+.notes { display: grid; gap: 6px; padding-top: 8px; border-top: 1px solid var(--line); }
+.notes p { font-size: 10.5px; line-height: 1.45; color: var(--ink-3); }
+.notes p b { color: var(--ink-2); font-weight: 600; }
+.dmc-credits { color: var(--ink-3); }
+.dmc-credits a, .notes a { color: inherit; text-decoration-color: rgba(31, 39, 35, .3); text-underline-offset: 2px; }
+
+/* probe card */
+.tip { position: fixed; z-index: 5; left: 0; top: 0; width: 262px; pointer-events: none; padding: 8px 10px 8px; background: rgba(251, 252, 247, .97); border: 1px solid var(--line); border-radius: 6px;
+  box-shadow: 0 10px 24px rgba(30, 60, 45, .18); display: grid; gap: 5px; font-size: 11px; }
+.tip[hidden] { display: none; }
+.tip .t1 { font: 500 10.5px var(--mono); color: var(--ink-2); line-height: 1.35; }
+.tip .t1 b { color: var(--ink); font-weight: 600; }
+.tip ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
+.tip li { display: grid; grid-template-columns: 9px 1fr auto; gap: 6px; align-items: center; padding: 1px 3px; border-radius: 3px; }
+.tip li.on { background: rgba(30, 60, 45, .08); }
+.tip li i { width: 8px; height: 8px; border-radius: 2px; background: var(--c); }
+.tip li span { color: var(--ink-2); }
+.tip li b { font: 600 10.5px var(--mono); font-variant-numeric: tabular-nums; }
+.tip .t3 { font-size: 10px; color: var(--ink-3); }
+.loading { position: fixed; z-index: 3; left: 50%; top: 45%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.loading[hidden] { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .stage .p-name { font-size: 21px; }
+  .stage .pencil { font-size: 14px; }
+  .stage .legend { font-size: 9.5px; }
+  .claim q { font-size: 16.5px; }
+  .readout .big b { font-size: 30px; }
+}
+/* phones held upright: the worksheet becomes a bottom sheet over the lower half */
+@media (max-width: 640px) and (orientation: portrait) {
+  .sheet { left: 0; right: 0; bottom: 0; top: auto; width: auto; height: 49%; border-radius: 14px 14px 0 0; border-bottom: 0; padding: 0 12px calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .tabs { margin: 0 -12px; padding: 8px 12px 7px; }
+}
+/* phones held sideways: a right-hand column */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --sheet-w: min(360px, 46vw); }
+  .sheet { padding: 0 11px 10px; gap: 8px; }
+  .tabs { margin: 0 -11px; padding: 7px 11px 6px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .claim { transform: none; }
+}
+</style>
+</head>
+<body>
+<svg id="stage" class="stage" role="img" aria-labelledby="stage-title">
+  <title id="stage-title">Singapore drawn on graph paper</title>
+  <g id="grid"><path class="g-minor" id="g-minor"/><path class="g-major" id="g-major"/><g id="g-labs"></g></g>
+  <g id="contours" class="fade"></g>
+  <g id="guides" class="fade"></g>
+  <path id="land" class="land"/>
+  <path id="tis-ghost" class="tis-g fade"/>
+  <path id="tis" class="tis fade"/>
+  <path id="ghost" class="ghost"/>
+  <g id="notes"></g>
+  <g id="probe"></g>
+</svg>
+<div id="tip" class="tip dmc-chrome" hidden aria-live="polite"></div>
+<p id="loading" class="loading dmc-chrome">Measuring Singapore five ways&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="sheet" class="dmc-glass sheet" data-dmc-overlay aria-label="Worksheet: Singapore's area in five projections">
+  <div class="tabs">
+    <div class="dmc-seg" role="tablist" aria-label="View">
+      <button id="tab-proj" type="button" role="tab" aria-selected="true" aria-controls="pane-proj">Five projections</button>
+      <button id="tab-drag" type="button" role="tab" aria-selected="false" aria-controls="pane-drag" tabindex="-1">Drag it north</button>
+    </div>
+  </div>
+
+  <section id="pane-proj" class="pane" role="tabpanel" aria-labelledby="tab-proj">
+    <div class="claim">
+      <p class="kick">The claim</p>
+      <q>At 1.35°&nbsp;N, Mercator inflates Singapore by only about 0.06%, roughly 0.4&nbsp;km², less than the area of Gardens by the Bay.</q>
+    </div>
+    <div class="verdict" aria-live="polite">
+      <p><span class="mk ok" aria-hidden="true">&#10003;</span><span><b>True of Mercator.</b> On the real, slightly flattened Earth it adds <span class="num" data-v="merc-pct"></span>, or <span class="num" data-v="merc-km"></span>: <span data-v="merc-ha"></span>&nbsp;ha, small enough to fit inside Bay South (54&nbsp;ha), let alone all 101&nbsp;ha of Gardens by the Bay.</span></p>
+      <p><span class="mk no" aria-hidden="true">&#10007;</span><span><b>Not true of the Mercator on your phone.</b> Web maps use Web Mercator, which runs round-Earth maths on real-Earth latitudes. That draws Singapore <span class="num" data-v="wm-tall"></span> too tall, so it adds <span class="num" data-v="wm-pct"></span>: <span class="num" data-v="wm-km"></span>, or <b><span data-v="wm-gbtb"></span> Gardens by the Bay</b>.</span></p>
+    </div>
+
+    <div class="tbl">
+      <div class="tbl-h">
+        <p class="kick" id="tbl-cap">Singapore's area, five ways</p>
+        <div class="dmc-seg" role="group" aria-label="Which land">
+          <button type="button" data-scope="all" aria-pressed="true">All of Singapore</button>
+          <button type="button" data-scope="main" aria-pressed="false">Main island</button>
+        </div>
+      </div>
+      <div id="rows" role="radiogroup" aria-labelledby="tbl-cap" class="tbl"></div>
+      <p class="tbl-f">Pick a row to redraw the island. <span class="sq" aria-hidden="true"></span>= one Gardens by the Bay, 101&nbsp;ha. Numbers are never exaggerated.</p>
+    </div>
+
+    <div class="knobs">
+      <div class="knob">
+        <label for="ex">Exaggerate the distortion</label>
+        <input id="ex" type="range" min="0" max="6" step="1" value="4" aria-valuetext="100 times">
+        <output id="ex-out" for="ex">&times;100</output>
+      </div>
+      <div class="checks">
+        <label><input id="ck-tis" type="checkbox" checked> Tissot circles</label>
+        <label><input id="ck-cont" type="checkbox" checked> Scale contours</label>
+      </div>
+      <p class="hint">The dashed line is the true shape. At &times;1 every outline sits on it: the errors are thinner than the ink. Each circle is 2.5&nbsp;km across on the ground; the projection decides how it is drawn. Hover or tap the paper to measure any spot.</p>
+    </div>
+
+    <div class="why">
+      <h3>Why SVY21 is the right tool here</h3>
+      <p>SVY21 is Singapore's own transverse Mercator. Its centre line, <b>103°50′&nbsp;E</b>, runs down the middle of the island, and along it the scale is exactly 1. The further you go from that line the more it stretches, but Singapore is too narrow for that to matter: <b>never more than <span data-v="svy-max"></span> per km</b> on the main island.</p>
+      <dl class="scales" id="scales"></dl>
+      <p>UTM 48N is centred on 105°&nbsp;E, <span class="num" data-v="utm-km"></span> east of the island, and shrinks its whole zone by 0.9996 on purpose so errors average out across 6° of longitude. Singapore sits on the shrunk side, so UTM comes up short everywhere.</p>
+      <p>SLA measures in SVY21 too: the area stored with the main island in its own coastline file is <span class="num" data-v="sla"></span>&nbsp;m², the same as our SVY21 figure to <span data-v="sla-diff"></span>&nbsp;m².</p>
+    </div>
+  </section>
+
+  <section id="pane-drag" class="pane" role="tabpanel" aria-labelledby="tab-drag" hidden>
+    <h3 class="drag-h">Drag Singapore north</h3>
+    <p class="hint" style="font-size:11.5px;color:var(--ink-2)">Mercator keeps every small shape true by stretching both ways by sec&nbsp;φ, so areas swell by sec²&nbsp;φ. Near the equator that's nothing. Drag the red dot, use the slider, or grab the island on the paper.</p>
+    <div id="world" class="world"></div>
+    <div class="latrow">
+      <label for="lat">Latitude</label>
+      <input id="lat" type="range" min="-60" max="80" step="0.1" value="1.4">
+      <output id="lat-out" for="lat"></output>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Move Singapore to a city's latitude"></div>
+    <div class="readout" aria-live="polite">
+      <div class="big"><b id="d-f">&times;1.007</b><span>its true area on a web map</span></div>
+      <p id="d-txt"></p>
+      <p class="sm" id="d-sec"></p>
+    </div>
+  </section>
+
+  <div class="notes">
+    <p><b>How it was measured.</b> True area: SLA's full coastline (<span data-v="nfeat"></span> polygons, merged; reservoirs included) measured on the WGS&nbsp;84 ellipsoid. Projected areas: the same outline transformed with PROJ and measured flat. Scale: measured against the ellipsoid at <span data-v="npts"></span> points on the main island. Web Mercator's tall stretch is easy to miss: even PROJ's own distortion report for EPSG:3857 assumes the sphere it pretends the Earth is.</p>
+    <p>The drawing uses the outline simplified to 15&nbsp;m, turns each projection so north is up at the island's centre, and draws the dashed true shape in an equal-area projection centred on the island (true to <span data-v="laea-mm"></span> per km). Pedra Branca is in every number but off the edge of the drawing.</p>
+    <p id="credits" class="dmc-credits"></p>
+  </div>
+</aside>
+
+<script src="https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = {
+  n: 22,
+  title: 'Why my favourite is SVY21',
+  deck: 'Every web map draws Singapore 0.73% too big: about five Gardens by the Bay of land that isn’t there. This computation sheet measures the island in five projections against its true area on the ellipsoid, and shows why Singapore’s own SVY21 is the right tool at home. Then drag the island north and watch Web Mercator inflate it.',
+  accent: '#D62839',
+  creditsEl: 'credits',
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+document.querySelector('.dmc-keys').innerHTML = 'Pick a row to redraw · hover the paper to measure · <kbd>F</kbd> focus mode';
+const L = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const CREDITS = [
+  'Coastline: ' + L('https://data.gov.sg/datasets/d_29f066d67df3eae91df8a42f443863c8/view', 'SLA National Map Polygon') + ' (Coastal_Outlines), data.gov.sg, ' + L('https://data.gov.sg/open-data-licence', 'Singapore Open Data Licence'),
+  'Gardens by the Bay, 101 ha; Bay South, 54 ha: ' + L('https://www.gardensbythebay.com.sg/en/about-us/media-room/2011.html', 'Gardens by the Bay media releases, 2011'),
+  'Projections: EPSG ' + L('https://epsg.org/crs_3857/WGS-84-Pseudo-Mercator.html', '3857') + ', ' + L('https://epsg.org/crs_3395/WGS-84-World-Mercator.html', '3395') + ', ' + L('https://epsg.org/crs_32648/WGS-84-UTM-zone-48N.html', '32648') + ', ' + L('https://epsg.org/crs_3414/SVY21-Singapore-TM.html', '3414') + '; measured with ' + L('https://pyproj4.github.io/pyproj/', 'pyproj') + ' and ' + L('https://proj.org/', 'PROJ 9.8'),
+  'World and cities: ' + L('https://www.naturalearthdata.com/', 'Natural Earth') + ' 1:110m, public domain',
+  'Drawn with ' + L('https://d3js.org/d3-geo', 'd3-geo 3.1.1'),
+];
+
+/* ---------- ellipsoidal projections (WGS 84), checked against pyproj to under a micrometre ---------- */
+const GEO = (() => {
+  const A = 6378137, F = 1 / 298.257223563, E2 = F * (2 - F), E = Math.sqrt(E2), RAD = Math.PI / 180;
+  const webmerc = (lon, lat) => [A * lon * RAD, A * Math.atanh(Math.sin(lat * RAD))];
+  const merc = (lon, lat) => { const s = Math.sin(lat * RAD); return [A * lon * RAD, A * (Math.atanh(s) - E * Math.atanh(E * s))]; };
+  // Transverse Mercator by Krüger's series to n^6, as PROJ does it.
+  const N = F / (2 - F), n2 = N * N, n3 = n2 * N, n4 = n3 * N, n5 = n4 * N, n6 = n5 * N;
+  const AA = A / (1 + N) * (1 + n2 / 4 + n4 / 64 + n6 / 256);
+  const AL = [
+    N / 2 - 2 * n2 / 3 + 5 * n3 / 16 + 41 * n4 / 180 - 127 * n5 / 288 + 7891 * n6 / 37800,
+    13 * n2 / 48 - 3 * n3 / 5 + 557 * n4 / 1440 + 281 * n5 / 630 - 1983433 * n6 / 1935360,
+    61 * n3 / 240 - 103 * n4 / 140 + 15061 * n5 / 26880 + 167603 * n6 / 181440,
+    49561 * n4 / 161280 - 179 * n5 / 168 + 6601661 * n6 / 7257600,
+    34729 * n5 / 80640 - 3418889 * n6 / 1995840,
+    212378941 * n6 / 319334400,
+  ];
+  function xiEta(lon, lat, lon0) {
+    const s = Math.sin(lat * RAD), l = (lon - lon0) * RAD;
+    const t = Math.sinh(Math.atanh(s) - E * Math.atanh(E * s));
+    const x0 = Math.atan2(t, Math.cos(l)), e0 = Math.atanh(Math.sin(l) / Math.sqrt(1 + t * t));
+    let xi = x0, eta = e0;
+    for (let j = 1; j <= 6; j++) {
+      xi += AL[j - 1] * Math.sin(2 * j * x0) * Math.cosh(2 * j * e0);
+      eta += AL[j - 1] * Math.cos(2 * j * x0) * Math.sinh(2 * j * e0);
+    }
+    return [xi, eta];
+  }
+  function tm(lon0, lat0, k0, fe, fn) {
+    const xiO = xiEta(lon0, lat0, lon0)[0];
+    return (lon, lat) => { const [xi, eta] = xiEta(lon, lat, lon0); return [fe + k0 * AA * eta, fn + k0 * AA * (xi - xiO)]; };
+  }
+  // Lambert azimuthal equal-area, oblique, on the ellipsoid (Snyder 1987, pp. 187-190).
+  const qf = s => (1 - E2) * (s / (1 - E2 * s * s) - Math.log((1 - E * s) / (1 + E * s)) / (2 * E));
+  const QP = qf(1), RQ = A * Math.sqrt(QP / 2);
+  function laea(lon0, lat0) {
+    const s0 = Math.sin(lat0 * RAD), b1 = Math.asin(qf(s0) / QP), sb1 = Math.sin(b1), cb1 = Math.cos(b1);
+    const D = A * Math.cos(lat0 * RAD) / Math.sqrt(1 - E2 * s0 * s0) / (RQ * cb1);
+    const fwd = (lon, lat) => {
+      const b = Math.asin(qf(Math.sin(lat * RAD)) / QP), l = (lon - lon0) * RAD;
+      const sb = Math.sin(b), cb = Math.cos(b), cl = Math.cos(l);
+      const B = RQ * Math.sqrt(2 / (1 + sb1 * sb + cb1 * cb * cl));
+      return [B * D * cb * Math.sin(l), B / D * (cb1 * sb - sb1 * cb * cl)];
+    };
+    const inv = (x, y) => {
+      const rho = Math.hypot(x / D, D * y);
+      if (rho < 1e-9) return [lon0, lat0];
+      const ce = 2 * Math.asin(Math.min(1, rho / (2 * RQ))), sc = Math.sin(ce), cc = Math.cos(ce);
+      const q = QP * (cc * sb1 + D * y * sc * cb1 / rho);
+      const l = Math.atan2(x * sc, D * rho * cb1 * cc - D * D * y * sb1 * sc);
+      let p = Math.asin(Math.max(-1, Math.min(1, q / 2)));
+      for (let i = 0; i < 10; i++) {
+        const s = Math.sin(p), w = 1 - E2 * s * s;
+        p += w * w / (2 * Math.cos(p)) * (q / (1 - E2) - s / w + Math.log((1 - E * s) / (1 + E * s)) / (2 * E));
+      }
+      return [lon0 + l / RAD, p / RAD];
+    };
+    return { fwd, inv };
+  }
+  // Ground metres per degree of latitude and of longitude.
+  const perDeg = lat => { const s = Math.sin(lat * RAD), w = Math.sqrt(1 - E2 * s * s); return [A * (1 - E2) / (w * w * w) * RAD, A / w * Math.cos(lat * RAD) * RAD]; };
+  // Jacobian of f per metre of ground: [[dx/dEast, dx/dNorth], [dy/dEast, dy/dNorth]].
+  function jac(f, lon, lat, d = 5) {
+    const [mN, mE] = perDeg(lat), dl = d / mE, dp = d / mN;
+    const e1 = f(lon + dl, lat), e0 = f(lon - dl, lat), n1 = f(lon, lat + dp), n0 = f(lon, lat - dp);
+    return [[(e1[0] - e0[0]) / (2 * d), (n1[0] - n0[0]) / (2 * d)], [(e1[1] - e0[1]) / (2 * d), (n1[1] - n0[1]) / (2 * d)]];
+  }
+  const scale = (f, lon, lat) => { const J = jac(f, lon, lat); return { k: Math.hypot(J[0][0], J[1][0]), h: Math.hypot(J[0][1], J[1][1]), a: Math.abs(J[0][0] * J[1][1] - J[0][1] * J[1][0]) }; };
+  return { A, E2, RAD, webmerc, merc, tm, laea, perDeg, jac, scale };
+})();
+const RAD = GEO.RAD;
+
+/* ---------- helpers ---------- */
+const $ = id => document.getElementById(id);
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const nf = (x, d = 0) => new Intl.NumberFormat('en-GB', { minimumFractionDigits: d, maximumFractionDigits: d }).format(x);
+const MINUS = '−';
+const sgn = (x, s) => (x > 0 ? '+' : x < 0 ? MINUS : '') + s;
+const km2 = (m2, d = 3) => nf(m2 / 1e6, d);
+const errTxt = m2 => Math.abs(m2) >= 1e4 ? sgn(m2, km2(Math.abs(m2))) + ' km²' : sgn(Math.round(m2), nf(Math.abs(Math.round(m2)))) + ' m²';
+const pctTxt = p => { const d = Math.abs(p) >= .01 ? 3 : 4, r = Number(p.toFixed(d)); return (r ? sgn(r, Math.abs(r).toFixed(d)) : (0).toFixed(d)) + '%'; };
+function perKm(k) {   // a scale factor as the error on one kilometre
+  const v = (k - 1) * 1000;
+  if (Math.abs(v) < .00005) return '0 mm';
+  if (Math.abs(v) < .01) return sgn(v, Math.abs(v * 1000).toFixed(1)) + ' mm';
+  if (Math.abs(v) < 1) return sgn(v, Math.abs(v * 100).toFixed(1)) + ' cm';
+  return sgn(v, Math.abs(v).toFixed(2)) + ' m';
+}
+const latTxt = (lat, d = 2) => `${Math.abs(lat).toFixed(d)}° ${lat >= 0 ? 'N' : 'S'}`;
+const ease = t => t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+const hex = c => [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16));
+const mixCol = (a, b, t) => { const x = hex(a), y = hex(b); return `rgb(${x.map((v, i) => Math.round(v + (y[i] - v) * t)).join(',')})`; };
+const svgEl = (tag, attrs = {}, text) => { const e = document.createElementNS('http://www.w3.org/2000/svg', tag); for (const k in attrs) e.setAttribute(k, attrs[k]); if (text != null) e.textContent = text; return e; };
+// Labels on the paper never overprint each other: each claims its box, or tries the next spot, or stays out.
+let OCC = [];
+const hits = (a, b) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
+const occupy = (x, y, w, h) => OCC.push({ x, y, w, h });
+function claim(el, pad = 2) {
+  const b = el.getBBox(), r = { x: b.x - pad, y: b.y - pad, w: b.width + 2 * pad, h: b.height + 2 * pad };
+  if (r.x < 2 || r.x + r.w > innerWidth - 2 || OCC.some(o => hits(o, r))) return false;
+  OCC.push(r);
+  return true;
+}
+function pin(...els) { for (const el of els) { const b = el.getBBox(); occupy(b.x - 1, b.y - 1, b.width + 2, b.height + 2); } }   // always drawn; others keep clear
+function label(g, attrs, text, tries = [[0, 0]]) {
+  const el = svgEl('text', attrs, text);
+  g.append(el);
+  for (const [dx, dy] of tries) {
+    el.setAttribute('x', attrs.x + dx); el.setAttribute('y', attrs.y + dy);
+    if (claim(el)) return el;
+  }
+  el.remove();
+  return null;
+}
+
+$('credits').innerHTML = CREDITS.join('<br>');
+const focusLine = document.createElement('p');
+focusLine.className = 'dmc-focus-credit';
+focusLine.innerHTML = CREDITS.join(' · ');
+document.body.append(focusLine);
+
+/* ---------- state ---------- */
+const ORDER = ['webmerc', 'merc', 'utm', 'svy21', 'laea'];
+const PJ = {
+  webmerc: { label: 'Web Mercator', color: '#2A78D6' },
+  merc: { label: 'Mercator', color: '#B07400' },
+  utm: { label: 'UTM 48N', color: '#7C3AED' },
+  svy21: { label: 'SVY21', color: '#D62839' },
+  laea: { label: 'Equal-area', color: '#56605A' },
+};
+const EX = [1, 3, 10, 30, 100, 300, 1000];
+let D = null, ANCHOR = null, R = null, LA = null, COAST = null, FITPOLYS = null, TISSOT = null;
+let mode = 'proj', scope = 'all';
+const S = { a: 'webmerc', b: 'webmerc', t: 0, E: 1 };          // the drawing: projection a morphing to b, exaggeration E
+const V = { s: 1e-3, cx: 0, cy: 0 };                            // the view: px per metre and where the island's centre sits
+const G = { lon: 0, lat: 0 };                                   // where "drag it north" has put the island
+let showTis = true, showCont = true;
+
+const stage = $('stage');
+let proj, ghost, dproj, path, gpath, dpath, mutate, dmutate;
+
+/* ---------- data ---------- */
+function ring(a, k) { const out = []; let x = 0, y = 0; for (let i = 0; i < a.length; i += 2) { x += a[i]; y += a[i + 1]; out.push([x / k, y / k]); } out.push(out[0].slice()); return out; }
+
+function setup(d) {
+  D = d;
+  ANCHOR = d.anchor;
+  LA = GEO.laea(ANCHOR[0], ANCHOR[1]);
+  R = LA.fwd;
+  const polys = d.coast.map(p => p.map(r => ring(r, 1e6)));
+  COAST = { type: 'MultiPolygon', coordinates: polys };
+  FITPOLYS = polys.filter(p => p[0].every(([lon]) => lon < 104.3));   // Pedra Branca stays out of the frame
+  const P = k => d.crs[k].params;
+  const tmOf = p => GEO.tm(p['Longitude of natural origin'], p['Latitude of natural origin'], p['Scale factor at natural origin'], p['False easting'], p['False northing']);
+  PJ.webmerc.f = GEO.webmerc;
+  PJ.merc.f = GEO.merc;
+  PJ.utm.f = tmOf(P('utm'));
+  PJ.svy21.f = tmOf(P('svy21'));
+  PJ.laea.f = R;
+  PJ.webmerc.code = d.crs.webmerc.code; PJ.merc.code = d.crs.merc.code; PJ.utm.code = d.crs.utm.code; PJ.svy21.code = d.crs.svy21.code; PJ.laea.code = 'Lambert, centred';
+  // Each projection, anchored at the island's centre and turned so north is up there.
+  for (const id of ORDER) {
+    const p = PJ[id], [ax, ay] = p.f(ANCHOR[0], ANCHOR[1]), J = GEO.jac(p.f, ANCHOR[0], ANCHOR[1]);
+    const g = Math.atan2(J[0][1], J[1][1]), c = Math.cos(g), s = Math.sin(g);
+    p.d = (lon, lat) => { const [x, y] = p.f(lon, lat), dx = x - ax, dy = y - ay; return [c * dx - s * dy, s * dx + c * dy]; };
+    p.turn = g / RAD;
+  }
+  SVY0 = PJ.svy21.f(ANCHOR[0], ANCHOR[1]);
+  buildTissot();
+
+  // d3-geo projections with our own raw functions: the drawing, the true shape, and the dragged island.
+  const mix = (a, b, t, E) => (λ, φ) => {
+    const lon = λ / RAD, lat = φ / RAD, r = R(lon, lat), pa = PJ[a].d(lon, lat);
+    let x = pa[0], y = pa[1];
+    if (t > 0 && b !== a) { const pb = PJ[b].d(lon, lat); x += (pb[0] - x) * t; y += (pb[1] - y) * t; }
+    return [r[0] + E * (x - r[0]), r[1] + E * (y - r[1])];
+  };
+  mutate = d3.geoProjectionMutator(mix);
+  proj = mutate(S.a, S.b, S.t, S.E).precision(0).center(ANCHOR);
+  const rawR = (λ, φ) => R(λ / RAD, φ / RAD);
+  rawR.invert = (x, y) => { const [lo, la] = LA.inv(x, y); return [lo * RAD, la * RAD]; };
+  ghost = d3.geoProjection(rawR).precision(0).center(ANCHOR);
+  dmutate = d3.geoProjectionMutator((tl, tp) => {
+    const T = GEO.laea(tl, tp), w0 = GEO.webmerc(tl, tp);
+    return (λ, φ) => { const [x, y] = R(λ / RAD, φ / RAD), [lo, la] = T.inv(x, y), w = GEO.webmerc(lo, la); return [w[0] - w0[0], w[1] - w0[1]]; };
+  });
+  dproj = dmutate(ANCHOR[0], ANCHOR[1]).precision(0).center(ANCHOR);
+  path = d3.geoPath(proj); gpath = d3.geoPath(ghost); dpath = d3.geoPath(dproj);
+  G.lon = ANCHOR[0]; G.lat = ANCHOR[1];
+}
+let SVY0 = [0, 0];
+
+/* ---------- Tissot circles: 2.5 km across, on SVY21's 5 km grid, wherever there is land ---------- */
+function buildTissot() {
+  const r = 1250, out = [], ghostC = [];
+  const [ea, na] = SVY0;
+  for (let E = Math.ceil((ea - 32000) / 5000) * 5000; E <= ea + 34000; E += 5000)
+    for (let N = Math.ceil((na - 20000) / 5000) * 5000; N <= na + 16000; N += 5000) {
+      const x0 = E - ea, y0 = N - na, pts = [];
+      for (let i = 0; i <= 36; i++) { const t = -i / 36 * 2 * Math.PI; pts.push(LA.inv(x0 + r * Math.cos(t), y0 + r * Math.sin(t))); }
+      pts[36] = pts[0];
+      const c = LA.inv(x0, y0);
+      if (d3.geoContains(COAST, c) || pts.some((p, i) => i % 6 === 0 && d3.geoContains(COAST, p))) out.push([pts]);
+    }
+  TISSOT = { type: 'MultiPolygon', coordinates: out };
+}
+
+/* ---------- framing: fit the island into the paper the sheets leave free ---------- */
+function freeFrame() {
+  const W = innerWidth, H = innerHeight, focus = document.documentElement.classList.contains('dmc-focus');
+  const small = W <= 640 || H <= 520;
+  const pad = small ? { l: 10, r: 10, t: 40, b: 36 } : { l: 26, r: 26, t: 58, b: 64 };
+  if (focus) {   // clear the exit pill at the top and the one-line credits at the bottom
+    const cr = focusLine.getBoundingClientRect(), b = pad.b + (cr.height ? cr.height + 6 : 0), t = pad.t + 24;
+    return { x: pad.l, y: t, w: W - pad.l - pad.r, h: H - t - b };
+  }
+  let x0 = 0, y0 = 0, x1 = W, y1 = H;
+  const sh = $('sheet').getBoundingClientRect();
+  if (sh.width && sh.left > W * .35) x1 = sh.left - 8; else if (sh.width && sh.top > H * .25) y1 = sh.top - 4;
+  const st = $('dmc-stamp').getBoundingClientRect();
+  // clear the stamp: keep the band below it, or the band to its right, whichever leaves more room
+  const below = { x0, y0: Math.max(y0, st.bottom + 2), x1, y1 }, right = { x0: Math.max(x0, st.right + 8), y0, x1, y1 };
+  const area = f => Math.min((f.x1 - f.x0 - pad.l - pad.r) / 1.75, f.y1 - f.y0 - pad.t - pad.b);
+  const f = area(below) >= area(right) ? below : right;
+  return { x: f.x0 + pad.l, y: f.y0 + pad.t, w: f.x1 - f.x0 - pad.l - pad.r, h: f.y1 - f.y0 - pad.t - pad.b };
+}
+function bbox(raw, polys = FITPOLYS) {
+  const b = [Infinity, Infinity, -Infinity, -Infinity];
+  for (const p of polys) for (const [lon, lat] of p[0]) {
+    const [x, y] = raw(lon * RAD, lat * RAD);
+    if (x < b[0]) b[0] = x; if (y < b[1]) b[1] = y; if (x > b[2]) b[2] = x; if (y > b[3]) b[3] = y;
+  }
+  return b;
+}
+const union = (a, b) => [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[2], b[2]), Math.max(a[3], b[3])];
+function fit(bb, fr, sMax = Infinity) {
+  const s = Math.min(fr.w / (bb[2] - bb[0]), fr.h / (bb[3] - bb[1]), sMax);
+  return { s, cx: fr.x + fr.w / 2 - s * (bb[0] + bb[2]) / 2, cy: fr.y + fr.h / 2 + s * (bb[1] + bb[3]) / 2 };
+}
+let TRUEBB = null;
+const rawFor = (a, b, t, E) => (λ, φ) => { const lon = λ / RAD, lat = φ / RAD, r = R(lon, lat), pa = PJ[a].d(lon, lat); let x = pa[0], y = pa[1];
+  if (t > 0 && b !== a) { const pb = PJ[b].d(lon, lat); x += (pb[0] - x) * t; y += (pb[1] - y) * t; } return [r[0] + E * (x - r[0]), r[1] + E * (y - r[1])]; };
+function targetView() {
+  const fr = freeFrame();
+  if (!TRUEBB) TRUEBB = bbox((λ, φ) => R(λ / RAD, φ / RAD));
+  if (mode === 'drag') {
+    // the paper keeps its home scale while the island still fits, so it visibly grows
+    return fit(union(TRUEBB, bbox(dprojRaw)), fr, fit(TRUEBB, fr).s);
+  }
+  const end = S.t > 0 ? S.b : S.a;
+  return fit(union(TRUEBB, bbox(rawFor(end, end, 0, S.E))), fr);
+}
+let dprojRaw = null;
+function applyView() { for (const p of [proj, ghost, dproj]) p.scale(V.s).translate([V.cx, V.cy]); }
+
+/* ---------- graph paper: SVY21 kilometre grid ---------- */
+function drawGrid() {
+  const W = innerWidth, H = innerHeight, u = V.s * 1000;   // px per km
+  const steps = [1, 2, 5, 10, 20, 50, 100];
+  const m = steps.find(k => k * u >= 7) || 100, M = m * 5;
+  // grid lines are SVY21 eastings and northings (in drag mode: kilometres from the island's centre)
+  const [ea, na] = mode === 'drag' ? [0, 0] : SVY0;
+  const X = e => V.cx + (e - ea) / 1000 * u, Y = n => V.cy - (n - na) / 1000 * u;
+  const e0 = Math.floor((ea / 1000 - V.cx / u) / m) * m, e1 = Math.ceil((ea / 1000 + (W - V.cx) / u) / m) * m;
+  const n0 = Math.floor((na / 1000 - (H - V.cy) / u) / m) * m, n1 = Math.ceil((na / 1000 + V.cy / u) / m) * m;
+  let a = '', b = '';
+  const labs = $('g-labs');
+  labs.replaceChildren();
+  const fr = freeFrame(), lab = mode === 'proj' && W > 640 && H > 520;
+  for (let e = e0; e <= e1; e += m) {
+    const x = Math.round(X(e * 1000)) + .5, major = Math.round(e) % M === 0, line = `M${x} 0V${H}`;
+    if (major) b += line; else a += line;
+    if (lab && major && Math.round(e) % (M * 2) === 0 && x > fr.x && x < fr.x + fr.w - 150) label(labs, { class: 'g-lab', x: x + 3, y: fr.y + fr.h + 11 }, `E ${e} km`);
+  }
+  for (let n = n0; n <= n1; n += m) {
+    const y = Math.round(Y(n * 1000)) + .5, major = Math.round(n) % M === 0, line = `M0 ${y}H${W}`;
+    if (major) b += line; else a += line;
+    if (lab && major && Math.round(n) % (M * 2) === 0 && y > fr.y && y < fr.y + fr.h) label(labs, { class: 'g-lab', x: 6, y: y - 3 }, `N ${n} km`);
+  }
+  label(labs, { class: 'g-lab', x: fr.x + fr.w, y: fr.y + fr.h + (W > 640 && H > 520 ? 11 : 4), 'text-anchor': 'end' },
+    `${m} km squares${mode === 'proj' ? ', SVY21 grid' : ''}`);
+  $('g-minor').setAttribute('d', a);
+  $('g-major').setAttribute('d', b);
+}
+
+/* ---------- scale contours: where each projection is off by the same amount per km ---------- */
+const CONT = {};
+function contours(id) {
+  if (CONT[id]) return CONT[id];
+  if (id === 'laea') return (CONT[id] = []);
+  const f = PJ[id].f, wm = id === 'webmerc';
+  const lon0 = 103.5, lon1 = 104.2, lat0 = 1.1, lat1 = 1.55, nx = 70, ny = 45;
+  const v = [], lon = i => lon0 + (lon1 - lon0) * i / nx, lat = j => lat0 + (lat1 - lat0) * j / ny;
+  let lo = Infinity, hi = -Infinity;
+  for (let j = 0; j <= ny; j++) { const row = []; for (let i = 0; i <= nx; i++) { const sc = GEO.scale(f, lon(i), lat(j)), x = (wm ? sc.h : sc.k) - 1; row.push(x); } v.push(row); }
+  // levels: nice steps between the extremes found on the island itself
+  const isl = D.scale.main[id][wm ? 'h' : 'k'];
+  lo = isl[0] - 1; hi = isl[1] - 1;
+  const levels = d3.ticks(lo, hi, 4).filter(L => L > lo + (hi - lo) * .04 && L < hi - (hi - lo) * .04);
+  if (id === 'svy21' && !levels.length) levels.push(2e-6, 4e-6, 6e-6);
+  const out = [];
+  for (const Lv of levels) {
+    const segs = [];
+    for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) {
+      const c = [[i, j], [i + 1, j], [i + 1, j + 1], [i, j + 1]], pts = [];
+      for (let k = 0; k < 4; k++) {
+        const [ai, aj] = c[k], [bi, bj] = c[(k + 1) % 4], va = v[aj][ai] - Lv, vb = v[bj][bi] - Lv;
+        if ((va < 0) !== (vb < 0)) { const t = va / (va - vb); pts.push([lon(ai + (bi - ai) * t), lat(aj + (bj - aj) * t)]); }
+      }
+      if (pts.length >= 2) segs.push([pts[0], pts[1]]);
+      if (pts.length === 4) segs.push([pts[2], pts[3]]);
+    }
+    out.push({ level: Lv, geo: { type: 'MultiLineString', coordinates: segs }, label: perKm(1 + Lv) + '/km' + (wm ? ' N–S' : '') });
+  }
+  return (CONT[id] = out);
+}
+function drawContours() {
+  const g = $('contours');
+  g.replaceChildren();
+  if (mode !== 'proj' || !showCont || S.t > 0) return;
+  const id = S.a, col = PJ[id].color, fr = freeFrame(), flat = id === 'webmerc' || id === 'merc', ax = proj(ANCHOR)[0];
+  const tries = [[0, 0], [0, 16], [0, 32], [0, -16], [0, 48]], small = innerWidth <= 640 || innerHeight <= 520, all = contours(id);
+  for (const [i, c] of all.entries()) {
+    g.append(svgEl('path', { class: 'cont', d: path(c.geo), stroke: col, 'stroke-opacity': .5 }));
+    if (small && i > 0 && i < all.length - 1) continue;   // phones: label only the outermost lines
+    // label east-west lines at their right end, north-south lines at their top (once on each side of the centre)
+    const best = {};
+    for (const seg of c.geo.coordinates) for (const p of seg) {
+      const [x, y] = proj(p);
+      if (x < fr.x + 4 || x > fr.x + fr.w - 4 || y < fr.y + 14 || y > fr.y + fr.h) continue;
+      const side = flat ? 0 : x < ax ? 0 : 1, score = flat ? -x : y;
+      if (!best[side] || score < best[side].score) best[side] = { x, y, score };
+    }
+    for (const b of Object.values(best)) {
+      if (flat) label(g, { class: 'cont-l', x: b.x - 4, y: b.y - 4, fill: col, 'text-anchor': 'end' }, c.label, tries.map(([dx, dy]) => [dx - dy * 4, 0]));
+      else label(g, { class: 'cont-l', x: b.x + 4, y: b.y + 8, fill: col }, c.label, tries);
+    }
+  }
+}
+
+/* ---------- guides: where each projection is exact, and pencil notes ---------- */
+function drawGuides() {
+  const g = $('guides');
+  g.replaceChildren();
+  if (mode !== 'proj' || S.t > 0) return;
+  const id = S.a, small = innerWidth <= 640 || innerHeight <= 520;
+  const fr = freeFrame(), col = PJ[id].color;
+  const pencil = (x, y, t, anchor = 'start', tries = [[0, 0], [0, 18], [0, -18], [0, 36]]) => label(g, { class: 'pencil', x, y, 'text-anchor': anchor }, t, tries);
+  const arrow = d => g.append(svgEl('path', { class: 'arrow', d }));
+  // where each projection is exact, or the way to it
+  if (id === 'svy21') {
+    const p = D.crs.svy21.params, lon0 = p['Longitude of natural origin'], lat0 = p['Latitude of natural origin'];
+    const line = { type: 'LineString', coordinates: d3.range(0, 41).map(i => [lon0, 1.1 + i * .0125]) };
+    g.append(svgEl('path', { class: 'guide', d: path(line), stroke: col, 'stroke-dasharray': '9 3 2 3' }));
+    const [ox, oy] = proj([lon0, lat0]);
+    g.append(svgEl('path', { class: 'guide', d: `M${ox - 7} ${oy}h14M${ox} ${oy - 7}v14`, stroke: col, 'stroke-width': 1.6 }));
+    g.append(svgEl('circle', { cx: ox, cy: oy, r: 4.5, fill: 'none', stroke: col, 'stroke-width': 1.2 }));
+    const ty = Math.max(fr.y + 14, Math.min(proj([lon0, 1.5])[1], oy - 60));
+    pencil(ox + 7, ty, '103°50′ E: scale exactly 1', 'start', [[0, 0], [0, 18], [0, 36], [0, 54]]);
+    pencil(ox + 10, oy + 22, 'origin, 1°22′ N');
+  } else if (id === 'utm') {
+    const x = fr.x + fr.w + 2, y = fr.y + fr.h * .14;
+    if (pencil(x - 4, y - 2, `UTM's centre line, 105° E: ${nf(D.dist.utm_cm, 1)} km east`, 'end', [[0, 0], [0, 24], [0, 48]])) {
+      const yy = +g.lastChild.getAttribute('y');
+      arrow(`M${x - 46} ${yy + 12}h40m-7 -5l7 5l-7 5`);
+    }
+  } else if (id === 'webmerc' || id === 'merc') {
+    const x = fr.x + fr.w * (small ? .06 : .3), y = fr.y + fr.h + (small ? 32 : 46);
+    const t = id === 'merc' ? `equator, ${nf(D.dist.equator, 1)} km south: Mercator is exact only there`
+      : small ? `equator, ${nf(D.dist.equator, 1)} km south: still ${(100 * (D.wm_equator.h - 1)).toFixed(2)}% too tall there`
+      : `equator, ${nf(D.dist.equator, 1)} km south: even there Web Mercator is ${(100 * (D.wm_equator.h - 1)).toFixed(2)}% too tall`;
+    if (pencil(x + 10, y - 6, t, 'start', [[0, 0]])) arrow(`M${x} ${y - 24}v18m-5 -7l5 7l5 -7`);
+  } else if (id === 'laea') {
+    const [ox, oy] = proj(ANCHOR);
+    g.append(svgEl('path', { class: 'guide', d: `M${ox - 7} ${oy}h14M${ox} ${oy - 7}v14`, stroke: col, 'stroke-width': 1.6 }));
+    pencil(ox + 10, oy - 8, 'centre: area exact everywhere');
+  }
+  // each projection's worst spot on the main island
+  if (id !== 'laea') {
+    const sc = D.scale.main[id][id === 'webmerc' ? 'h' : 'k'], w = id === 'utm' ? 0 : 1, at = sc[2 + w], [x, y] = proj(at);
+    g.append(svgEl('circle', { cx: x, cy: y, r: 5, fill: 'none', stroke: col, 'stroke-width': 1.5 }));
+    const right = x > fr.x + fr.w * .55, above = at[1] > ANCHOR[1];
+    pencil(x + (right ? -9 : 9), y + (above ? -9 : 21), `worst spot: ${perKm(sc[w])}${id === 'webmerc' ? ' N–S' : ''} per km`, right ? 'end' : 'start',
+      above ? [[0, 0], [0, 30], [right ? -40 : 40, 0]] : [[0, 0], [0, -30], [right ? -40 : 40, 0]]);
+  }
+}
+
+/* ---------- the stage ---------- */
+function drawProj() {
+  const a = S.a, b = S.b, t = S.t, col = t > 0 && a !== b ? mixCol(PJ[a].color, PJ[b].color, t) : PJ[t >= 1 ? b : a].color;
+  const land = $('land');
+  land.setAttribute('d', path(COAST));
+  land.setAttribute('stroke', col);
+  land.setAttribute('fill', col);
+  land.setAttribute('fill-opacity', .1);
+  $('ghost').setAttribute('d', gpath(COAST));
+  const tis = $('tis'), tg = $('tis-ghost');
+  if (showTis) {
+    tis.setAttribute('d', path(TISSOT)); tis.setAttribute('stroke', col); tis.setAttribute('fill', col); tis.setAttribute('fill-opacity', .2);
+    tg.setAttribute('d', gpath(TISSOT));
+  }
+  tis.classList.toggle('hide', !showTis); tg.classList.toggle('hide', !showTis);
+}
+function drawNotes() {
+  const g = $('notes'), fr = freeFrame();
+  g.replaceChildren();
+  const small = innerWidth <= 640 || innerHeight <= 520;
+  if (mode === 'proj') {
+    const id = S.t > 0 ? S.b : S.a, p = PJ[id], row = D.areas[scope].rows[id];
+    const x = fr.x, y = fr.y - (small ? 20 : 22);
+    const name = svgEl('text', { class: 'p-name', x, y, fill: p.color }, p.label);
+    g.append(name); pin(name);
+    const w = name.getComputedTextLength();
+    const code = svgEl('text', { class: 'p-code', x: x + w + 8, y: y - 1 }, p.code);
+    g.append(code); pin(code);
+    const area = svgEl('text', { class: 'p-area', x, y: y + (small ? 14 : 17) }, `${km2(row.area)} km² · ${errTxt(row.err)} · ${pctTxt(row.pct)}`);
+    g.append(area); pin(area);
+    // the rubber stamp, top right of the paper
+    const E = EX[+$('ex').value], txt = E === 1 ? 'TRUE SCALE  ×1' : `EXAGGERATED  ×${nf(E)}`, ink = E === 1 ? '#56605A' : DAY.accent;
+    const sx = fr.x + fr.w - 6, sy = y - (small ? 8 : 4);
+    const sg = svgEl('g', { class: 'rstamp', transform: `translate(${sx} ${sy}) rotate(-4)`, opacity: .82 });
+    const tx = svgEl('text', { x: 0, y: 0, 'text-anchor': 'end', fill: ink, style: small ? 'font-size:11px' : '' }, txt);
+    sg.append(tx); g.append(sg);
+    const tw = tx.getComputedTextLength(), th = small ? 17 : 22;
+    sg.insertBefore(svgEl('rect', { x: -tw - 9, y: -th + 6, width: tw + 18, height: th, rx: 3, fill: 'none', stroke: ink, 'stroke-width': 1.6 }), tx);
+    sg.insertBefore(svgEl('rect', { x: -tw - 6, y: -th + 9, width: tw + 12, height: th - 6, rx: 2, fill: 'none', stroke: ink, 'stroke-width': .7 }), tx);
+    occupy(sx - tw - 14, sy - th, tw + 22, th + 12);
+  } else {
+    const f = dragFactor(), x = fr.x, y = fr.y - (small ? 20 : 22);
+    const nm = svgEl('text', { class: 'p-name', x, y, fill: PJ.webmerc.color }, `Web Mercator at ${latTxt(G.lat, 1)}`);
+    const ar = svgEl('text', { class: 'p-area', x, y: y + (small ? 14 : 17) }, `drawn ×${fmtF(f)} its true area · dashed: its true size`);
+    g.append(nm, ar); pin(nm, ar);
+    // two rulers: 10 km of ground, and the same 10 km on a web map at this latitude
+    const sc = GEO.scale(GEO.webmerc, G.lon, G.lat), base = V.s * 10000 * sc.k > fr.w * .55 ? 5 : 10;
+    const ry = fr.y + fr.h + (small ? 14 : 24), rx = fr.x, L1 = V.s * base * 1000, L2 = L1 * sc.k;
+    const rl = (y0, len, lab) => { g.append(svgEl('path', { class: 'ruler', d: `M${rx} ${y0}h${len}M${rx + .5} ${y0 - 4}v8M${rx + len - .5} ${y0 - 4}v8` })); g.append(svgEl('text', { class: 'ruler-l', x: rx + len + 6, y: y0 + 3.5 }, lab)); };
+    if (!small || innerHeight > 600) {
+      rl(ry - 12, L1, `${base} km of ground`);
+      rl(ry + 2, L2, `${base} km east–west on the web map here: ${(base * sc.k).toFixed(1)} km`);
+    }
+    if (Math.abs(G.lat - ANCHOR[1]) < .5 && !dragged) {
+      const [ix, iy] = dproj([ANCHOR[0], 1.47]);
+      const el = label(g, { class: 'pencil', x: ix + 52, y: iy - 18 }, 'grab me and pull north', [[0, 0], [60, 26], [120, 44]]);
+      if (el) { const lx = +el.getAttribute('x'), ly = +el.getAttribute('y'); g.append(svgEl('path', { class: 'arrow', d: `M${lx - 12} ${ly + 12}v-26m-5 7l5 -7l5 7` })); }
+    }
+  }
+}
+function render() {
+  if (!D) return;
+  OCC = [];
+  if (!document.documentElement.classList.contains('dmc-focus'))   // no label slides under the sheets
+    for (const id of ['sheet', 'dmc-stamp']) { const r = $(id).getBoundingClientRect(); if (r.width) occupy(r.left - 4, r.top - 4, r.width + 8, r.height + 8); }
+  applyView();
+  drawGrid();
+  if (mode === 'proj') {
+    drawProj();
+  } else {
+    const land = $('land');
+    land.setAttribute('d', dpath(COAST)); land.setAttribute('stroke', PJ.webmerc.color); land.setAttribute('fill', PJ.webmerc.color); land.setAttribute('fill-opacity', .12);
+    $('ghost').setAttribute('d', gpath(COAST));
+  }
+  drawNotes();
+}
+function renderStatic() { render(); drawGuides(); drawContours(); }
+
+/* ---------- animation ---------- */
+let raf = 0;
+function animate(to, dur) {
+  cancelAnimationFrame(raf);
+  const from = { E: S.E, s: V.s, cx: V.cx, cy: V.cy }, t0 = performance.now();
+  const view = to.view;
+  if (reduceMotion || dur === 0) {
+    S.E = to.E; if (to.b) { S.a = to.b; S.b = to.b; S.t = 0; }
+    mutate(S.a, S.b, S.t, S.E); Object.assign(V, view); renderStatic(); return;
+  }
+  $('contours').classList.add('hide'); $('guides').classList.add('hide');
+  const step = now => {
+    const k = Math.min(1, (now - t0) / dur), e = ease(k);
+    S.E = Math.exp(Math.log(from.E) + (Math.log(to.E) - Math.log(from.E)) * e);
+    if (to.b) S.t = e;
+    V.s = Math.exp(Math.log(from.s) + (Math.log(view.s) - Math.log(from.s)) * e);
+    V.cx = from.cx + (view.cx - from.cx) * e; V.cy = from.cy + (view.cy - from.cy) * e;
+    mutate(S.a, S.b, S.t, S.E);
+    render();
+    if (k < 1) raf = requestAnimationFrame(step);
+    else {
+      if (to.b) { S.a = to.b; S.b = to.b; S.t = 0; mutate(S.a, S.b, 0, S.E); }
+      renderStatic();
+      $('contours').classList.remove('hide'); $('guides').classList.remove('hide');
+    }
+  };
+  raf = requestAnimationFrame(step);
+}
+function viewFor(pid, E) {
+  const fr = freeFrame();
+  if (!TRUEBB) TRUEBB = bbox((λ, φ) => R(λ / RAD, φ / RAD));
+  return fit(union(TRUEBB, bbox(rawFor(pid, pid, 0, E))), fr);
+}
+function setProjection(pid, instant) {
+  if (S.t > 0) { S.a = S.t >= .5 ? S.b : S.a; S.t = 0; }
+  if (pid === S.a && !instant) return;
+  const E = EX[+$('ex').value];
+  S.b = pid; S.t = 0;
+  document.querySelectorAll('#rows .row[data-p]').forEach(r => { const on = r.dataset.p === pid; r.setAttribute('aria-checked', String(on)); r.tabIndex = on ? 0 : -1; });
+  if (mode !== 'proj') { S.a = pid; S.b = pid; return; }
+  animate({ b: pid, E, view: viewFor(pid, E) }, instant ? 0 : 950);
+  stageLabel();
+}
+function setExaggeration(E, dur = 650) {
+  $('ex-out').textContent = '×' + nf(E);
+  $('ex').setAttribute('aria-valuetext', `${nf(E)} times`);
+  if (mode !== 'proj') { S.E = E; return; }
+  if (S.t > 0) { S.a = S.t >= .5 ? S.b : S.a; S.b = S.a; S.t = 0; }
+  animate({ E, view: viewFor(S.a, E) }, dur);
+  stageLabel();
+}
+function stageLabel() {
+  const id = S.b || S.a, E = EX[+$('ex').value];
+  $('stage-title').textContent = mode === 'proj'
+    ? `Singapore drawn in ${PJ[id].label} on graph paper, distortion exaggerated ${E} times, over its true shape (dashed).`
+    : `Singapore moved to ${latTxt(G.lat)} and drawn in Web Mercator, ${fmtF(dragFactor())} times its true area, over its true size (dashed).`;
+}
+
+/* ---------- probe: measure any spot ---------- */
+const tip = $('tip');
+let probeOn = false;
+function invertDisplay(px, py) {
+  let [lon, lat] = ghost.invert([px, py]);
+  for (let k = 0; k < 8; k++) {
+    const p = proj([lon, lat]), ex = px - p[0], ey = py - p[1];
+    if (Math.hypot(ex, ey) < .01) break;
+    const h = 1e-4, pl = proj([lon + h, lat]), pp = proj([lon, lat + h]);
+    const a = (pl[0] - p[0]) / h, b = (pp[0] - p[0]) / h, c = (pl[1] - p[1]) / h, d = (pp[1] - p[1]) / h, det = a * d - b * c;
+    if (!det) break;
+    lon += (d * ex - b * ey) / det; lat += (-c * ex + a * ey) / det;
+  }
+  return [lon, lat];
+}
+function probe(px, py) {
+  if (mode !== 'proj' || !D) return;
+  const [lon, lat] = invertDisplay(px, py);
+  if (!isFinite(lon) || Math.abs(lat - ANCHOR[1]) > .6 || Math.abs(lon - ANCHOR[0]) > .9) { hideProbe(); return; }
+  const cur = S.t >= .5 ? S.b : S.a, [E, N] = PJ.svy21.f(lon, lat), onLand = d3.geoContains(COAST, [lon, lat]);
+  const li = id => {
+    const sc = GEO.scale(PJ[id].f, lon, lat);
+    let v;
+    if (id === 'webmerc') v = `${perKm(sc.h)} N–S, ${perKm(sc.k)} E–W`;
+    else if (id === 'laea') v = 'area exact';
+    else v = perKm(sc.k);
+    return `<li class="${id === cur ? 'on' : ''}" style="--c:${PJ[id].color}"><i></i><span>${PJ[id].label}</span><b>${v}</b></li>`;
+  };
+  tip.innerHTML = `<div class="t1"><b>${latTxt(lat, 4)}, ${lon.toFixed(4)}° E</b>${onLand ? '' : ' · at sea'}<br>SVY21: E ${nf(E)} m, N ${nf(N)} m</div>
+    <div class="t3">Here, 1 km of ground is drawn off by:</div><ul>${ORDER.map(li).join('')}</ul>`;
+  tip.hidden = false;
+  const W = innerWidth, H = innerHeight, w = tip.offsetWidth, h = tip.offsetHeight;
+  let x = px + 16, y = py + 16;
+  const sh = $('sheet').getBoundingClientRect();
+  const limitX = sh.left > W * .35 ? sh.left - 8 : W - 8, limitY = sh.top > H * .25 && sh.left < W * .35 ? sh.top - 8 : H - 8;
+  if (x + w > limitX) x = px - w - 16;
+  if (y + h > limitY) y = py - h - 16;
+  tip.style.left = `${Math.max(8, x)}px`; tip.style.top = `${Math.max(8, y)}px`;
+  const g = $('probe');
+  g.replaceChildren(svgEl('path', { d: `M${px - 9} ${py}h18M${px} ${py - 9}v18`, stroke: '#1F2723', 'stroke-width': 1.2, fill: 'none' }), svgEl('circle', { cx: px, cy: py, r: 3, fill: 'none', stroke: '#1F2723', 'stroke-width': 1 }));
+  probeOn = true;
+}
+function hideProbe() { tip.hidden = true; $('probe').replaceChildren(); probeOn = false; }
+const canHover = matchMedia('(hover: hover)').matches;
+document.addEventListener('pointerdown', e => { if (probeOn && !stage.contains(e.target)) hideProbe(); });
+stage.addEventListener('pointermove', e => { if (mode === 'proj' && e.pointerType === 'mouse' && canHover) probe(e.clientX, e.clientY); });
+stage.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse') hideProbe(); });
+stage.addEventListener('click', e => { if (mode === 'proj' && (!canHover || e.pointerType !== 'mouse')) probe(e.clientX, e.clientY); });
+
+/* ---------- the worksheet ---------- */
+function gbtbGlyph(n, col) {
+  const a = Math.abs(n), full = Math.floor(a + 1e-9), frac = a - full, sq = 8, gap = 2;
+  let s = '', x = 0;
+  for (let i = 0; i < Math.min(full, 6); i++, x += sq + gap) s += `<rect x="${x}" y="0" width="${sq}" height="${sq}" rx="1" fill="${n < 0 ? 'none' : col}" stroke="${col}" stroke-width="${n < 0 ? 1 : 0}"/>`;
+  s += `<rect x="${x + .5}" y=".5" width="${sq - 1}" height="${sq - 1}" rx="1" fill="none" stroke="${col}" stroke-opacity=".55" stroke-width="1"/>`;
+  if (frac > 0) s += `<rect x="${x}" y="0" width="${Math.max(.8, frac * sq)}" height="${sq}" fill="${col}" fill-opacity="${n < 0 ? .45 : 1}"/>`;
+  x += sq;
+  return `<svg width="${x}" height="${sq}" viewBox="0 0 ${x} ${sq}" aria-hidden="true">${s}</svg>`;
+}
+function fillTable() {
+  const A = D.areas[scope], gb = D.gbtb_ha * 1e4, rows = $('rows');
+  const cur = S.t >= .5 ? S.b : S.a;
+  let html = `<div class="row truth" style="--c:#1F2723"><i class="sw"></i><span class="nm">True area<small>on the WGS 84 ellipsoid</small></span><span class="ar">${km2(A.truth)}</span><span class="er">km², measured on the curved Earth</span></div>`;
+  for (const id of ORDER) {
+    const r = A.rows[id], p = PJ[id], n = r.err / gb;
+    const nTxt = Math.abs(n) >= .1 ? sgn(n, Math.abs(n).toFixed(2)) : Math.abs(n) >= .0005 ? sgn(n, Math.abs(n).toFixed(3)) : '0';
+    html += `<button class="row" type="button" role="radio" data-p="${id}" aria-checked="${id === cur}" tabindex="${id === cur ? 0 : -1}" style="--c:${p.color}"
+      aria-label="${p.label}, ${km2(r.area)} square kilometres, error ${errTxt(r.err).replace(MINUS, 'minus ')}, ${pctTxt(r.pct).replace(MINUS, 'minus ')}">
+      <i class="sw"></i><span class="nm">${p.label}<small>${p.code}</small></span><span class="ar">${km2(r.area)}</span>
+      <span class="er">${errTxt(r.err)} · ${pctTxt(r.pct)}</span><span class="gb">${gbtbGlyph(n, p.color)}${nTxt}</span></button>`;
+  }
+  rows.innerHTML = html;
+  rows.querySelectorAll('.row[data-p]').forEach(b => b.addEventListener('click', () => setProjection(b.dataset.p)));
+}
+$('rows').addEventListener('keydown', e => {
+  const k = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[e.key];
+  if (!k) return;
+  e.preventDefault();
+  const cur = S.t >= .5 ? S.b : (S.b || S.a), i = (ORDER.indexOf(cur) + k + ORDER.length) % ORDER.length;
+  setProjection(ORDER[i]);
+  $('rows').querySelector(`[data-p="${ORDER[i]}"]`).focus();
+});
+document.querySelectorAll('[data-scope]').forEach(b => b.addEventListener('click', () => {
+  scope = b.dataset.scope;
+  document.querySelectorAll('[data-scope]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+  fillTable(); drawNotes();
+}));
+function fillWords() {
+  const A = D.areas.all.rows, gb = D.gbtb_ha * 1e4, set = (k, v) => document.querySelectorAll(`[data-v="${k}"]`).forEach(e => { e.textContent = v; });
+  set('merc-pct', pctTxt(A.merc.pct)); set('merc-km', `${km2(A.merc.err)} km²`); set('merc-ha', nf(A.merc.err / 1e4));
+  const sm = D.scale.main;
+  set('wm-tall', `${(100 * (sm.webmerc.h[0] - 1)).toFixed(2)}–${(100 * (sm.webmerc.h[1] - 1)).toFixed(2)}%`);
+  set('wm-pct', pctTxt(A.webmerc.pct)); set('wm-km', `${km2(A.webmerc.err)} km²`); set('wm-gbtb', (A.webmerc.err / gb).toFixed(1));
+  set('svy-max', perKm(sm.svy21.k[1]).replace('+', ''));
+  set('utm-km', `${nf(D.dist.utm_cm, 1)} km`);
+  set('sla', nf(D.sla_main.shape_area, 1)); set('sla-diff', `within ${Math.max(.01, Math.abs(D.sla_main.svy21 - D.sla_main.shape_area)).toFixed(2)}`);
+  set('nfeat', D.features); set('npts', nf(D.npoints.main));
+  set('laea-mm', perKm(Math.max(D.scale.main.laea.h[1], 2 - D.scale.main.laea.k[0])).replace('+', ''));
+  // the scale table
+  const rng = r =>`${perKm(r[0])} to ${perKm(r[1])}`;
+  const sa = D.scale.all;
+  const rowsH = [
+    ['svy21', rng(sm.svy21.k), `scale ${sm.svy21.k[0].toFixed(7)} to ${sm.svy21.k[1].toFixed(7)}`],
+    ['utm', rng(sm.utm.k), `scale ${sm.utm.k[0].toFixed(6)} to ${sm.utm.k[1].toFixed(6)}`],
+    ['merc', rng(sm.merc.k), `scale ${sm.merc.k[0].toFixed(6)} to ${sm.merc.k[1].toFixed(6)}`],
+    ['webmerc', `${perKm(sm.webmerc.h[0])} to ${perKm(sm.webmerc.h[1])} N–S`, `scale ${sm.webmerc.h[0].toFixed(5)} to ${sm.webmerc.h[1].toFixed(5)} north–south, ${sm.webmerc.k[0].toFixed(5)} to ${sm.webmerc.k[1].toFixed(5)} east–west`],
+    ['laea', 'area exact', `area scale 1; shapes within ${perKm(Math.max(sm.laea.h[1], 2 - sm.laea.k[0])).replace('+', '±')} per km`],
+  ];
+  $('scales').innerHTML = `<p class="cap">On the main island, 1 km of ground is drawn this much too long or short:</p>` + rowsH.map(([id, a, b]) =>
+    `<dt style="--c:${PJ[id].color}"><i></i>${PJ[id].label}</dt><dd class="pk">${a}</dd><dd class="sf">${b}</dd>`).join('')
+    + `<p class="cap">Even out at Pedra Branca, SVY21 is off by only ${perKm(sa.svy21.k[1])} per km (UTM: ${perKm(sa.utm.k[0])}).</p>`;
+}
+
+/* ---------- tabs ---------- */
+const tabs = [$('tab-proj'), $('tab-drag')];
+function setMode(m, focusTab) {
+  if (m === mode && !focusTab) return;
+  mode = m;
+  tabs.forEach(t => { const on = t.id === `tab-${m}`; t.setAttribute('aria-selected', String(on)); t.tabIndex = on ? 0 : -1; if (on && focusTab) t.focus(); });
+  $('pane-proj').hidden = m !== 'proj'; $('pane-drag').hidden = m !== 'drag';
+  $('sheet').scrollTop = 0;
+  stage.classList.toggle('drag', m === 'drag');
+  hideProbe();
+  cancelAnimationFrame(raf);
+  if (S.t > 0) { S.a = S.t >= .5 ? S.b : S.a; S.b = S.a; S.t = 0; }
+  S.E = EX[+$('ex').value];
+  mutate(S.a, S.b, S.t, S.E);
+  for (const id of ['tis', 'tis-ghost', 'contours', 'guides']) $(id).style.display = m === 'proj' ? '' : 'none';
+  if (m === 'drag') { drawWorld(); updateDrag(); }
+  Object.assign(V, targetView());
+  renderStatic();
+  stageLabel();
+}
+tabs.forEach((t, i) => {
+  t.addEventListener('click', () => setMode(i ? 'drag' : 'proj'));
+  t.addEventListener('keydown', e => { if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') { e.preventDefault(); setMode(i ? 'proj' : 'drag', true); } });
+});
+
+/* ---------- drag it north ---------- */
+let W = null, wproj = null, dragged = false;
+function dragFactor() {   // the island's area on a web map / its true area, from the drawn outline
+  let aT = 0, aW = 0;
+  const raw = dprojRaw;
+  for (const poly of COAST.coordinates) for (const r of poly) {
+    let t = 0, w = 0, p = R(r[0][0], r[0][1]), q = raw(r[0][0] * RAD, r[0][1] * RAD);
+    for (let i = 1; i < r.length; i++) {
+      const p2 = R(r[i][0], r[i][1]), q2 = raw(r[i][0] * RAD, r[i][1] * RAD);
+      t += p[0] * p2[1] - p2[0] * p[1]; w += q[0] * q2[1] - q2[0] * q[1];
+      p = p2; q = q2;
+    }
+    aT += t; aW += w;
+  }
+  return aW / aT;
+}
+const fmtF = f => f >= 10 ? f.toFixed(1) : f.toFixed(3);
+function setDragRaw() {
+  const T = GEO.laea(G.lon, G.lat), w0 = GEO.webmerc(G.lon, G.lat);
+  dprojRaw = (λ, φ) => { const [x, y] = R(λ / RAD, φ / RAD), [lo, la] = T.inv(x, y), w = GEO.webmerc(lo, la); return [w[0] - w0[0], w[1] - w0[1]]; };
+  dmutate(G.lon, G.lat);
+}
+function nearCity(lat) { let best = null; for (const c of D.cities) { const d = Math.abs(c[2] - lat); if (d < .6 && (!best || d < best.d)) best = { c, d }; } return best && best.c; }
+function updateDrag() {
+  setDragRaw();
+  const f = dragFactor(), T = D.areas.all.truth, gb = D.gbtb_ha * 1e4, extra = (f - 1) * T, c = nearCity(G.lat);
+  $('d-f').textContent = '×' + fmtF(f);
+  $('lat').value = G.lat.toFixed(1);
+  $('lat-out').textContent = latTxt(G.lat);
+  const where = c ? (c[0] === 'Singapore' ? ' (home)' : ` (${c[0]}’s latitude)`) : '';
+  $('d-txt').innerHTML = `At <b>${latTxt(G.lat)}</b>${where}, a web map draws Singapore’s <b>${km2(T, 1)} km²</b> as <b>${nf(f * T / 1e6, 1)} km²</b>: ${nf(extra / 1e6, 1)} km² of land that isn’t there, or ${nf(extra / gb, extra / gb < 10 ? 1 : 0)} Gardens by the Bay.`;
+  const sec2 = 1 / Math.cos(G.lat * RAD) ** 2;
+  $('d-sec').textContent = `Rule of thumb at the island’s centre: sec² ${Math.abs(G.lat).toFixed(2)}° = ${sec2.toFixed(3)}. Exact, for the whole island on the real Earth: ×${f.toFixed(3)}. Most of the gap is the Earth’s flattening, which Web Mercator ignores.`;
+  document.querySelectorAll('#chips button').forEach(b => b.setAttribute('aria-pressed', String(!!c && b.dataset.c === c[0])));
+  if (W) placeMarker();
+  if (mode === 'drag') { Object.assign(V, targetView()); render(); stageLabel(); }
+}
+function drawWorld() {
+  const host = $('world');
+  const w = host.clientWidth || 340, h = Math.round(w * .61);
+  wproj = d3.geoMercator().fitExtent([[2, 4], [w - 2, h - 4]], { type: 'MultiPoint', coordinates: [[-180, -62], [180, 80]] }).clipExtent([[0, 0], [w, h]]);
+  const wpath = d3.geoPath(wproj);
+  const svg = svgEl('svg', { viewBox: `0 0 ${w} ${h}`, width: w, height: h, role: 'img', 'aria-label': 'World map in Web Mercator with a red dot marking where Singapore has been moved' });
+  const land = { type: 'MultiPolygon', coordinates: D.world.map(r => [ring(r, 100)]).filter(p => p[0].some(([, la]) => la > -62)) };
+  svg.append(svgEl('path', { class: 'w-grat', d: wpath(d3.geoGraticule().step([30, 15]).extent([[-180, -75], [180, 80.01]])()) }));
+  svg.append(svgEl('path', { class: 'w-land', d: wpath(land) }));
+  svg.append(svgEl('path', { class: 'w-eq', d: wpath({ type: 'LineString', coordinates: d3.range(-180, 181, 5).map(x => [x, 0]) }) }));
+  for (const la of [0, 30, 60, -30]) { const [, y] = wproj([0, la]); svg.append(svgEl('text', { class: 'w-lab', x: 3, y: y - 2 }, la ? `${Math.abs(la)}°${la > 0 ? 'N' : 'S'}` : 'equator')); }
+  for (const c of D.cities) { const [x, y] = wproj([c[1], c[2]]); svg.append(svgEl('circle', { class: 'w-city', cx: x, cy: y, r: 1.6 })); }
+  const [hx, hy] = wproj(ANCHOR);
+  svg.append(svgEl('circle', { class: 'w-home', cx: hx, cy: hy, r: 4.5 }));
+  const par = svgEl('line', { class: 'w-par', x1: 0, x2: w });
+  const mk = svgEl('g', { class: 'w-mk', tabindex: 0, role: 'slider', 'aria-label': 'Singapore’s latitude', 'aria-valuemin': -60, 'aria-valuemax': 80 });
+  mk.append(svgEl('circle', { class: 'halo', r: 11 }), svgEl('circle', { class: 'dot', r: 5.5 }));
+  svg.append(par, mk);
+  host.replaceChildren(svg);
+  W = { svg, mk, par, w, h };
+  placeMarker();
+  const toGeo = e => { const r = svg.getBoundingClientRect(), k = w / r.width; return wproj.invert([(e.clientX - r.left) * k, (e.clientY - r.top) * k]); };
+  let down = false;
+  svg.addEventListener('pointerdown', e => { down = true; svg.setPointerCapture(e.pointerId); moveTo(toGeo(e)); e.preventDefault(); });
+  svg.addEventListener('pointermove', e => { if (down) moveTo(toGeo(e)); });
+  const up = () => { down = false; };
+  svg.addEventListener('pointerup', up); svg.addEventListener('pointercancel', up);
+  mk.addEventListener('keydown', e => {
+    const st = e.shiftKey ? 5 : 1, k = { ArrowUp: [0, st], ArrowDown: [0, -st], ArrowRight: [5, 0], ArrowLeft: [-5, 0] }[e.key];
+    if (k) { e.preventDefault(); moveTo([G.lon + k[0], G.lat + k[1]]); }
+    else if (e.key === 'Home') { e.preventDefault(); moveTo(ANCHOR.slice()); }
+  });
+}
+function placeMarker() {
+  const [x, y] = wproj([G.lon, G.lat]);
+  W.mk.setAttribute('transform', `translate(${x} ${y})`);
+  W.par.setAttribute('y1', y); W.par.setAttribute('y2', y);
+  W.mk.setAttribute('aria-valuenow', G.lat.toFixed(1));
+  W.mk.setAttribute('aria-valuetext', latTxt(G.lat, 1));
+}
+let flyRaf = 0;
+function moveTo([lon, lat], fly) {
+  cancelAnimationFrame(flyRaf);
+  lon = ((lon + 540) % 360) - 180; lat = Math.max(-60, Math.min(80, lat));
+  if (Math.abs(lat - ANCHOR[1]) > .3) dragged = true;
+  if (!fly || reduceMotion) { G.lon = lon; G.lat = lat; updateDrag(); return; }
+  const a = { ...G }, t0 = performance.now(), dl = ((lon - a.lon + 540) % 360) - 180;
+  const step = now => {
+    const k = Math.min(1, (now - t0) / 900), e = ease(k);
+    G.lon = ((a.lon + dl * e + 540) % 360) - 180; G.lat = a.lat + (lat - a.lat) * e;
+    updateDrag();
+    if (k < 1) flyRaf = requestAnimationFrame(step);
+  };
+  flyRaf = requestAnimationFrame(step);
+}
+$('lat').addEventListener('input', e => moveTo([G.lon, +e.target.value]));
+// grab the island on the paper and pull it
+let grab = null;
+stage.addEventListener('pointerdown', e => {
+  if (mode !== 'drag') return;
+  grab = { x: e.clientX, y: e.clientY, lon: G.lon, lat: G.lat };
+  stage.setPointerCapture(e.pointerId); stage.classList.add('grabbing');
+});
+stage.addEventListener('pointermove', e => {
+  if (!grab) return;
+  const k = e.shiftKey ? .03 : .2;
+  moveTo([grab.lon + (e.clientX - grab.x) * k * 1.5, grab.lat - (e.clientY - grab.y) * k]);
+});
+const ungrab = () => { grab = null; stage.classList.remove('grabbing'); };
+stage.addEventListener('pointerup', ungrab); stage.addEventListener('pointercancel', ungrab);
+
+/* ---------- controls ---------- */
+$('ex').addEventListener('input', e => setExaggeration(EX[+e.target.value]));
+$('ck-tis').addEventListener('change', e => { showTis = e.target.checked; renderStatic(); });
+$('ck-cont').addEventListener('change', e => { showCont = e.target.checked; renderStatic(); });
+
+/* ---------- layout ---------- */
+let rT = 0;
+function relayout() {
+  if (!D) return;
+  cancelAnimationFrame(raf);
+  if (S.t > 0) { S.a = S.t >= .5 ? S.b : S.a; S.b = S.a; S.t = 0; }
+  S.E = mode === 'proj' ? EX[+$('ex').value] : S.E;
+  mutate(S.a, S.b, S.t, S.E);
+  if (mode === 'drag') drawWorld();
+  Object.assign(V, targetView());
+  renderStatic();
+  $('contours').classList.remove('hide'); $('guides').classList.remove('hide');
+}
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(relayout, 120); });
+document.addEventListener('dmc:focus', () => { hideProbe(); setTimeout(relayout, 30); });
+
+/* ---------- start ---------- */
+fetch('data/day22/projections.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+  setup(d);
+  setDragRaw();
+  fillWords();
+  fillTable();
+  for (const c of D.cities) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.c = c[0]; b.textContent = c[0];
+    b.addEventListener('click', () => moveTo([c[0] === 'Singapore' ? ANCHOR[0] : c[1], c[0] === 'Singapore' ? ANCHOR[1] : c[2]], true));
+    $('chips').append(b);
+  }
+  const q = new URLSearchParams(location.search);
+  const p0 = ORDER.includes(q.get('p')) ? q.get('p') : 'webmerc';
+  const x0 = q.has('x') ? Math.max(0, EX.indexOf(+q.get('x'))) : 4;
+  $('ex').value = x0;
+  $('ex-out').textContent = '×' + nf(EX[x0]);
+  S.a = S.b = p0; S.t = 0;
+  document.querySelectorAll('#rows .row[data-p]').forEach(r => { const on = r.dataset.p === p0; r.setAttribute('aria-checked', String(on)); r.tabIndex = on ? 0 : -1; });
+  const Eend = EX[x0];
+  const go = () => {
+    $('loading').hidden = true;
+    if (q.get('mode') === 'drag') {
+      S.E = Eend; mutate(S.a, S.b, 0, S.E);
+      if (q.has('lat')) { G.lat = Math.max(-60, Math.min(80, +q.get('lat'))); G.lon = q.has('lon') ? +q.get('lon') : G.lon; dragged = true; }
+      setMode('drag');
+      return;
+    }
+    // open on the true scale, then turn the dial up so the distortion grows in front of you
+    S.E = reduceMotion || Eend === 1 ? Eend : 1;
+    mutate(S.a, S.b, 0, S.E);
+    Object.assign(V, viewFor(S.a, Eend));
+    renderStatic();
+    stageLabel();
+    if (S.E !== Eend) setTimeout(() => setExaggeration(Eend, 1600), 500);
+  };
+  (document.fonts ? document.fonts.ready : Promise.resolve()).then(go);
+}).catch(err => {
+  $('loading').textContent = 'The measurements could not be loaded. Please reload.';
+  console.error(err);
+});
+</script>
+</body>
+</html>
