@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#04060B">
+<title>Day 24 · Where you can walk without an umbrella</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 24, Network: LTA's covered linkways glowing among the open-air paths of Sengkang, Punggol and the CBD. Pick a trip or tap two points to compare the shortest walk with the driest one, routed in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%2304060B'/%3E%3Cpath d='M5 22h7l5-9h10' fill='none' stroke='%2339FF7A' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M5 26h22' stroke='%236E9CFF' stroke-width='1.6' stroke-dasharray='2 3' stroke-linecap='round'/%3E%3Ccircle cx='5' cy='22' r='2.6' fill='%23fff'/%3E%3Ccircle cx='27' cy='13' r='2.6' fill='%23fff'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 24: a neon network in the rain, and a strip map of each walk ===== */
+:root {
+  --glass: rgba(5, 8, 15, .84);
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+  --dry: #39FF7A; --dry-rgb: 57, 255, 122;
+  --shelter: #DDE7FF;
+  --wet: #6E9CFF; --wet-rgb: 110, 156, 255;
+  --card-w: 318px;
+}
+.dmc-map { background: #04060B; }
+#rain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 1; }
+
+/* ---- the control card (left) ---- */
+.card {
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); top: var(--card-top, 104px);
+  width: var(--card-w); max-height: calc(100% - var(--card-top, 104px) - var(--strip-h, 150px) - 2 * var(--gutter));
+  overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  padding: 11px 13px 10px; display: grid; gap: 9px;
+}
+.kick { margin: 0; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--text-2); }
+.kick i { font-style: normal; color: var(--dry); }
+.card .dmc-seg { width: 100%; }
+.card .dmc-seg button { flex: 1; }
+.hl { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.hl div { display: grid; gap: 2px; align-content: start; }
+.hl b { font-family: var(--display); font-size: 30px; font-weight: 800; line-height: .9; letter-spacing: .01em; color: var(--dry); text-shadow: 0 0 14px rgba(var(--dry-rgb), .55); font-variant-numeric: tabular-nums; }
+.hl span { font-size: 11px; line-height: 1.3; color: var(--text-2); }
+.cbar { display: grid; gap: 4px; }
+.cbar .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; }
+.cbar .bar i { display: block; height: 100%; }
+.cbar ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10.5px; color: var(--text-2); }
+.cbar li { display: inline-flex; align-items: center; gap: 4px; }
+.cbar li b { color: var(--text); font-weight: 600; font-variant-numeric: tabular-nums; }
+.sw { display: inline-block; width: 14px; height: 4px; border-radius: 2px; }
+.sw.lta { background: var(--dry); box-shadow: 0 0 6px rgba(var(--dry-rgb), .8); }
+.sw.oth { background: var(--shelter); box-shadow: 0 0 5px rgba(221, 231, 255, .6); }
+.sw.open { height: 0; border-top: 2px dotted var(--wet); border-radius: 0; }
+.trip { display: grid; gap: 4px; }
+.trip label { font-size: 11px; font-weight: 600; color: var(--text-2); }
+.trip select { width: 100%; font: inherit; font-size: 12px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .07); border: 1px solid var(--line); border-radius: 9px;
+  padding: 6px 28px 6px 9px; min-height: 32px; cursor: pointer; appearance: none; text-overflow: ellipsis;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 14px) 50%, calc(100% - 10px) 50%; background-size: 4px 4px; background-repeat: no-repeat; }
+.trip select option, .trip select optgroup { color: #111; background: #fff; }
+.hint { margin: 0; font-size: 11px; color: var(--text-2); display: flex; align-items: center; gap: 6px; }
+.hint .dot { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--dry); box-shadow: 0 0 8px var(--dry); }
+.wetrow { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 3px 10px; padding: 7px 9px; border-radius: 10px; background: rgba(var(--wet-rgb), .08); box-shadow: inset 0 0 0 1px rgba(var(--wet-rgb), .25); }
+.wetrow label { font-size: 11.5px; line-height: 1.3; color: var(--text-2); }
+.wetrow label b { color: var(--text); }
+.wetrow output { font-family: var(--mono); font-size: 15px; font-weight: 700; color: var(--wet); text-align: right; }
+.wetrow input { grid-column: 1 / -1; width: 100%; accent-color: var(--wet); margin: 2px 0 0; height: 22px; cursor: pointer; }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; }
+.btns .dmc-btn[aria-pressed="true"] { color: #04060B; background: var(--wet); border-color: transparent; }
+details.more { border-top: 1px solid var(--line); padding-top: 7px; }
+details.more summary { cursor: pointer; font-size: 11.5px; font-weight: 600; color: var(--text-2); list-style: none; display: flex; align-items: center; gap: 6px; min-height: 22px; }
+details.more summary::-webkit-details-marker { display: none; }
+details.more summary::before { content: ""; width: 0; height: 0; border-left: 5px solid currentColor; border-top: 4px solid transparent; border-bottom: 4px solid transparent; transition: transform .2s; }
+details.more[open] summary::before { transform: rotate(90deg); }
+details.more p { margin: 6px 0 0; font-size: 11px; line-height: 1.45; color: var(--text-2); }
+details.more p b { color: var(--text); font-weight: 600; }
+.dmc-credits { margin-top: 7px !important; }
+
+/* ---- the strip map along the bottom: each walk drawn like the line map above a train door ---- */
+.strip {
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); right: calc(var(--gutter) + env(safe-area-inset-right, 0px));
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  padding: 9px 14px 9px; display: grid; gap: 4px;
+}
+.strip-h { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+.strip-h .od { flex: 1; min-width: 0; font-size: 12.5px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.strip-h .od i { font-style: normal; color: var(--text-2); font-weight: 400; padding: 0 4px; }
+.verdict { margin: 0; font-size: 12px; line-height: 1.4; color: var(--text-2); text-align: right; flex: 0 1 auto; min-width: 0; max-width: 56%; }
+.verdict b { color: var(--dry); font-weight: 600; }
+.verdict b.w { color: var(--wet); }
+.rt { display: grid; grid-template-columns: 112px 1fr 168px; align-items: center; gap: 12px; }
+.rt-l { display: grid; gap: 1px; }
+.rt-l .tag { font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; display: flex; align-items: center; gap: 6px; }
+.rt.dry .tag { color: var(--dry); }
+.rt.fast .tag { color: #fff; }
+.rt-l .tag svg { width: 22px; height: 6px; overflow: visible; }
+.rt-l b { font-family: var(--display); font-size: 22px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.rt-l small { font-size: 10.5px; color: var(--text-2); }
+.rt svg.line { display: block; width: 100%; height: 34px; overflow: visible; }
+.rt-r { display: grid; grid-template-columns: auto 1fr; gap: 1px 8px; font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.rt-r b { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--text); text-align: right; }
+.rt-r b.c { color: var(--dry); }
+.rt-r b.o { color: var(--wet); }
+.ticks text { font: 500 9px var(--mono); fill: rgba(238, 242, 247, .45); }
+.strip .empty { margin: 4px 0; font-size: 12px; color: var(--text-2); }
+
+/* pins */
+.pin { width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; cursor: grab; touch-action: none;
+  font: 700 12px var(--mono); color: #04060B; background: #fff; box-shadow: 0 0 0 3px #04060B, 0 0 0 5px rgba(255, 255, 255, .9), 0 0 18px rgba(255, 255, 255, .55); }
+.pin:active { cursor: grabbing; }
+.walker { width: 12px; height: 12px; border-radius: 50%; pointer-events: none; }
+.walker.dry { background: var(--dry); box-shadow: 0 0 0 2px #04060B, 0 0 14px 3px rgba(var(--dry-rgb), .9); }
+.walker.fast { background: #fff; box-shadow: 0 0 0 2px #04060B, 0 0 12px 2px rgba(255, 255, 255, .8); }
+.toast { position: absolute; z-index: 3; left: 50%; top: calc(var(--gutter) + 6px + env(safe-area-inset-top, 0px)); transform: translateX(-50%); padding: 6px 13px; border-radius: 999px;
+  background: var(--glass); border: 1px solid var(--line); font-size: 12px; color: var(--text); pointer-events: none; white-space: nowrap; }
+.toast[hidden] { display: none; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .hl b { font-size: 25px; }
+  .rt { grid-template-columns: 84px 1fr; gap: 3px 10px; }
+  .rt-r { grid-column: 1 / -1; grid-template-columns: repeat(4, auto); justify-content: start; gap: 0 6px; }
+  .rt-r b { text-align: left; margin-right: 8px; }
+  .rt-l b { font-size: 19px; }
+  .rt svg.line { height: 30px; }
+}
+/* phones held upright: the card shrinks to a header; the strip becomes a bottom sheet holding the controls */
+@media (max-width: 640px) and (orientation: portrait) {
+  .card { left: 0; right: 0; bottom: 0; top: auto; width: auto; max-height: 52vh; border-radius: 16px 16px 0 0; border-bottom: 0; padding: 8px 12px calc(10px + env(safe-area-inset-bottom, 0px)); gap: 7px; }
+  .strip { left: 0; right: 0; bottom: auto; top: auto; border-radius: 0; border-left: 0; border-right: 0; padding: 7px 12px 6px; }
+  .card { max-height: 40vh; }
+  .strip-h { flex-wrap: wrap; gap: 1px 8px; }
+  .strip-h .od { font-size: 11.5px; }
+  .verdict { text-align: left; max-width: none; flex-basis: 100%; font-size: 11px; }
+  .strip { gap: 2px; }
+  .rt { grid-template-columns: 74px 1fr; gap: 0 8px; }
+  .rt-l small { display: none; }
+  .rt-l b { font-size: 17px; }
+  .rt svg.line { height: 26px; }
+  .rt-r { font-size: 10.5px; }
+  .rt-r b { font-size: 11px; }
+  .hl b { font-size: 22px; }
+  .hl span { font-size: 10.5px; }
+  .card .cbar ul { font-size: 10px; }
+  .wetrow { padding: 5px 8px; }
+  .wetrow label { font-size: 11px; }
+  .hint { display: none; }
+}
+/* phones held sideways: one right-hand column */
+@media (max-height: 520px) and (orientation: landscape) {
+  :root { --card-w: min(330px, 46vw); }
+  .card { left: auto; right: calc(var(--gutter) + 46px + env(safe-area-inset-right, 0px)); top: var(--gutter); max-height: calc(100% - 2 * var(--gutter)); padding: 9px 11px 9px; gap: 7px; }
+  .strip { display: none; }
+  .card .strip-in { display: grid; order: 1; border-top: 0; padding-top: 0; }
+  .card > * { order: 2; }
+  .card > .dmc-seg { order: 0; }
+  .hint { display: none; }
+}
+.strip-in { display: none; gap: 4px; padding-top: 4px; border-top: 1px solid var(--line); }
+.strip-in .rt { grid-template-columns: 74px 1fr; }
+.strip-in .strip-h { flex-wrap: wrap; gap: 1px 8px; }
+.strip-in .strip-h .od { font-size: 11.5px; }
+.strip-in .verdict { text-align: left; max-width: none; flex-basis: 100%; font-size: 11px; }
+@media (prefers-reduced-motion: reduce) { #rain { display: none; } }
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Dark map of the walking network: covered linkways glow green, other sheltered paths glow white, open-air paths are faint blue. Tap two points to compare the shortest walk with the driest."></div>
+<canvas id="rain" aria-hidden="true"></canvas>
+<p id="toast" class="toast dmc-chrome" hidden></p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<aside id="card" class="dmc-glass card" data-dmc-overlay aria-label="Pick a trip">
+  <div class="dmc-seg" role="group" aria-label="Showcase area" id="areas"></div>
+  <div class="hl">
+    <div><b id="h-island">&ndash;</b><span>of LTA covered linkway across Singapore</span></div>
+    <div><b id="h-share">&ndash;</b><span id="h-share-l">of footpaths here have a roof</span></div>
+  </div>
+  <div class="cbar">
+    <div class="bar" id="cbar" role="img"></div>
+    <ul>
+      <li><span class="sw lta"></span>LTA linkway <b id="c-lta"></b></li>
+      <li><span class="sw oth"></span>Other shelter <b id="c-oth"></b></li>
+      <li><span class="sw open"></span>Open air <b id="c-open"></b></li>
+    </ul>
+  </div>
+  <div class="trip">
+    <label for="preset">Try a trip</label>
+    <select id="preset"></select>
+  </div>
+  <p class="hint" id="hint"><span class="dot"></span><span id="hint-t">Or tap the map where you start, then where you are going.</span></p>
+  <div class="wetrow">
+    <label for="wet">For the driest walk, <b>each metre in the open counts as</b></label>
+    <output id="wet-o" for="wet">5 m</output>
+    <input id="wet" type="range" min="2" max="10" step="1" value="5" aria-describedby="wet-d">
+    <span id="wet-d" class="sr">metres under cover</span>
+  </div>
+  <div class="btns">
+    <button id="race" class="dmc-btn" type="button">Walk both</button>
+    <button id="rainbtn" class="dmc-btn" type="button" aria-pressed="true">Rain</button>
+  </div>
+  <div class="strip-in" id="strip-in" aria-hidden="true"></div>
+  <details class="more" id="more">
+    <summary>How this works</summary>
+    <p><b>Fastest</b> is the shortest walk on the mapped paths. <b>Driest</b> counts each metre in the open as several metres under cover (you set how many), so it will take a longer way if that keeps you dry.</p>
+    <p><b>Under cover</b> means under one of LTA&rsquo;s covered linkway roofs, or on a path OpenStreetMap marks as covered, indoors or underground. Shelters only count if they are in one of the two maps, so real walks may be drier.</p>
+    <p id="m-method"></p>
+    <p id="credits" class="dmc-credits"></p>
+  </details>
+</aside>
+
+<section id="strip" class="dmc-glass strip" data-dmc-overlay aria-label="The two walks, drawn as strip maps" aria-live="polite"></section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const ACCENT = '#39FF7A', SHELTER = '#DDE7FF', WET = '#6E9CFF';
+const ext = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const C = { land: '#05070C', water: '#081428', green: '#06100C', bld: '#0A0F19', bldLine: '#141C2B', road: '#0E1422', rail: '#1C2135' };
+// A near-black basemap: just enough water, buildings and rail to find your way.
+const STYLE = {
+  version: 8,
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: { ofm: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' } },
+  layers: [
+    { id: 'land', type: 'background', paint: { 'background-color': C.land } },
+    { id: 'park', type: 'fill', source: 'ofm', 'source-layer': 'park', paint: { 'fill-color': C.green } },
+    { id: 'cover', type: 'fill', source: 'ofm', 'source-layer': 'landcover', filter: ['match', ['get', 'class'], ['wood', 'grass'], true, false], paint: { 'fill-color': C.green, 'fill-opacity': .8 } },
+    { id: 'water', type: 'fill', source: 'ofm', 'source-layer': 'water', paint: { 'fill-color': C.water } },
+    { id: 'roads', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 11,
+      filter: ['match', ['get', 'class'], ['motorway', 'trunk', 'primary', 'secondary', 'tertiary', 'minor'], true, false], layout: { 'line-join': 'round', 'line-cap': 'round' },
+      paint: { 'line-color': C.road, 'line-width': ['interpolate', ['exponential', 1.6], ['zoom'], 12, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], 1.4, .5], 17, ['match', ['get', 'class'], ['motorway', 'trunk', 'primary'], 16, 8]] } },
+    { id: 'rail', type: 'line', source: 'ofm', 'source-layer': 'transportation', minzoom: 11, filter: ['match', ['get', 'class'], ['transit', 'rail'], true, false],
+      paint: { 'line-color': C.rail, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 1, 17, 3] } },
+    { id: 'bld', type: 'fill', source: 'ofm', 'source-layer': 'building', minzoom: 13, paint: { 'fill-color': C.bld } },
+    { id: 'bld-line', type: 'line', source: 'ofm', 'source-layer': 'building', minzoom: 14.5, paint: { 'line-color': C.bldLine, 'line-width': .6 } },
+  ],
+};
+const DAY = {
+  n: 24,
+  title: 'Where you can walk without an umbrella',
+  deck: 'Every covered linkway LTA has built glows here among the open-air paths. Pick a trip in Sengkang and Punggol or in the CBD, or tap two points, to set the shortest walk against the driest one and see what staying dry costs.',
+  accent: ACCENT,
+  style: STYLE, basemapBg: '#04060B',
+  styleCredit: 'Basemap: ' + ext('https://openfreemap.org/', 'OpenFreeMap') + ', ' + ext('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', ' + DMC.OSM_CREDIT,
+  bounds: [[103.878, 1.379], [103.922, 1.414]],
+  maxBounds: [[103.55, 1.12], [104.15, 1.55]],
+  minZoom: 11, maxZoom: 19,
+  camera: { pitch: 0, bearing: 0, tiltPitch: 50 },
+  buildingsColor: ['interpolate', ['linear'], ['coalesce', ['get', 'render_height'], 8], 0, '#0E1524', 80, '#18233A', 200, '#22314F'],
+  buildingsOpacity: .9, buildingsBefore: 'net-open',
+  creditsEl: 'credits',
+  attribution: [
+    'Covered linkways: ' + ext('https://datamall.lta.gov.sg/content/datamall/en/static-data.html', 'LTA DataMall') + ', Covered Linkway (Sep 2026), ' + ext('https://datamall.lta.gov.sg/content/datamall/en/SingaporeOpenDataLicence.html', 'Singapore Open Data Licence'),
+    'Walking network, stations and HDB blocks: ' + DMC.OSM_CREDIT + ' (ODbL), extract of 1 Nov 2026 via ' + ext('https://download.openstreetmap.fr/extracts/asia/', 'openstreetmap.fr'),
+    'Routing: done in your browser (Dijkstra), no routing service',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY);
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const params = new URLSearchParams(location.search);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const isSheet = () => matchMedia('(max-width: 640px) and (orientation: portrait)').matches;
+const isSide = () => matchMedia('(max-height: 520px) and (orientation: landscape)').matches;
+const WALK_MPM = 5000 / 60;   // 5 km/h, in metres a minute
+const fmtM = m => m >= 1000 ? `${(m / 1000).toFixed(2)} km` : `${nf.format(Math.round(m))} m`;
+const fmtMin = m => { const t = Math.max(1, Math.round(m / WALK_MPM)); return `${t} min`; };
+
+/* ---------- the graph ---------- */
+let NET = null, A = null;   // all data; the area in use
+function decodeArea(R) {
+  const [w, s, e, n] = R.bbox, lat0 = (s + n) / 2;
+  const KX = 111320 * Math.cos(lat0 * Math.PI / 180), KY = 110574;
+  const N = R.nodes.length / 2, NX = new Float64Array(N), NY = new Float64Array(N);
+  for (let i = 0, x = 0, y = 0; i < N; i++) { x += R.nodes[2 * i]; y += R.nodes[2 * i + 1]; NX[i] = x; NY[i] = y; }
+  const E = R.a.length;
+  let P = 0; for (let k = 0; k < E; k++) P += R.n[k] + 2;
+  const PX = new Float64Array(P), PY = new Float64Array(P), PC = new Uint8Array(P), PL = new Float64Array(P), PE = new Int32Array(P).fill(-1);
+  const eS = new Uint32Array(E + 1), eOpen = new Float64Array(E), eCov = new Float64Array(E);
+  let p = 0, d = 0, c = 0;
+  for (let k = 0; k < E; k++) {
+    eS[k] = p;
+    let x = NX[R.a[k]], y = NY[R.a[k]];
+    PX[p] = x; PY[p] = y; p++;
+    for (let j = 0; j < R.n[k]; j++) { x += R.d[d++]; y += R.d[d++]; PX[p] = x; PY[p] = y; p++; }
+    PX[p] = NX[R.b[k]]; PY[p] = NY[R.b[k]]; p++;
+    for (let i = eS[k]; i < p - 1; i++) {
+      const cv = R.c.charCodeAt(c++) - 48, len = Math.hypot((PX[i + 1] - PX[i]) / 1e6 * KX, (PY[i + 1] - PY[i]) / 1e6 * KY);
+      PC[i] = cv; PL[i] = len; PE[i] = k;
+      if (cv) eCov[k] += len; else eOpen[k] += len;
+    }
+  }
+  eS[E] = p;
+  // adjacency (CSR)
+  const deg = new Uint32Array(N + 1);
+  for (let k = 0; k < E; k++) { deg[R.a[k]]++; deg[R.b[k]]++; }
+  const off = new Uint32Array(N + 1);
+  for (let i = 0; i < N; i++) off[i + 1] = off[i] + deg[i];
+  const fill = off.slice(0, N), adjN = new Uint32Array(off[N]), adjE = new Uint32Array(off[N]);
+  for (let k = 0; k < E; k++) { const a = R.a[k], b = R.b[k]; adjN[fill[a]] = b; adjE[fill[a]++] = k; adjN[fill[b]] = a; adjE[fill[b]++] = k; }
+  // a grid over the segments, for snapping taps to the nearest path
+  const G = 0.0004, grid = new Map();
+  for (let i = 0; i < P; i++) {
+    if (PE[i] < 0) continue;
+    const x0 = Math.floor(Math.min(PX[i], PX[i + 1]) / 1e6 / G), x1 = Math.floor(Math.max(PX[i], PX[i + 1]) / 1e6 / G);
+    const y0 = Math.floor(Math.min(PY[i], PY[i + 1]) / 1e6 / G), y1 = Math.floor(Math.max(PY[i], PY[i + 1]) / 1e6 / G);
+    for (let gx = x0; gx <= x1; gx++) for (let gy = y0; gy <= y1; gy++) {
+      const key = gx * 100000 + gy;
+      let l = grid.get(key); if (!l) grid.set(key, l = []); l.push(i);
+    }
+  }
+  return { R, N, E, KX, KY, NX, NY, PX, PY, PC, PL, PE, eS, eOpen, eCov, ea: R.a, eb: R.b, off, adjN, adjE, grid, G };
+}
+
+// Nearest point on any path to [lng, lat], within maxM metres.
+function snap(g, lng, lat, maxM = 90) {
+  const gx = Math.floor(lng / g.G), gy = Math.floor(lat / g.G);
+  let best = null, bd = Infinity;
+  const X = lng * 1e6, Y = lat * 1e6, sx = g.KX / 1e6, sy = g.KY / 1e6;
+  for (let r = 0; r <= 2 && !best; r++) {
+    for (let dx = -r; dx <= r; dx++) for (let dy = -r; dy <= r; dy++) {
+      if (Math.max(Math.abs(dx), Math.abs(dy)) !== r) continue;
+      const l = g.grid.get((gx + dx) * 100000 + gy + dy);
+      if (!l) continue;
+      for (const i of l) {
+        const ax = (g.PX[i] - X) * sx, ay = (g.PY[i] - Y) * sy, bx = (g.PX[i + 1] - X) * sx, by = (g.PY[i + 1] - Y) * sy;
+        const vx = bx - ax, vy = by - ay, vv = vx * vx + vy * vy;
+        const t = vv ? Math.max(0, Math.min(1, -(ax * vx + ay * vy) / vv)) : 0;
+        const d = Math.hypot(ax + vx * t, ay + vy * t);
+        if (d < bd) { bd = d; best = { i, t }; }
+      }
+    }
+  }
+  if (!best || bd > maxM) return null;
+  const { i, t } = best, k = g.PE[i];
+  // open and covered metres from the snapped point back to the edge's start (a) and on to its end (b)
+  let oa = 0, ca = 0, ob = 0, cb = 0;
+  for (let j = g.eS[k]; j < g.eS[k + 1] - 1; j++) {
+    const L = g.PL[j], cv = g.PC[j];
+    const before = j < i ? L : j === i ? L * t : 0, after = L - before;
+    if (cv) { ca += before; cb += after; } else { oa += before; ob += after; }
+  }
+  return { k, i, t, x: g.PX[i] + (g.PX[i + 1] - g.PX[i]) * t, y: g.PY[i] + (g.PY[i + 1] - g.PY[i]) * t, oa, ca, ob, cb, pos: i - g.eS[k] + t };
+}
+
+// Dijkstra from snap S to snap T. Cost = wet x open metres + covered metres.
+function route(g, S, T, wet) {
+  const N = g.N, SN = N, TN = N + 1;
+  const cost = (o, c) => wet * o + c + (wet === 1 ? 0.001 * o : 0);   // equal lengths: prefer the drier way
+  const dist = new Float64Array(N + 2).fill(Infinity), prevN = new Int32Array(N + 2).fill(-1), prevE = new Int32Array(N + 2).fill(-9);
+  const heap = [];   // [cost, node] pairs, binary heap
+  const push = (d, v) => { heap.push([d, v]); let i = heap.length - 1; while (i) { const p = (i - 1) >> 1; if (heap[p][0] <= heap[i][0]) break; [heap[p], heap[i]] = [heap[i], heap[p]]; i = p; } };
+  const pop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let i = 0; for (;;) { const l = 2 * i + 1, r = l + 1; let m = i; if (l < heap.length && heap[l][0] < heap[m][0]) m = l; if (r < heap.length && heap[r][0] < heap[m][0]) m = r; if (m === i) break; [heap[m], heap[i]] = [heap[i], heap[m]]; i = m; } } return top; };
+  const relax = (u, v, d, e) => { if (d < dist[v] - 1e-9) { dist[v] = d; prevN[v] = u; prevE[v] = e; push(d, v); } };
+  dist[SN] = 0;
+  relax(SN, g.ea[S.k], cost(S.oa, S.ca), -1);
+  relax(SN, g.eb[S.k], cost(S.ob, S.cb), -1);
+  if (S.k === T.k) {   // both on one edge: the direct piece between them
+    const lo = Math.min(S.pos, T.pos), hi = Math.max(S.pos, T.pos);
+    let o = 0, c = 0;
+    for (let j = g.eS[S.k]; j < g.eS[S.k + 1] - 1; j++) {
+      const p0 = j - g.eS[S.k], L = g.PL[j], part = Math.max(0, Math.min(p0 + 1, hi) - Math.max(p0, lo)) * L;
+      if (g.PC[j]) c += part; else o += part;
+    }
+    relax(SN, TN, cost(o, c), -3);
+  }
+  const Ta = g.ea[T.k], Tb = g.eb[T.k];
+  while (heap.length) {
+    const [d, u] = pop();
+    if (d > dist[u]) continue;
+    if (u === TN) break;
+    if (u === Ta) relax(u, TN, d + cost(T.oa, T.ca), -2);
+    if (u === Tb) relax(u, TN, d + cost(T.ob, T.cb), -2);
+    if (u >= N) continue;
+    for (let j = g.off[u]; j < g.off[u + 1]; j++) {
+      const k = g.adjE[j];
+      relax(u, g.adjN[j], d + cost(g.eOpen[k], g.eCov[k]), k);
+    }
+  }
+  if (!isFinite(dist[TN])) return null;
+  // walk back: a list of [lng, lat] points and the cover class of each step
+  const legs = [];
+  let v = TN;
+  while (v !== SN) {
+    const u = prevN[v], e = prevE[v];
+    legs.push(e >= 0 ? edgePiece(g, e, u === g.ea[e] ? 0 : null, u === g.ea[e] ? null : 0, u === g.ea[e])
+      : e === -2 ? snapPiece(g, T, u === Ta, false)
+      : e === -1 ? snapPiece(g, S, v === g.ea[S.k], true)
+      : directPiece(g, S, T));
+    v = u;
+  }
+  legs.reverse();
+  const pts = [[S.x / 1e6, S.y / 1e6]], cov = [], len = [];
+  for (const L of legs) for (let j = 0; j < L.cov.length; j++) { pts.push(L.pts[j + 1]); cov.push(L.cov[j]); len.push(L.len[j]); }
+  let open = 0, covered = 0, lta = 0;
+  cov.forEach((c, j) => { if (c) covered += len[j]; else open += len[j]; if (c === 1) lta += len[j]; });
+  return { pts, cov, len, open, covered, lta, total: open + covered };
+}
+const P2 = (g, i) => [g.PX[i] / 1e6, g.PY[i] / 1e6];
+// A whole edge, forwards (a to b) or backwards.
+function edgePiece(g, k, _a, _b, forward) {
+  const s = g.eS[k], e = g.eS[k + 1] - 1, pts = [], cov = [], len = [];
+  if (forward) { for (let i = s; i <= e; i++) pts.push(P2(g, i)); for (let i = s; i < e; i++) { cov.push(g.PC[i]); len.push(g.PL[i]); } }
+  else { for (let i = e; i >= s; i--) pts.push(P2(g, i)); for (let i = e - 1; i >= s; i--) { cov.push(g.PC[i]); len.push(g.PL[i]); } }
+  return { pts, cov, len };
+}
+// From an edge end to the snapped point (toPoint) or from the snapped point to an edge end.
+function snapPiece(g, S, viaA, fromPoint) {
+  const s = g.eS[S.k], e = g.eS[S.k + 1] - 1, P = [S.x / 1e6, S.y / 1e6];
+  let pts = [], cov = [], len = [];
+  // path from a to the point: points s..i, then P
+  if (viaA) {
+    for (let i = s; i <= S.i; i++) pts.push(P2(g, i));
+    pts.push(P);
+    for (let i = s; i < S.i; i++) { cov.push(g.PC[i]); len.push(g.PL[i]); }
+    cov.push(g.PC[S.i]); len.push(g.PL[S.i] * S.t);
+  } else {   // from b to the point: points e..i+1, then P
+    for (let i = e; i > S.i; i--) pts.push(P2(g, i));
+    pts.push(P);
+    for (let i = e - 1; i > S.i; i--) { cov.push(g.PC[i]); len.push(g.PL[i]); }
+    cov.push(g.PC[S.i]); len.push(g.PL[S.i] * (1 - S.t));
+  }
+  if (fromPoint) { pts.reverse(); cov.reverse(); len.reverse(); }
+  return { pts, cov, len };
+}
+function directPiece(g, S, T) {
+  const fwd = S.pos <= T.pos, a = fwd ? S : T, b = fwd ? T : S;
+  const pts = [[a.x / 1e6, a.y / 1e6]], cov = [], len = [];
+  if (a.i === b.i) { pts.push([b.x / 1e6, b.y / 1e6]); cov.push(g.PC[a.i]); len.push(g.PL[a.i] * (b.t - a.t)); }
+  else {
+    pts.push(P2(g, a.i + 1)); cov.push(g.PC[a.i]); len.push(g.PL[a.i] * (1 - a.t));
+    for (let i = a.i + 1; i < b.i; i++) { pts.push(P2(g, i + 1)); cov.push(g.PC[i]); len.push(g.PL[i]); }
+    pts.push([b.x / 1e6, b.y / 1e6]); cov.push(g.PC[b.i]); len.push(g.PL[b.i] * b.t);
+  }
+  if (!fwd) { pts.reverse(); cov.reverse(); len.reverse(); }
+  return { pts, cov, len };
+}
+
+/* ---------- network layers ---------- */
+function networkGeoJSON(g) {
+  const feats = [];
+  for (let k = 0; k < g.E; k++) {
+    let i = g.eS[k];
+    const end = g.eS[k + 1] - 1;
+    while (i < end) {
+      const c = g.PC[i], coords = [P2(g, i)];
+      while (i < end && g.PC[i] === c) { i++; coords.push(P2(g, i)); }
+      feats.push({ type: 'Feature', properties: { c }, geometry: { type: 'LineString', coordinates: coords } });
+    }
+  }
+  return { type: 'FeatureCollection', features: feats };
+}
+function routeGeoJSON(r, which) {
+  const feats = [];
+  if (!r) return { type: 'FeatureCollection', features: feats };
+  let i = 0;
+  while (i < r.cov.length) {
+    const c = r.cov[i], coords = [r.pts[i]];
+    while (i < r.cov.length && r.cov[i] === c) { i++; coords.push(r.pts[i]); }
+    feats.push({ type: 'Feature', properties: { c, r: which }, geometry: { type: 'LineString', coordinates: coords } });
+  }
+  return { type: 'FeatureCollection', features: feats };
+}
+const EMPTY = { type: 'FeatureCollection', features: [] };
+const W = (a, b, c, d) => ['interpolate', ['exponential', 1.5], ['zoom'], 12, a, 14, b, 16, c, 18.5, d];
+function addLayers() {
+  map.addSource('net', { type: 'geojson', data: EMPTY, tolerance: .2 });
+  map.addSource('rfast', { type: 'geojson', data: EMPTY, tolerance: 0 });
+  map.addSource('rdry', { type: 'geojson', data: EMPTY, tolerance: 0 });
+  map.addSource('stations', { type: 'geojson', data: EMPTY });
+  map.addSource('exits', { type: 'geojson', data: EMPTY });
+  const lj = { 'line-join': 'round', 'line-cap': 'round' };
+  map.addLayer({ id: 'net-open', type: 'line', source: 'net', filter: ['==', ['get', 'c'], 0], layout: lj,
+    paint: { 'line-color': WET, 'line-width': W(.4, .7, 1.2, 2.4), 'line-opacity': ['interpolate', ['linear'], ['zoom'], 12, .28, 16, .4] } });
+  map.addLayer({ id: 'net-oth-glow', type: 'line', source: 'net', filter: ['==', ['get', 'c'], 2], layout: lj,
+    paint: { 'line-color': SHELTER, 'line-width': W(2, 4, 8, 16), 'line-blur': W(2, 3, 6, 12), 'line-opacity': .22 } });
+  map.addLayer({ id: 'net-oth', type: 'line', source: 'net', filter: ['==', ['get', 'c'], 2], layout: lj,
+    paint: { 'line-color': SHELTER, 'line-width': W(.6, 1, 1.8, 3.4), 'line-opacity': .85 } });
+  map.addLayer({ id: 'net-lta-glow', type: 'line', source: 'net', filter: ['==', ['get', 'c'], 1], layout: lj,
+    paint: { 'line-color': ACCENT, 'line-width': W(4, 7, 14, 26), 'line-blur': W(3, 5, 9, 16), 'line-opacity': .45 } });
+  map.addLayer({ id: 'net-lta', type: 'line', source: 'net', filter: ['==', ['get', 'c'], 1], layout: lj,
+    paint: { 'line-color': '#C9FFD9', 'line-width': W(.9, 1.5, 2.6, 4.5) } });
+  // routes: the fastest as a white dashed line, the driest as a thick line coloured by its cover
+  map.addLayer({ id: 'fast-case', type: 'line', source: 'rfast', layout: lj, paint: { 'line-color': '#04060B', 'line-width': W(4, 6, 9, 14), 'line-opacity': .85 } });
+  map.addLayer({ id: 'dry-case', type: 'line', source: 'rdry', layout: lj, paint: { 'line-color': '#04060B', 'line-width': W(6, 9, 13, 20) } });
+  map.addLayer({ id: 'dry-glow', type: 'line', source: 'rdry', layout: lj,
+    paint: { 'line-color': ['match', ['get', 'c'], 0, WET, ACCENT], 'line-width': W(8, 12, 20, 32), 'line-blur': W(5, 8, 12, 18), 'line-opacity': .55 } });
+  map.addLayer({ id: 'dry', type: 'line', source: 'rdry', layout: lj,
+    paint: { 'line-color': ['match', ['get', 'c'], 0, WET, 1, ACCENT, SHELTER], 'line-width': W(3, 4.5, 7, 11) } });
+  map.addLayer({ id: 'fast', type: 'line', source: 'rfast', layout: { 'line-join': 'round' },
+    paint: { 'line-color': '#FFFFFF', 'line-width': W(1.6, 2.2, 3.2, 5), 'line-dasharray': [1.6, 1.4] } });
+  // stations: transit-diagram roundels
+  map.addLayer({ id: 'exit-dot', type: 'circle', source: 'exits', minzoom: 15.6,
+    paint: { 'circle-radius': 6.5, 'circle-color': '#04060B', 'circle-stroke-color': 'rgba(238,242,247,.75)', 'circle-stroke-width': 1 } });
+  map.addLayer({ id: 'exit-lbl', type: 'symbol', source: 'exits', minzoom: 15.6,
+    layout: { 'text-field': ['get', 'ref'], 'text-font': ['Noto Sans Bold'], 'text-size': 8.5, 'text-allow-overlap': true }, paint: { 'text-color': '#EEF2F7' } });
+  map.addLayer({ id: 'st-dot', type: 'circle', source: 'stations', minzoom: 12.5,
+    paint: { 'circle-radius': ['interpolate', ['linear'], ['zoom'], 13, 3.5, 16, 6.5], 'circle-color': '#FFFFFF', 'circle-stroke-color': ['case', ['get', 'lrt'], '#748477', '#04060B'], 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 13, 2, 16, 3] } });
+  map.addLayer({ id: 'st-lbl', type: 'symbol', source: 'stations', minzoom: 13.2,
+    layout: { 'text-field': ['upcase', ['get', 'label']], 'text-font': ['Noto Sans Bold'], 'text-size': ['interpolate', ['linear'], ['zoom'], 13.2, 9, 16, 11.5], 'text-letter-spacing': .08,
+      'text-anchor': 'left', 'text-offset': [.9, 0], 'text-optional': true, 'text-padding': 4 },
+    paint: { 'text-color': '#EEF2F7', 'text-halo-color': '#04060B', 'text-halo-width': 1.6 } });
+}
+
+/* ---------- state ---------- */
+let wet = 5, S = null, T = null, rDry = null, rFast = null, pick = 0, pinA = null, pinB = null, armed = 'A';
+const AREAS = {};
+function setArea(id, opts = {}) {
+  A = AREAS[id] || (AREAS[id] = decodeArea(NET.areas.find(a => a.id === id)));
+  document.querySelectorAll('#areas button').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.area === id)));
+  map.getSource('net').setData(networkGeoJSON(A));
+  map.getSource('stations').setData({ type: 'FeatureCollection', features: A.R.stations.map(s => ({ type: 'Feature', properties: { label: s.name + (s.lrt ? ' LRT' : ''), lrt: s.lrt }, geometry: { type: 'Point', coordinates: s.p } })) });
+  map.getSource('exits').setData({ type: 'FeatureCollection', features: A.R.exits.map(([x, y, ref]) => ({ type: 'Feature', properties: { ref }, geometry: { type: 'Point', coordinates: [x, y] } })) });
+  // headline numbers for the area
+  const st = A.R.stats, share = (st.path_lta_km + st.path_other_km) / st.path_km;
+  $('h-share').textContent = `${Math.round(share * 100)}%`;
+  $('h-share-l').textContent = `of the ${nf.format(Math.round(st.path_km))} km of footpaths here have a roof`;
+  const parts = [[st.path_lta_km, ACCENT, 'c-lta'], [st.path_other_km, SHELTER, 'c-oth'], [st.path_km - st.path_lta_km - st.path_other_km, 'rgba(110,156,255,.35)', 'c-open']];
+  $('cbar').innerHTML = parts.map(([v, col]) => `<i style="flex:${v};background:${col}"></i>`).join('');
+  parts.forEach(([v, , id]) => { $(id).textContent = `${Math.round(v / st.path_km * 100)}%`; });
+  $('cbar').setAttribute('aria-label', `Footpaths here: ${Math.round(st.path_lta_km)} km under LTA linkways, ${Math.round(st.path_other_km)} km under other shelter, ${Math.round(parts[2][0])} km in the open`);
+  $('m-method').innerHTML = `This area holds <b>${st.roof_km.toFixed(1)} km</b> of LTA linkway. Where OpenStreetMap had no path under a linkway roof, a line was drawn down the middle of the roof (${st.centreline_km.toFixed(1)} km here). Linkway lengths are estimated from the roof outlines; walking time assumes 5 km/h.`;
+  // presets
+  const sel = $('preset');
+  sel.innerHTML = '';
+  A.R.presets.forEach((p, i) => sel.append(new Option(`${p.from} → ${p.to}`, String(i))));
+  sel.append(new Option('Your own trip (tap the map)', 'own'));
+  if (!opts.keep) {
+    const k = Math.max(0, Math.min(A.R.presets.length - 1, opts.trip || 0));
+    usePreset(k, opts);
+  }
+}
+function usePreset(i, opts = {}) {
+  const p = A.R.presets[i];
+  if (!p) return;
+  pick = i;
+  $('preset').value = String(i);
+  $('hint-t').textContent = 'Or tap the map where you start, then where you are going.';
+  setEnds(snap(A, p.a[0] / 1e6, p.a[1] / 1e6, 5), snap(A, p.b[0] / 1e6, p.b[1] / 1e6, 5), { from: p.from, to: p.to });
+  run({ fit: true, instant: opts.instant });
+}
+let names = { from: '', to: '' };
+function setEnds(s, t, nm) {
+  S = s; T = t;
+  names = nm || { from: 'Your start', to: 'Your end' };
+  placePin('A', S); placePin('B', T);
+}
+function placePin(which, s) {
+  let pin = which === 'A' ? pinA : pinB;
+  if (!s) { if (pin) { pin.remove(); if (which === 'A') pinA = null; else pinB = null; } return; }
+  const ll = [s.x / 1e6, s.y / 1e6];
+  if (!pin) {
+    const el = document.createElement('div');
+    el.className = 'pin dmc-chrome';
+    el.textContent = which;
+    el.setAttribute('aria-label', which === 'A' ? 'Start' : 'End');
+    pin = new maplibregl.Marker({ element: el, draggable: true }).setLngLat(ll).addTo(map);
+    pin.on('dragend', () => {
+      const p = pin.getLngLat(), sn = snap(A, p.lng, p.lat, 150);
+      if (!sn) { toast('Too far from any mapped path'); placePin(which, which === 'A' ? S : T); return; }
+      if (which === 'A') S = sn; else T = sn;
+      names = { from: which === 'A' ? 'Your start' : names.from, to: which === 'B' ? 'Your end' : names.to };
+      $('preset').value = 'own';
+      pin.setLngLat([sn.x / 1e6, sn.y / 1e6]);
+      run({});
+    });
+    if (which === 'A') pinA = pin; else pinB = pin;
+  } else pin.setLngLat(ll);
+}
+
+/* ---------- routing and drawing ---------- */
+function run(opts) {
+  stopRace();
+  if (!S || !T) { rDry = rFast = null; draw(); return; }
+  const t0 = performance.now();
+  rFast = route(A, S, T, 1);
+  rDry = route(A, S, T, wet);
+  window.__lastRouteMs = performance.now() - t0;
+  draw();
+  if (opts.fit) fitRoutes(opts.instant);
+  if (opts.fit && !reduceMotion && !opts.instant && !raced) { raced = true; setTimeout(race, 1400); }
+}
+let raced = false;
+function draw() {
+  map.getSource('rfast').setData(routeGeoJSON(rFast, 'fast'));
+  map.getSource('rdry').setData(routeGeoJSON(rDry, 'dry'));
+  drawStrips();
+}
+function fitRoutes(instant) {
+  if (!rDry) return;
+  let w = 180, s = 90, e = -180, n = -90;
+  for (const r of [rDry, rFast]) for (const [x, y] of r.pts) { if (x < w) w = x; if (x > e) e = x; if (y < s) s = y; if (y > n) n = y; }
+  let pad = DMC.overlayPadding();
+  for (const k of ['top', 'right', 'bottom', 'left']) pad[k] += 20;
+  if (innerHeight - pad.top - pad.bottom < 80 || innerWidth - pad.left - pad.right < 80) pad = 16;
+  map.fitBounds([[w, s], [e, n]], { padding: pad, maxZoom: 17.2, bearing: map.getBearing(), pitch: map.getPitch(), duration: instant || reduceMotion ? 0 : 1600, essential: true });
+}
+
+// The strip map: each walk drawn as a straight line, its covered stretches glowing, its open stretches dotted in rain blue.
+function stripSVG(r, scale, which, W) {
+  const H = 34, y = 15, x0 = 10;
+  let s = `<svg class="line" viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" aria-hidden="true"><defs><filter id="gl-${which}" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="2.4"/></filter></defs>`;
+  // ticks every 100 m (every 500 m labelled)
+  s += '<g class="ticks">';
+  const step = scale * 100;
+  for (let m = 0, x = x0; m <= r.total + 1; m += 100, x += step) {
+    const big = m % 500 === 0;
+    s += `<line x1="${x.toFixed(1)}" x2="${x.toFixed(1)}" y1="${y + 6}" y2="${y + (big ? 11 : 8)}" stroke="rgba(238,242,247,${big ? .45 : .2})"/>`;
+    if (big && m && (W - x) > 30) s += `<text x="${x.toFixed(1)}" y="${H - 1}" text-anchor="middle">${m >= 1000 ? m / 1000 + ' km' : m}</text>`;
+  }
+  s += '</g>';
+  let x = x0, glow = '', body = '';
+  let i = 0;
+  while (i < r.cov.length) {
+    const c = r.cov[i]; let L = 0;
+    while (i < r.cov.length && r.cov[i] === c) { L += r.len[i]; i++; }
+    const w = L * scale;
+    if (c === 0) body += `<line x1="${x.toFixed(1)}" x2="${(x + w).toFixed(1)}" y1="${y}" y2="${y}" stroke="${WET}" stroke-width="2" stroke-dasharray="1.5 3" stroke-linecap="round"/>`;
+    else {
+      const col = c === 1 ? ACCENT : SHELTER;
+      glow += `<rect x="${x.toFixed(1)}" y="${y - 4}" width="${Math.max(w, .8).toFixed(1)}" height="8" fill="${col}" opacity="${c === 1 ? .8 : .45}"/>`;
+      body += `<rect x="${x.toFixed(1)}" y="${y - 3}" width="${Math.max(w, .8).toFixed(1)}" height="6" rx="1.5" fill="${col}"/>`;
+    }
+    x += w;
+  }
+  s += `<g filter="url(#gl-${which})">${glow}</g>${body}`;
+  const end = x0 + r.total * scale;
+  for (const [cx, t] of [[x0, 'A'], [end, 'B']]) s += `<circle cx="${cx.toFixed(1)}" cy="${y}" r="6.5" fill="#fff" stroke="#04060B" stroke-width="2"/><text x="${cx.toFixed(1)}" y="${y + 3.2}" text-anchor="middle" style="font:700 8.5px var(--mono);fill:#04060B">${t}</text>`;
+  s += `<circle class="mover" cx="${x0}" cy="${y}" r="4.5" fill="${which === 'dry' ? ACCENT : '#fff'}" stroke="#04060B" stroke-width="1.5" opacity="0"/>`;
+  return s + '</svg>';
+}
+function routeRow(r, which, scale, W) {
+  const label = which === 'dry' ? 'Driest' : 'Fastest';
+  const key = which === 'dry' ? `<svg viewBox="0 0 22 6"><line x1="0" x2="22" y1="3" y2="3" stroke="${ACCENT}" stroke-width="4" stroke-linecap="round"/></svg>`
+    : '<svg viewBox="0 0 22 6"><line x1="0" x2="22" y1="3" y2="3" stroke="#fff" stroke-width="2" stroke-dasharray="3 2.4"/></svg>';
+  const pc = r.total ? Math.round(100 * r.covered / r.total) : 0;
+  return `<div class="rt ${which}">
+    <div class="rt-l"><span class="tag">${label}${key}</span><b>${fmtM(r.total)}</b><small>${fmtMin(r.total)} walk</small></div>
+    ${stripSVG(r, scale, which, W)}
+    <div class="rt-r"><span>Under cover</span><b class="c">${fmtM(r.covered)}</b><span>In the open</span><b class="o">${fmtM(r.open)}</b></div>
+  </div>`;
+}
+function verdictHTML() {
+  if (!rDry || !rFast) return '';
+  const extra = rDry.total - rFast.total, saved = rFast.open - rDry.open;
+  if (saved < 5) return rDry.open < 10 ? 'This whole walk is under cover. <b>No umbrella needed.</b>'
+    : `Here the shortest way is already the driest you can find: <b class="w">${fmtM(rDry.open)}</b> in the open.`;
+  const mins = Math.round(extra / WALK_MPM);
+  const cost = extra < 5 ? 'costs <b>no extra distance</b>' : `adds <b class="w">${fmtM(extra)}</b>${mins >= 1 ? ` (about ${mins} min)` : ' (under a minute)'}`;
+  return `The dry way ${cost} and keeps you out of the rain for <b>${fmtM(saved)}</b> more.`;
+}
+function drawStrips() {
+  const host = $('strip'), inner = $('strip-in');
+  if (!rDry || !rFast) {
+    const msg = `<p class="empty">${S ? 'Now tap where you are going.' : 'Tap the map where you start, then where you are going.'}</p>`;
+    host.innerHTML = msg; inner.innerHTML = msg; return;
+  }
+  const head = `<div class="strip-h"><p class="od">${esc(names.from)}<i>→</i>${esc(names.to)}</p><p class="verdict">${verdictHTML()}</p></div>`;
+  const make = width => {
+    const scale = (width - 20) / Math.max(rDry.total, rFast.total);
+    return routeRow(rDry, 'dry', scale, width) + routeRow(rFast, 'fast', scale, width);
+  };
+  // the line's drawn width: the strip's width minus the label and number columns
+  const wide = host.clientWidth || innerWidth, compact = matchMedia(DMC.COMPACT_Q).matches;
+  const lineW = Math.max(160, compact ? wide - 24 - 84 - 10 : wide - 28 - 112 - 168 - 24);
+  host.innerHTML = head + make(lineW);
+  const iw = (inner.clientWidth || 300) - 74 - 10;
+  inner.innerHTML = isSide() ? head + make(Math.max(140, iw)) : '';
+  host.setAttribute('aria-label', `Driest walk ${fmtM(rDry.total)}, ${fmtM(rDry.covered)} under cover. Fastest walk ${fmtM(rFast.total)}, ${fmtM(rFast.covered)} under cover.`);
+  layout();
+}
+
+/* ---------- walk both: two walkers set off together at the same pace ---------- */
+let raceRaf = 0, walkers = [];
+function stopRace() { cancelAnimationFrame(raceRaf); raceRaf = 0; walkers.forEach(m => m.remove()); walkers = []; document.querySelectorAll('.mover').forEach(c => c.setAttribute('opacity', 0)); }
+function along(r, m) {
+  let acc = 0;
+  for (let j = 0; j < r.len.length; j++) {
+    if (acc + r.len[j] >= m) { const f = r.len[j] ? (m - acc) / r.len[j] : 0, a = r.pts[j], b = r.pts[j + 1]; return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f]; }
+    acc += r.len[j];
+  }
+  return r.pts[r.pts.length - 1];
+}
+function race() {
+  stopRace();
+  if (!rDry || !rFast) return;
+  const mk = cls => { const el = document.createElement('div'); el.className = `walker ${cls}`; return new maplibregl.Marker({ element: el }).setLngLat(rDry.pts[0]).addTo(map); };
+  walkers = [mk('fast'), mk('dry')];
+  const rs = [rFast, rDry], movers = [...document.querySelectorAll('#strip .rt.fast .mover, #strip .rt.dry .mover, #strip-in .rt.fast .mover, #strip-in .rt.dry .mover')];
+  const maxL = Math.max(rDry.total, rFast.total), dur = reduceMotion ? 0 : Math.min(9000, Math.max(4500, maxL * 6)), t0 = performance.now();
+  const step = now => {
+    const m = dur ? Math.min(1, (now - t0) / dur) * maxL : maxL;
+    rs.forEach((r, i) => walkers[i].setLngLat(along(r, Math.min(m, r.total))));
+    movers.forEach(c => {
+      const dry = c.closest('.rt').classList.contains('dry'), r = dry ? rDry : rFast;
+      const svg = c.ownerSVGElement, W = svg.viewBox.baseVal.width, scale = (W - 20) / maxL;
+      c.setAttribute('cx', (10 + Math.min(m, r.total) * scale).toFixed(1)); c.setAttribute('opacity', 1);
+    });
+    if (m < maxL) raceRaf = requestAnimationFrame(step);
+    else setTimeout(() => movers.forEach(c => c.setAttribute('opacity', 0)), 1200);
+  };
+  raceRaf = requestAnimationFrame(step);
+}
+
+/* ---------- tapping the map ---------- */
+let toastT = 0;
+function toast(t) { const el = $('toast'); el.textContent = t; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => { el.hidden = true; }, 2600); }
+map.on('click', e => {
+  if (!A) return;
+  const sn = snap(A, e.lngLat.lng, e.lngLat.lat, 90);
+  if (!sn) { toast(inArea(e.lngLat) ? 'Tap a little closer to a path' : `Tap inside ${A.R.name}, where the paths are drawn`); return; }
+  $('preset').value = 'own';
+  if (armed === 'A') {
+    stopRace();
+    S = sn; T = null; names = { from: 'Your start', to: 'Your end' };
+    placePin('A', S); placePin('B', null);
+    rDry = rFast = null; draw();
+    armed = 'B';
+    $('hint-t').textContent = 'Now tap where you are going.';
+  } else {
+    T = sn; placePin('B', T);
+    armed = 'A';
+    $('hint-t').textContent = 'Tap again to start a new trip, or drag A and B.';
+    run({});
+  }
+});
+const inArea = ll => { const [w, s, e, n] = A.R.bbox; return ll.lng >= w && ll.lng <= e && ll.lat >= s && ll.lat <= n; };
+map.on('mousemove', e => { if (A) map.getCanvas().style.cursor = inArea(e.lngLat) ? 'crosshair' : ''; });
+
+/* ---------- controls ---------- */
+$('preset').addEventListener('change', e => { if (e.target.value !== 'own') { armed = 'A'; usePreset(+e.target.value); } });
+$('wet').addEventListener('input', e => { wet = +e.target.value; $('wet-o').textContent = `${wet} m`; run({}); });
+$('race').addEventListener('click', race);
+
+/* ---------- rain ---------- */
+const rainC = $('rain'), rctx = rainC.getContext('2d');
+let rainOn = !reduceMotion && !params.has('norain'), drops = [], rainRaf = 0;
+function sizeRain() { const dpr = Math.min(2, devicePixelRatio || 1); rainC.width = innerWidth * dpr; rainC.height = innerHeight * dpr; rctx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+function seedRain() {
+  const n = Math.round(innerWidth * innerHeight / 9000);
+  drops = Array.from({ length: n }, () => ({ x: Math.random() * innerWidth, y: Math.random() * innerHeight, v: 7 + Math.random() * 7, l: 9 + Math.random() * 14, a: .05 + Math.random() * .13 }));
+}
+function rainFrame() {
+  rctx.clearRect(0, 0, innerWidth, innerHeight);
+  rctx.lineCap = 'round';
+  for (const d of drops) {
+    rctx.strokeStyle = `rgba(150,185,255,${d.a})`; rctx.lineWidth = 1;
+    rctx.beginPath(); rctx.moveTo(d.x, d.y); rctx.lineTo(d.x - d.l * .18, d.y + d.l); rctx.stroke();
+    d.y += d.v; d.x -= d.v * .18;
+    if (d.y > innerHeight + 20) { d.y = -20 - Math.random() * 60; d.x = Math.random() * (innerWidth + 60); }
+  }
+  rainRaf = requestAnimationFrame(rainFrame);
+}
+function setRain(on) {
+  rainOn = on;
+  $('rainbtn').setAttribute('aria-pressed', String(on));
+  cancelAnimationFrame(rainRaf);
+  if (on && !document.hidden) { sizeRain(); if (!drops.length) seedRain(); rainRaf = requestAnimationFrame(rainFrame); }
+  else rctx.clearRect(0, 0, innerWidth, innerHeight);
+}
+$('rainbtn').addEventListener('click', () => setRain(!rainOn));
+document.addEventListener('visibilitychange', () => setRain(rainOn));
+addEventListener('resize', () => { if (rainOn) { sizeRain(); seedRain(); } });
+if (reduceMotion) $('rainbtn').hidden = true;
+// the rain falls over the map but under the panels
+map.getContainer().insertBefore(rainC, map.getContainer().querySelector('.maplibregl-control-container'));
+
+/* ---------- layout ---------- */
+function layout() {
+  const st = $('dmc-stamp'), root = document.documentElement.style;
+  if (!isSheet() && !isSide()) root.setProperty('--card-top', `${Math.round(st.getBoundingClientRect().bottom + 8)}px`);
+  const sr = $('strip').getBoundingClientRect();
+  if (isSheet()) {   // the strip sits just above the bottom sheet
+    const cr = $('card').getBoundingClientRect();
+    $('strip').style.bottom = `${Math.round(innerHeight - cr.top)}px`;
+  } else $('strip').style.bottom = '';
+  root.setProperty('--strip-h', `${Math.round(isSheet() || isSide() ? 0 : sr.height + 8)}px`);
+}
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { layout(); if (rDry) drawStrips(); }, 150); });
+new ResizeObserver(() => { if (isSheet()) layout(); }).observe($('card'));
+if (document.fonts) document.fonts.ready.then(layout);
+if (!matchMedia(DMC.COMPACT_Q).matches) $('more').open = true;
+
+/* ---------- load ---------- */
+const dataP = fetch('data/day24/network.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([d]) => {
+  NET = d;
+  $('h-island').textContent = `${nf.format(Math.round(d.island.km))} km`;
+  const box = $('areas');
+  for (const a of d.areas) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.area = a.id; b.textContent = a.name; b.setAttribute('aria-pressed', 'false');
+    b.addEventListener('click', () => { if (A && A.R.id === a.id) return; armed = 'A'; raced = false; setArea(a.id); });
+    box.append(b);
+  }
+  addLayers();
+  layout();
+  const area = d.areas.some(a => a.id === params.get('area')) ? params.get('area') : d.areas[0].id;
+  setArea(area, { trip: +(params.get('trip') || 0), instant: params.has('instant') });
+  setRain(rainOn);
+}).catch(err => { toast('The network could not be loaded. Please reload.'); console.error(err); });
+</script>
+</body>
+</html>
