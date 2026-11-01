@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F4EFE4">
+<title>Day 26 · Singapore's Four National Taps</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 26, Water: Singapore's four national taps (reservoirs, water from Johor, NEWater and desalination) as one flow map, cut from layered paper over Copernicus relief.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23F4EFE4'/%3E%3Cpath d='M16 5c4 6 8 10 8 15a8 8 0 0 1-16 0c0-5 4-9 8-15z' fill='%233E9FD9'/%3E%3Cpath d='M16 13c2.4 3.4 4.6 5.8 4.6 8.6a4.6 4.6 0 0 1-9.2 0c0-2.8 2.2-5.2 4.6-8.6z' fill='%231B3F7A'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,400;1,9..144,600&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 26: cut-paper relief, four taps flowing to one demand ===== */
+:root {
+  --paper: #FBF8F1; --paper-2: #F4EFE4; --ground: #EDE6D8;
+  --ink: #17303F; --ink-2: #4C6170; --ink-3: #7D8D97;
+  --glass: var(--paper); --line: rgba(23, 48, 63, .16); --text: var(--ink); --text-2: var(--ink-2);
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --c: #3E9FD9; --i: #1B3F7A; --n: #17A589; --d: #7B6FD0;
+  --cut: 0 1px 0 rgba(255, 255, 255, .9) inset, 2px 3px 0 rgba(23, 48, 63, .10), 5px 7px 0 rgba(23, 48, 63, .05), 0 12px 26px rgba(23, 48, 63, .10);
+  --side-w: 332px;
+  color-scheme: light;
+}
+body { background: #A8CBDA; }
+.dmc-map { background: linear-gradient(180deg, #E9E3D5 0%, #DCE9EE 22%, #A8CBDA 60%); }
+
+/* ---- kit chrome, re-cut in paper ---- */
+.dmc-glass { -webkit-backdrop-filter: none; backdrop-filter: none; background: var(--paper); border: 1px solid rgba(23, 48, 63, .12); box-shadow: var(--cut); }
+.dmc-num { color: var(--day-accent); text-shadow: 1px 1.5px 0 rgba(23, 48, 63, .14); }
+.dmc-theme { color: var(--ink); }
+.dmc-title { font-family: var(--serif); font-weight: 600; font-size: 15px; letter-spacing: 0; }
+.dmc-more, .dmc-btn { color: var(--ink); background: var(--paper-2); border-color: rgba(23, 48, 63, .18); }
+.dmc-more:hover, .dmc-btn:hover { background: #EAE3D3; }
+.dmc-index li { color: var(--ink-2); box-shadow: inset 0 0 0 1px rgba(23, 48, 63, .16); }
+.dmc-index li.done { background: rgba(23, 48, 63, .08); color: var(--ink); }
+.dmc-index li.today { color: #fff; box-shadow: 1px 1.5px 0 rgba(23, 48, 63, .2); }
+.dmc-keys kbd { color: var(--ink); border-color: rgba(23, 48, 63, .25); }
+.maplibregl-ctrl-group { background: var(--paper) !important; border: 1px solid rgba(23, 48, 63, .14); box-shadow: 2px 3px 0 rgba(23, 48, 63, .1) !important; -webkit-backdrop-filter: none; backdrop-filter: none; }
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon { filter: none; }
+.maplibregl-ctrl-group button + button { border-top: 1px solid rgba(23, 48, 63, .12) !important; }
+.dmc-ctrl button { color: var(--ink-2); }
+.dmc-ctrl button[aria-pressed="true"] { color: #fff; background: var(--day-accent); }
+.dmc-focus-credit { background: rgba(251, 248, 241, .92); color: var(--ink-2); }
+.dmc-focus-exit { background: var(--paper); color: var(--ink); border-color: rgba(23, 48, 63, .18); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.dmc-credits a { text-decoration-color: rgba(23, 48, 63, .3); }
+
+/* ---- the tap panel ---- */
+.tp {
+  left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px));
+  width: var(--side-w); max-height: calc(100% - var(--top, 120px) - var(--gutter)); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin;
+  padding: 12px 14px 10px; display: grid; gap: 9px;
+}
+.tp > * { margin: 0; }
+.kick { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--day-accent); }
+.hero { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.hero b { font-family: var(--serif); font-size: 31px; font-weight: 700; line-height: .95; color: var(--ink); font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.hero span { font-size: 11.5px; line-height: 1.35; color: var(--ink-2); }
+.split { display: flex; height: 7px; border-radius: 4px; overflow: hidden; gap: 2px; }
+.split i { display: block; height: 100%; background: var(--ink); }
+.split i + i { background: #9AA9B3; }
+.splitk { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--ink-2); margin-top: -4px; }
+.splitk b { color: var(--ink); font-weight: 600; }
+.taps { list-style: none; padding: 0; display: grid; gap: 5px; }
+.tap { position: relative; width: 100%; display: grid; grid-template-columns: 16px 1fr auto; align-items: center; gap: 1px 9px; padding: 7px 9px 7px 8px; text-align: left;
+  font: inherit; color: var(--ink); background: #fff; border: 1px solid rgba(23, 48, 63, .13); border-radius: 10px; cursor: pointer;
+  box-shadow: 1.5px 2px 0 rgba(23, 48, 63, .09); transition: opacity .2s, box-shadow .2s, transform .2s; }
+.tap:hover { box-shadow: 2.5px 3.5px 0 rgba(23, 48, 63, .12); transform: translate(-.5px, -.5px); }
+.tap[aria-pressed="false"] { opacity: .5; background: var(--paper-2); box-shadow: none; }
+.tap .sw { grid-row: span 2; width: 14px; height: 14px; border-radius: 50%; background: var(--tc); box-shadow: 1px 1.5px 0 rgba(23, 48, 63, .25), inset 0 0 0 2px rgba(255, 255, 255, .5); }
+.tap[aria-pressed="false"] .sw { background: transparent; box-shadow: inset 0 0 0 2px var(--tc); }
+.tap .nm { font-size: 12.5px; font-weight: 600; line-height: 1.2; }
+.tap .nm small { font-weight: 400; color: var(--ink-3); margin-left: 3px; font-size: 10.5px; }
+.tap .v { font-family: var(--serif); font-size: 15px; font-weight: 700; color: var(--tc); text-align: right; font-variant-numeric: tabular-nums; line-height: 1; }
+.tap .v small { font-family: var(--font); font-size: 9.5px; font-weight: 600; color: var(--ink-3); margin-left: 2px; }
+.tap .sub { grid-column: 2 / -1; font-size: 10.5px; line-height: 1.3; color: var(--ink-2); }
+.tap .bar { grid-column: 2 / -1; position: relative; height: 5px; margin-top: 4px; border-radius: 3px; background: rgba(23, 48, 63, .07); }
+.tap .bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--tc); }
+.tap .bar::after { content: ""; position: absolute; right: 0; top: -3px; bottom: -3px; width: 1.5px; background: var(--ink); }
+.barkey { display: flex; justify-content: space-between; gap: 8px; font-size: 10px; color: var(--ink-3); margin-top: -2px; }
+.detail { min-height: 64px; padding: 8px 10px; border-radius: 10px; background: var(--paper-2); box-shadow: inset 1px 1.5px 0 rgba(23, 48, 63, .07); display: grid; gap: 3px; }
+.detail h2 { margin: 0; font-family: var(--serif); font-size: 14.5px; font-weight: 600; line-height: 1.2; }
+.detail .fig { font-size: 12px; font-weight: 600; color: var(--ink); }
+.detail .fig b { font-family: var(--serif); font-size: 16px; color: var(--dc, var(--day-accent)); }
+.detail p { margin: 0; font-size: 11.5px; line-height: 1.45; color: var(--ink-2); }
+.detail a { color: inherit; text-underline-offset: 2px; text-decoration-color: rgba(23, 48, 63, .3); }
+.find { display: flex; gap: 6px; align-items: center; }
+.find select { flex: 1; min-width: 0; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--ink); background: #fff; border: 1px solid rgba(23, 48, 63, .18); border-radius: 999px;
+  padding: 4px 24px 4px 10px; min-height: 28px; cursor: pointer; appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, currentColor 50%), linear-gradient(135deg, currentColor 50%, transparent 50%);
+  background-position: calc(100% - 13px) 50%, calc(100% - 9px) 50%; background-size: 4px 4px; background-repeat: no-repeat; }
+.find .dmc-btn { min-height: 28px; padding: 3px 10px; font-size: 11.5px; white-space: nowrap; }
+.note { font-size: 10.5px; line-height: 1.45; color: var(--ink-3); }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---- markers: paper discs sized by capacity ---- */
+.nd { display: grid; place-items: center; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; color: var(--ink); }
+.nd .disc { width: var(--d); height: var(--d); border-radius: 50%; background: var(--tc);
+  box-shadow: inset 0 0 0 calc(var(--d) * .12) rgba(255, 255, 255, .35), 1.5px 2.5px 0 rgba(23, 48, 63, .28), 3px 5px 6px rgba(23, 48, 63, .14); transition: transform .2s; }
+.nd.n .disc { background: radial-gradient(circle, #fff 0 22%, var(--tc) 23%); }
+.nd.d .disc { background: repeating-linear-gradient(160deg, var(--tc) 0 4px, color-mix(in srgb, var(--tc) 72%, #fff) 4px 6px); }
+.nd .lab { position: absolute; left: calc(50% + var(--d) / 2 + 4px); top: 50%; transform: translateY(-50%); white-space: nowrap; pointer-events: none;
+  padding: 1px 6px 2px; border-radius: 5px; background: rgba(251, 248, 241, .9); box-shadow: 1px 1.5px 0 rgba(23, 48, 63, .12);
+  font-size: 10.5px; font-weight: 600; line-height: 1.25; color: var(--ink); }
+.nd .lab small { font-weight: 500; color: var(--ink-2); }
+.nd.left .lab { left: auto; right: calc(50% + var(--d) / 2 + 4px); }
+.nd:hover .disc, .nd:focus-visible .disc, .nd.sel .disc { transform: scale(1.12); }
+.nd:focus-visible { outline: none; }
+.nd:focus-visible .disc { outline: 2px solid var(--day-accent); outline-offset: 3px; }
+.nd.off { opacity: 0; visibility: hidden; }
+.hub { pointer-events: auto; display: grid; place-items: center; width: var(--d); height: var(--d); border-radius: 50%; border: 0; padding: 0; cursor: pointer; font: inherit;
+  background: conic-gradient(var(--ink) 0 216deg, #9AA9B3 216deg 360deg);
+  box-shadow: 2px 3px 0 rgba(23, 48, 63, .3), 4px 8px 12px rgba(23, 48, 63, .18); }
+.hub span { display: grid; place-items: center; width: 72%; height: 72%; border-radius: 50%; background: var(--paper); box-shadow: inset 1px 1.5px 0 rgba(23, 48, 63, .18);
+  font-family: var(--serif); font-weight: 700; font-size: calc(var(--d) * .22); line-height: .9; color: var(--ink); text-align: center; }
+.hub span small { display: block; font-family: var(--font); font-size: calc(var(--d) * .1); font-weight: 600; color: var(--ink-2); }
+.hub:focus-visible { outline: 2px solid var(--day-accent); outline-offset: 3px; }
+.pl { pointer-events: none; font-family: var(--serif); font-style: italic; font-weight: 400; font-size: 12px; letter-spacing: .04em; color: rgba(27, 63, 122, .72); white-space: nowrap; text-shadow: 0 1px 0 rgba(255, 255, 255, .6); }
+.pl.land { font-style: normal; font-weight: 600; font-size: 11px; letter-spacing: .3em; text-transform: uppercase; color: rgba(23, 48, 63, .42); }
+.pl.sm { font-size: 10.5px; }
+.tip { position: fixed; z-index: 5; left: 0; top: 0; pointer-events: none; padding: 5px 9px 6px; border-radius: 8px; background: var(--paper); box-shadow: 2px 3px 0 rgba(23, 48, 63, .14); border: 1px solid rgba(23, 48, 63, .12);
+  font-size: 11.5px; color: var(--ink); white-space: nowrap; }
+.tip b { font-weight: 600; }
+.tip small { display: block; color: var(--ink-2); font-size: 10.5px; }
+.tip[hidden] { display: none; }
+#drops { position: absolute; inset: 0; pointer-events: none; }
+.loading { position: absolute; z-index: 3; left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 7px 14px; border-radius: 999px; background: var(--paper); box-shadow: var(--cut); font-size: 12px; color: var(--ink-2); }
+.loading[hidden] { display: none; }
+
+@media (max-width: 640px), (max-height: 520px) {
+  .tp { padding: 10px 12px 9px; gap: 7px; }
+  .hero b { font-size: 25px; }
+  .nd .lab { display: none; }
+  .nd.keep .lab { display: block; }
+  .pl { font-size: 10.5px; }
+  .pl.land { font-size: 9.5px; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .tp { left: 0; right: 0; bottom: 0; width: auto; max-height: 38vh; border-bottom: 0; border-radius: 16px 16px 0 0; padding-bottom: calc(9px + env(safe-area-inset-bottom, 0px)); }
+  .taps { grid-template-columns: 1fr 1fr; }
+  .tap { padding: 6px 7px; gap: 1px 6px; grid-template-columns: 12px 1fr auto; }
+  .tap .sw { width: 11px; height: 11px; }
+  .tap .sub { display: none; }
+  .tap .nm { font-size: 11.5px; }
+  .tap .nm small { display: none; }
+  .split, .splitk, .barkey { display: none; }
+  .hide-phone { display: none; }
+  .detail.idle { display: none; }
+  .tp { gap: 6px; }
+  .hero span br { display: none; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .tp { left: auto; right: calc(var(--gutter) + 48px + env(safe-area-inset-right, 0px)); top: var(--gutter); bottom: var(--gutter); width: min(310px, 44vw); max-height: none; }
+  .tap .sub { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore and southern Johor cut from layered paper: water flows from 17 reservoirs, Johor, four NEWater plants and five desalination plants to one demand hub"></div>
+<canvas id="drops" aria-hidden="true"></canvas>
+<div id="tip" class="tip" hidden></div>
+<p id="loading" class="loading dmc-chrome">Filling the reservoirs&hellip;</p>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="panel" class="dmc-glass tp" data-dmc-overlay aria-label="The four national taps">
+  <p class="kick">Where Singapore's water comes from</p>
+  <div class="hero"><b id="h-demand">440 mgd</b><span>of water used a day, about. <br>mgd = million gallons a day</span></div>
+  <div class="split" aria-hidden="true"><i style="flex:60"></i><i style="flex:40"></i></div>
+  <p class="splitk"><span><b>60%</b> industry and business</span><span><b>40%</b> homes</span></p>
+  <ul class="taps" aria-label="Show or hide each tap">
+    <li><button class="tap" type="button" data-tap="c" aria-pressed="true" style="--tc:var(--c)"><span class="sw"></span><span class="nm">Rain<small>local catchment</small></span><span class="v" id="v-c">17<small>reservoirs</small></span><span class="sub" id="s-c">Rain from two-thirds of the land drains to them</span></button></li>
+    <li><button class="tap" type="button" data-tap="i" aria-pressed="true" style="--tc:var(--i)"><span class="sw"></span><span class="nm">Johor<small>imported</small></span><span class="v">250<small>mgd</small></span><span class="sub">The most Singapore may draw, until 2061</span><span class="bar"><i style="width:56.8%"></i></span></button></li>
+    <li><button class="tap" type="button" data-tap="n" aria-pressed="true" style="--tc:var(--n)"><span class="sw"></span><span class="nm">NEWater<small>reused</small></span><span class="v" id="v-n">154<small>mgd</small></span><span class="sub" id="s-n">4 factories turning used water ultra-clean</span><span class="bar"><i id="b-n"></i></span></button></li>
+    <li><button class="tap" type="button" data-tap="d" aria-pressed="true" style="--tc:var(--d)"><span class="sw"></span><span class="nm">Sea<small>desalinated</small></span><span class="v" id="v-d">190<small>mgd</small></span><span class="sub">5 plants turning seawater into drinking water</span><span class="bar"><i id="b-d"></i></span></button></li>
+  </ul>
+  <p class="barkey hide-phone"><span>Bars: the most each tap can supply</span><span>| a day's use, 440 mgd</span></p>
+  <div id="detail" class="detail" aria-live="polite"></div>
+  <div class="find">
+    <label class="sr" for="find">Find a reservoir</label>
+    <select id="find"><option value="">Find a reservoir&hellip;</option></select>
+    <button id="all" class="dmc-btn" type="button">Whole map</button>
+  </div>
+  <p class="note hide-phone">Widths and discs show the most each source can supply, not what it sends on a given day. We found no published figure for what each reservoir supplies, so they flow in thin streams. The Johor pipelines are not mapped, so their route to the Causeway is drawn as a sweep. Relief is from a satellite surface model, smoothed and cut into bands; the pale rings at sea are decoration.</p>
+  <p id="credits" class="dmc-credits"></p>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const a = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const DAY = {
+  n: 26,
+  title: 'Singapore\'s four national taps',
+  deck: 'Every drop Singapore uses comes from four taps: rain caught in 17 reservoirs, water piped in from Johor, used water recycled into NEWater, and seawater made fresh. Here they are cut from paper and flowing, each as wide as the most it can supply, into one day\'s demand.',
+  accent: '#127FA3',
+  style: { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#A8CBDA' } }] },
+  basemapBg: '#A8CBDA',
+  bounds: [[103.6, 1.2], [104.1, 2.0]],
+  maxBounds: [[101.4, -0.6], [106.4, 3.7]], minZoom: 6.8, maxZoom: 15,
+  camera: { pitch: 56, bearing: 32, tiltPitch: 56 },
+  buildings: false,
+  creditsEl: 'credits',
+  attribution: [
+    'Figures: ' + a('https://www.pub.gov.sg/Public/WaterLoop/OurWaterStory/Local-Catchment-Water', 'PUB') + ' (catchment, Johor, NEWater, desalination, annual report 2016/17, media releases 2021, 2022, 2024, exhibition panels 2025) and the ' + a('https://www.nas.gov.sg/archivesonline/', 'National Archives of Singapore') + ' (2005, 2007, 2010, 2011)',
+    'Reservoirs, rivers, Linggiu, water main: ' + DMC.OSM_CREDIT + ' (ODbL), Nov 2026',
+    'Plant locations: ' + a('https://www.onemap.gov.sg/', 'OneMap search') + ', ' + a('https://www.sla.gov.sg/', 'SLA'),
+    'Relief: ' + a('https://spacedata.copernicus.eu/collections/copernicus-digital-elevation-model', 'Copernicus GLO-90 DEM') + ' &copy; DLR e.V. 2010-2014 and &copy; Airbus Defence and Space GmbH 2014-2018, provided under COPERNICUS by the European Union and ESA',
+  ],
+  author: '', nav: null,
+};
+DMC.mountStamp(DAY);
+const map = DMC.createMap(DAY, { fadeDuration: 0 });
+window.map = map;
+
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+const TAPC = { c: '#3E9FD9', i: '#1B3F7A', n: '#17A589', d: '#7B6FD0' };
+const TAPN = { c: 'Rain (local catchment)', i: 'Johor (imported water)', n: 'NEWater', d: 'Desalinated seawater' };
+const on = { c: true, i: true, n: true, d: true };
+let D = null;
+
+/* ---------- decoding ---------- */
+function ring(arr, q) {
+  const out = []; let x = 0, y = 0;
+  for (let k = 0; k < arr.length; k += 2) { x += arr[k]; y += arr[k + 1]; out.push([x / q, y / q]); }
+  return out;
+}
+const mpoly = (polys, q) => ({ type: 'MultiPolygon', coordinates: polys.map(p => p.map(r => ring(r, q))) });
+const fc = features => ({ type: 'FeatureCollection', features });
+
+/* ---------- paper: a grain texture for every colour ---------- */
+function rng(seed) { return () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+function paper(hex, seed, fibres = 26) {
+  const S = 96, c = document.createElement('canvas'); c.width = c.height = S;
+  const g = c.getContext('2d', { willReadFrequently: true }), r = rng(seed);
+  g.fillStyle = hex; g.fillRect(0, 0, S, S);
+  const img = g.getImageData(0, 0, S, S), px = img.data;
+  for (let k = 0; k < px.length; k += 4) { const n = (r() - .5) * 9; px[k] += n; px[k + 1] += n; px[k + 2] += n; }
+  g.putImageData(img, 0, 0);
+  g.lineCap = 'round';
+  for (let k = 0; k < fibres; k++) {
+    const x = r() * S, y = r() * S, ang = r() * Math.PI, len = 3 + r() * 9;
+    g.strokeStyle = r() < .5 ? 'rgba(255,255,255,.35)' : 'rgba(80,70,50,.08)'; g.lineWidth = .6;
+    for (const dx of [-S, 0, S]) for (const dy of [-S, 0, S]) {
+      g.beginPath(); g.moveTo(x + dx, y + dy); g.quadraticCurveTo(x + dx + Math.cos(ang) * len * .5 + 1, y + dy + Math.sin(ang) * len * .5, x + dx + Math.cos(ang) * len, y + dy + Math.sin(ang) * len); g.stroke();
+    }
+  }
+  return g.getImageData(0, 0, S, S);
+}
+const SHEET = [[103.52, 1.13], [104.22, 2.06]];   // the extent the build cut (process.py)
+const LAND = ['#F8F5EC', '#F0EBDD', '#E7E0CD', '#DDD4BD', '#D1C7AD', '#C4B99D', '#B6AA8D'];
+const SEA = ['#B7D3E0', '#C7DDE7', '#D7E7ED'];   // far to near shore
+
+/* ---------- layers ---------- */
+function addLayers() {
+  const q = D.q;
+  LAND.forEach((col, i) => map.addImage(`land${i}`, paper(col, 11 + i), { pixelRatio: 2 }));
+  SEA.forEach((col, i) => map.addImage(`sea${i}`, paper(col, 31 + i, 10), { pixelRatio: 2 }));
+  map.addImage('res', paper('#5DAFE0', 51, 14), { pixelRatio: 2 });
+  map.addImage('ling', paper('#3A6BA8', 52, 14), { pixelRatio: 2 });
+  map.addImage('seabg', paper('#A8CBDA', 53, 8), { pixelRatio: 2 });
+
+  map.addSource('sea', { type: 'geojson', data: fc(D.sea.map((p, i) => ({ type: 'Feature', properties: { i }, geometry: mpoly(p, q) }))), tolerance: .5 });
+  map.addSource('bands', { type: 'geojson', data: fc(D.bands.map((b, i) => ({ type: 'Feature', properties: { i, t: b.t }, geometry: mpoly(b.p, q) }))), tolerance: .45 });
+  const resF = D.res.map((r, k) => ({ type: 'Feature', id: k, properties: { n: r.n, a: r.a, k }, geometry: mpoly(r.p, q) }));
+  resF.push({ type: 'Feature', id: 99, properties: { n: D.ling.n, a: D.ling.a, k: 99, ling: 1 }, geometry: mpoly(D.ling.p, q) });
+  map.addSource('res', { type: 'geojson', data: fc(resF), tolerance: .3 });
+
+  map.addImage('table', paper('#E4DCCB', 54, 30), { pixelRatio: 2 });
+  // the whole model is one sheet laid on a table: the table first, then the sheet's shadow, then the sea
+  const [[w0, s0], [e0, n0]] = SHEET;
+  map.addSource('sheet', { type: 'geojson', data: { type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[w0, s0], [e0, s0], [e0, n0], [w0, n0], [w0, s0]]] } } });
+  map.addLayer({ id: 'table', type: 'background', paint: { 'background-pattern': 'table' } });
+  [[4, 7, .16], [12, 20, .08], [24, 40, .04]].forEach(([x, y, o], k) => map.addLayer({ id: `sheet-sh${k}`, type: 'fill', source: 'sheet',
+    paint: { 'fill-color': `rgba(60,48,28,${o})`, 'fill-translate': [x, y], 'fill-translate-anchor': 'viewport', 'fill-antialias': false } }));
+  map.addLayer({ id: 'sheet', type: 'fill', source: 'sheet', paint: { 'fill-pattern': 'seabg' } });
+  // sea shallows: each ring a sheet of paper, shadow first
+  for (let i = 0; i < 3; i++) {
+    const f = ['==', ['get', 'i'], 2 - i];
+    map.addLayer({ id: `sea${i}-sh`, type: 'fill', source: 'sea', filter: f, paint: { 'fill-color': 'rgba(24,70,96,.13)', 'fill-translate': [1.5, 2.5], 'fill-translate-anchor': 'viewport', 'fill-antialias': false } });
+    map.addLayer({ id: `sea${i}`, type: 'fill', source: 'sea', filter: f, paint: { 'fill-pattern': `sea${i}` } });
+  }
+  // reservoirs sit below the land: the land is cut away above them, so its shadow falls into the hole
+  map.addLayer({ id: 'res-fill', type: 'fill', source: 'res', paint: { 'fill-pattern': ['case', ['has', 'ling'], 'ling', 'res'] } });
+  D.bands.forEach((b, i) => {
+    const f = ['==', ['get', 'i'], i];
+    const sh = i === 0 ? [[2.5, 4, .2], [5.5, 9, .07]] : [[1.6, 2.6, .17], [3.4, 5.5, .06]];
+    sh.forEach(([x, y, o], k) => map.addLayer({ id: `b${i}-sh${k}`, type: 'fill', source: 'bands', filter: f,
+      paint: { 'fill-color': `rgba(48,44,30,${o})`, 'fill-translate': [x, y], 'fill-translate-anchor': 'viewport', 'fill-antialias': false } }));
+    map.addLayer({ id: `b${i}`, type: 'fill', source: 'bands', filter: f, paint: { 'fill-pattern': `land${Math.min(i, LAND.length - 1)}` } });
+    map.addLayer({ id: `b${i}-hi`, type: 'line', source: 'bands', filter: f, paint: { 'line-color': 'rgba(255,255,255,.75)', 'line-width': .8, 'line-translate': [-.6, -.8], 'line-translate-anchor': 'viewport' } });
+  });
+  map.addLayer({ id: 'res-hover', type: 'line', source: 'res', paint: { 'line-color': '#17303F', 'line-width': 1.6, 'line-opacity': ['case', ['boolean', ['feature-state', 'hover'], false], .85, 0] } });
+
+  // the Johor River from Linggiu dam to the waterworks, and the flow ribbons
+  const flowF = [];
+  for (const f of D.flows) {
+    const pts = ring(f.line, q);
+    if (f.split) {
+      flowF.push({ type: 'Feature', properties: { tap: f.tap, mgd: f.mgd, id: f.id, sketch: 1 }, geometry: { type: 'LineString', coordinates: pts.slice(0, f.split[0]) } });
+      flowF.push({ type: 'Feature', properties: { tap: f.tap, mgd: f.mgd, id: f.id }, geometry: { type: 'LineString', coordinates: pts.slice(f.split[0] - 1) } });
+    } else flowF.push({ type: 'Feature', properties: { tap: f.tap, mgd: f.mgd || 0, id: f.id }, geometry: { type: 'LineString', coordinates: pts } });
+  }
+  map.addSource('river', { type: 'geojson', data: { type: 'Feature', properties: { tap: 'i' }, geometry: { type: 'LineString', coordinates: ring(D.river.line, q) } } });
+  map.addSource('flows', { type: 'geojson', data: fc(flowF) });
+  const W = ['case', ['>', ['get', 'mgd'], 0], ['*', ['get', 'mgd'], .095], 1.6];   // px per mgd at zoom 9.4
+  const width = k => ['interpolate', ['exponential', 2], ['zoom'], 7.5, ['*', W, .32 * k], 9.4, ['*', W, k], 12, ['*', W, 5 * k]];
+  const COL = ['match', ['get', 'tap'], 'c', TAPC.c, 'i', TAPC.i, 'n', TAPC.n, TAPC.d];
+  map.addLayer({ id: 'river-sh', type: 'line', source: 'river', layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': 'rgba(23,48,63,.22)', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.6, 12, 5], 'line-translate': [1.2, 2], 'line-translate-anchor': 'viewport' } });
+  map.addLayer({ id: 'river', type: 'line', source: 'river', layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': '#4C7FBF', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 1.6, 12, 5] } });
+  const drawn = ['!=', ['get', 'sketch'], 1], sketch = ['==', ['get', 'sketch'], 1];
+  map.addLayer({ id: 'flow-sh', type: 'line', source: 'flows', filter: drawn, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': 'rgba(23,48,63,.2)', 'line-width': width(1), 'line-translate': [2, 3.2], 'line-translate-anchor': 'viewport' } });
+  map.addLayer({ id: 'flow', type: 'line', source: 'flows', filter: drawn, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': COL, 'line-width': width(1), 'line-opacity': ['match', ['get', 'tap'], 'c', .8, .93] } });
+  map.addLayer({ id: 'flow-hi', type: 'line', source: 'flows', filter: drawn, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': 'rgba(255,255,255,.4)', 'line-width': width(.22), 'line-translate': [-.4, -.6], 'line-translate-anchor': 'viewport' } });
+  // the Johor pipelines' route is not mapped: a pale band with a pencil-dash centre line
+  map.addLayer({ id: 'flow-sketch', type: 'line', source: 'flows', filter: sketch, layout: { 'line-join': 'round', 'line-cap': 'round' },
+    paint: { 'line-color': COL, 'line-width': width(1), 'line-opacity': .28 } }, 'flow-sh');
+  map.addLayer({ id: 'flow-sketch-c', type: 'line', source: 'flows', filter: sketch, layout: { 'line-join': 'round' },
+    paint: { 'line-color': COL, 'line-width': 1.3, 'line-opacity': .85, 'line-dasharray': [3, 3] } }, 'flow-sh');
+  applyTaps();
+}
+
+/* ---------- markers ---------- */
+const markers = [];
+const DISC = mgd => Math.round(2 * Math.sqrt(mgd) * 2.2);   // disc area grows with capacity
+const nodeEls = {};
+// The three Tuas plants stand a few hundred metres apart: spread them so each can be picked.
+const SPREAD = { ss: [-6, -15], td: [11, 2], ts: [-10, 10] };
+function addMarkers() {
+  for (const n of D.nodes) {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = `nd ${n.tap}` + (n.id === 'ss' || n.id === 'ts' || n.id === 'td' ? ' left' : '');
+    const d = n.mgd ? DISC(n.mgd) : 16;
+    el.style.setProperty('--d', `calc(${d}px * var(--k, 1))`); el.style.setProperty('--tc', TAPC[n.tap]);
+    const short = { ss: 'SingSpring', ts: 'Tuas South', td: 'Tuas', me: 'Marina East', ji: 'Jurong Island', kr: 'Kranji', up: 'Ulu Pandan', ch: 'Changi ×2', jw: 'Johor River Waterworks', lg: 'Linggiu Reservoir' }[n.id];
+    el.innerHTML = `<span class="disc"></span><span class="lab">${short}${n.mgd ? ` <small>${n.mgd}</small>` : ''}</span>`;
+    el.setAttribute('aria-label', `${n.n}${n.mgd ? `, ${n.mgd} million gallons a day` : ''}`);
+    if (n.id === 'jw' || n.id === 'lg') el.classList.add('keep');
+    el.addEventListener('click', e => { e.stopPropagation(); showNode(n); });
+    el.addEventListener('mouseenter', () => { if (canHover) showNode(n, true); });
+    el.addEventListener('focus', () => showNode(n, true));
+    nodeEls[n.id] = el;
+    markers.push(new maplibregl.Marker({ element: el, offset: SPREAD[n.id] || [0, 0] }).setLngLat(n.at).addTo(map));
+  }
+  // the demand hub
+  const hub = document.createElement('button');
+  hub.type = 'button'; hub.className = 'hub';
+  const hd = DISC(D.facts.demand_mgd);
+  hub.style.setProperty('--d', `calc(${hd}px * var(--k, 1))`);
+  hub.innerHTML = `<span>${D.facts.demand_mgd}<small>mgd a day</small></span>`;
+  hub.setAttribute('aria-label', `Daily demand: about ${D.facts.demand_mgd} million gallons a day`);
+  hub.addEventListener('click', e => { e.stopPropagation(); showHub(); });
+  hub.addEventListener('focus', showHub);
+  markers.push(new maplibregl.Marker({ element: hub }).setLngLat(D.hub).addTo(map));
+  // place names, in the cartographer's italic
+  const PL = [['Singapore Strait', [103.80, 1.205], ''], ['Strait of Johor', [103.665, 1.452], 'sm'], ['Johor River', [103.80, 1.795], 'sm'],
+    ['JOHOR', [103.55, 1.80], 'land'], ['SINGAPORE', [103.70, 1.335], 'land'], ['Causeway', [103.742, 1.462], 'sm']];
+  for (const [t, at, cls] of PL) {
+    const el = document.createElement('div');
+    el.className = `pl ${cls}`; el.textContent = t; el.setAttribute('aria-hidden', 'true');
+    markers.push(new maplibregl.Marker({ element: el }).setLngLat(at).addTo(map));
+  }
+}
+
+/* ---------- the detail card ---------- */
+const detail = $('detail');
+const srcLinks = keys => keys.map(k => a(D.src[k][1], D.src[k][0])).join('; ');
+const toM3 = mgd => nf.format(Math.round(mgd * 4546.09 / 1000) * 1000);   // 1 imperial gallon = 4.54609 litres
+function intro() {
+  const f = D.facts;
+  detail.classList.add('idle');
+  detail.style.removeProperty('--dc');
+  detail.innerHTML = `<h2>Four taps, one island</h2>
+    <p>Rain falls on <b>${f.catchment}</b> of Singapore's land and drains to <b>${f.reservoirs} reservoirs</b> (${f.res_km2} km² of water). Johor's <b>Linggiu Reservoir</b> alone covers ${f.ling_km2} km². Tap a disc or a reservoir for its story.</p>`;
+}
+let selEl = null;
+function select(el) { if (selEl) selEl.classList.remove('sel'); selEl = el; if (el) el.classList.add('sel'); }
+function showNode(n, soft) {
+  detail.classList.remove('idle');
+  if (!soft) select(nodeEls[n.id]);
+  detail.style.setProperty('--dc', TAPC[n.tap]);
+  const fig = n.mgd ? `<b>${n.mgd} mgd</b> at most, about ${toM3(n.mgd)} m³ a day` : `<b>${D.ling.a} km²</b> of water`;
+  const yr = n.id === 'jw' ? 'Water Agreement of 1962' : n.id === 'lg' ? 'Built under a 1990 agreement' : `Opened ${n.y}`;
+  detail.innerHTML = `<h2>${n.n}</h2><p class="fig">${fig} · ${yr}</p>${n.note ? `<p>${n.note}</p>` : ''}<p>Source: ${srcLinks(n.s)}</p>`;
+}
+function showHub() {
+  detail.classList.remove('idle');
+  const f = D.facts;
+  detail.style.setProperty('--dc', '#17303F');
+  detail.innerHTML = `<h2>One day's demand</h2><p class="fig"><b>About ${f.demand_mgd} mgd</b>, roughly ${toM3(f.demand_mgd)} m³</p>
+    <p>${f.nondomestic_pct}% goes to industry and business, ${f.domestic_pct}% to homes. PUB expects demand to almost double by 2065. The hub is a symbol for the whole island, not a real place.</p><p>Source: ${srcLinks(['pub-sg60'])}</p>`;
+}
+function showRes(p) {
+  detail.classList.remove('idle');
+  detail.style.setProperty('--dc', p.ling ? TAPC.i : TAPC.c);
+  if (p.ling) { showNode(D.nodes.find(n => n.id === 'lg')); return; }
+  select(null);
+  const rank = [...D.res].sort((x, y) => y.a - x.a).findIndex(r => r.n === p.n) + 1;
+  detail.innerHTML = `<h2>${p.n}</h2><p class="fig"><b>${p.a} km²</b> of open water · ${rank === 1 ? 'the largest' : `${ordinal(rank)} largest`} of ${D.res.length}</p>
+    <p>One of the ${D.facts.reservoirs} reservoirs that store rain from ${D.facts.catchment} of the land. We found no published figure for how much each one supplies.</p><p>Source: ${srcLinks(['pub-local'])}; area measured on OpenStreetMap.</p>`;
+}
+const ordinal = n => n + (['th', 'st', 'nd', 'rd'][(n % 100 - 20) % 10] || ['th', 'st', 'nd', 'rd'][n % 100] || 'th');
+
+/* ---------- taps on and off ---------- */
+function applyTaps() {
+  const list = Object.keys(on).filter(k => on[k]);
+  const f = ['in', ['get', 'tap'], ['literal', list]];
+  for (const id of ['flow-sh', 'flow', 'flow-hi']) map.setFilter(id, ['all', ['!=', ['get', 'sketch'], 1], f]);
+  for (const id of ['flow-sketch', 'flow-sketch-c']) map.setFilter(id, ['all', ['==', ['get', 'sketch'], 1], f]);
+  for (const id of ['river', 'river-sh']) map.setLayoutProperty(id, 'visibility', on.i ? 'visible' : 'none');
+  map.setPaintProperty('res-fill', 'fill-opacity', ['case', ['has', 'ling'], on.i ? 1 : .35, on.c ? 1 : .35]);
+  for (const n of D.nodes) nodeEls[n.id] && nodeEls[n.id].classList.toggle('off', !on[n.tap]);
+  drawStatic();
+}
+document.querySelectorAll('.tap').forEach(b => b.addEventListener('click', () => {
+  const k = b.dataset.tap;
+  on[k] = !on[k];
+  b.setAttribute('aria-pressed', String(on[k]));
+  if (D) applyTaps();
+}));
+
+/* ---------- droplets: the water moving along every ribbon ---------- */
+const cv = $('drops'), g = cv.getContext('2d');
+let paths = [];
+function buildPaths() {
+  paths = D.flows.map(f => ({ tap: f.tap, mgd: f.mgd || 0, pts: ring(f.line, D.q) }));
+  paths.push({ tap: 'i', mgd: 0, river: 1, pts: ring(D.river.line, D.q) });
+}
+function sizeCanvas() {
+  const r = map.getContainer().getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+  cv.width = Math.round(r.width * dpr); cv.height = Math.round(r.height * dpr);
+  cv.style.width = r.width + 'px'; cv.style.height = r.height + 'px';
+  g.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function widthPx(mgd) {   // matches the ribbon width expression
+  const z = map.getZoom(), w = mgd > 0 ? mgd * .095 : 1.6;
+  const k = z <= 9.4 ? Math.pow(2, (z - 9.4)) : Math.pow(2, (z - 9.4) * Math.log2(5) / 2.6);
+  return Math.max(w * .32, w * Math.min(5, Math.max(.32, k)));
+}
+function frame(t) {
+  const W = cv.clientWidth, H = cv.clientHeight;
+  g.clearRect(0, 0, W, H);
+  if (!D || document.documentElement.classList.contains('dmc-nomap')) return;
+  const speed = 34, gap = 30, moving = !reduceMotion;
+  for (const p of paths) {
+    if (!on[p.tap]) continue;
+    const sp = p.pts.map(c => map.project(c));
+    const w = p.river ? 2.4 : widthPx(p.mgd);
+    const rad = Math.max(1.1, Math.min(4.2, w * .3));
+    let acc = 0;
+    const phase = moving ? (t / 1000 * speed) % gap : gap * .5;
+    let next = gap - phase;
+    for (let k = 1; k < sp.length; k++) {
+      const a0 = sp[k - 1], b0 = sp[k], seg = Math.hypot(b0.x - a0.x, b0.y - a0.y);
+      while (acc + seg >= next) {
+        const u = (next - acc) / seg, x = a0.x + (b0.x - a0.x) * u, y = a0.y + (b0.y - a0.y) * u;
+        if (x > -10 && y > -10 && x < W + 10 && y < H + 10) {
+          if (moving) {
+            g.beginPath(); g.arc(x, y, rad, 0, 6.283);
+            g.fillStyle = 'rgba(255,255,255,.92)'; g.fill();
+          } else {   // reduced motion: a still chevron pointing downstream
+            const ang = Math.atan2(b0.y - a0.y, b0.x - a0.x), s = rad * 1.5;
+            g.save(); g.translate(x, y); g.rotate(ang);
+            g.beginPath(); g.moveTo(-s, -s); g.lineTo(s * .4, 0); g.lineTo(-s, s);
+            g.strokeStyle = 'rgba(255,255,255,.95)'; g.lineWidth = Math.max(1.2, rad * .7); g.lineCap = 'round'; g.lineJoin = 'round'; g.stroke(); g.restore();
+          }
+        }
+        next += gap;
+      }
+      acc += seg;
+    }
+  }
+}
+let raf = 0;
+function loop(t) { frame(t); raf = requestAnimationFrame(loop); }
+function drawStatic() { if (reduceMotion && D) frame(0); }
+
+/* ---------- camera: frame the tilted view ourselves ---------- */
+const FRAME_PTS = [[103.62, 1.30], [104.01, 1.31], [104.06, 1.42], [103.69, 1.915], [103.87, 1.735], [103.877, 1.287], [103.667, 1.272]];
+function freeBox() {
+  const W = innerWidth, H = innerHeight, p = $('panel').getBoundingClientRect(), st = $('dmc-stamp').getBoundingClientRect();
+  const focus = document.documentElement.classList.contains('dmc-focus');
+  let L = 20, R = W - 60, T = 20, B = H - 20;
+  if (!focus) {
+    if (p.width > W * .8) B = p.top - 14;                    // phone sheet
+    else if (p.left > W / 2) R = p.left - 14;                // phone sideways: right column
+    else L = p.right + 18;                                   // desktop column
+    T = Math.max(T, (p.left > W / 2 || p.width > W * .8) ? st.bottom + 8 : 24);
+    if (p.width <= W * .8 && p.left < W / 2) T = 30;
+  }
+  return { L, R, T, B };
+}
+// Upright phones get a steeper, straighter look up the map, so the tall frame fills the narrow screen.
+const camNow = () => (innerWidth <= 640 && innerHeight > innerWidth ? { pitch: 50, bearing: 4 } : DAY.camera);
+function fitView(animate) {
+  const box = freeBox(), cam = camNow();
+  let center = [103.82, 1.6], zoom = 8.6;
+  for (let it = 0; it < 12; it++) {
+    map.jumpTo({ center, zoom, pitch: cam.pitch, bearing: cam.bearing, padding: { top: 0, right: 0, bottom: 0, left: 0 } });
+    const ps = FRAME_PTS.map(c => map.project(c));
+    const xs = ps.map(p => p.x), ys = ps.map(p => p.y);
+    const bw = Math.max(...xs) - Math.min(...xs) + Math.min(110, innerWidth * .09), bh = Math.max(...ys) - Math.min(...ys) + Math.min(60, innerHeight * .05);
+    const s = Math.min((box.R - box.L) / bw, (box.B - box.T) / bh);
+    const cx = (Math.max(...xs) + Math.min(...xs)) / 2, cy = (Math.max(...ys) + Math.min(...ys)) / 2;
+    const tx = (box.L + box.R) / 2, ty = (box.T + box.B) / 2;
+    // damped steps, and never unproject a point near the horizon
+    const dx = (cx - tx) * .7, dy = Math.max(-innerHeight * .3, Math.min(innerHeight * .3, (cy - ty) * .7));
+    center = map.unproject([innerWidth / 2 + dx, innerHeight / 2 + dy]).toArray();
+    zoom = Math.max(6.8, Math.min(11, zoom + Math.log2(s) * (it < 8 ? .9 : .5)));
+  }
+  const final = { center, zoom, pitch: cam.pitch, bearing: cam.bearing };
+  if (animate && !reduceMotion) { map.jumpTo({ center: [103.82, 1.35], zoom: zoom - .9, pitch: 0, bearing: 0 }); map.flyTo({ ...final, duration: 2600, essential: true }); }
+  else map.jumpTo(final);
+  discScale();
+}
+const discScale = () => map.getContainer().style.setProperty('--k', (Math.max(.4, Math.min(1.5, Math.pow(2, (map.getZoom() - 9.6) * .55))) * (COMPACT.matches ? .74 : 1)).toFixed(3));
+map.on('zoom', discScale);
+let userMoved = false;
+map.on('movestart', e => { if (e.originalEvent) userMoved = true; });
+let rT = 0;
+addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { sizeCanvas(); if (!userMoved && D) fitView(false); drawStatic(); }, 180); });
+document.addEventListener('dmc:focus', () => { if (!userMoved) setTimeout(() => fitView(!reduceMotion), 30); });
+$('all').addEventListener('click', () => { userMoved = false; fitView(true); intro(); select(null); });
+function layoutTop() { document.documentElement.style.setProperty('--top', `${Math.round($('dmc-stamp').getBoundingClientRect().bottom + 10)}px`); }
+
+/* ---------- hover and tap a reservoir ---------- */
+const tip = $('tip'), canHover = matchMedia('(hover: hover)').matches;
+let hoverId = null;
+function setHover(id) {
+  if (hoverId === id) return;
+  if (hoverId != null) map.setFeatureState({ source: 'res', id: hoverId }, { hover: false });
+  hoverId = id;
+  if (id != null) map.setFeatureState({ source: 'res', id }, { hover: true });
+}
+map.on('mousemove', e => {
+  if (!D) return;
+  const f = map.queryRenderedFeatures(e.point, { layers: ['res-fill'] })[0];
+  if (!f) { setHover(null); tip.hidden = true; map.getCanvas().style.cursor = ''; return; }
+  setHover(f.id);
+  tip.innerHTML = `<b>${f.properties.n}</b><small>${f.properties.a} km² of water</small>`;
+  tip.hidden = false;
+  tip.style.left = `${Math.min(innerWidth - tip.offsetWidth - 8, e.originalEvent.clientX + 14)}px`;
+  tip.style.top = `${e.originalEvent.clientY + 14}px`;
+  map.getCanvas().style.cursor = 'pointer';
+});
+map.getCanvas().addEventListener('mouseleave', () => { tip.hidden = true; setHover(null); });
+map.on('click', e => {
+  const f = D && map.queryRenderedFeatures([[e.point.x - 4, e.point.y - 4], [e.point.x + 4, e.point.y + 4]], { layers: ['res-fill'] })[0];
+  if (f) showRes(f.properties); else { intro(); select(null); }
+});
+
+/* ---------- find a reservoir ---------- */
+$('find').addEventListener('change', e => {
+  const v = e.target.value; e.target.value = '';
+  if (!v) return;
+  const r = v === 'ling' ? { ...D.ling, ling: 1 } : D.res[+v];
+  const cs = r.p.flatMap(p => ring(p[0], D.q));
+  const xs = cs.map(c => c[0]), ys = cs.map(c => c[1]);
+  map.fitBounds([[Math.min(...xs), Math.min(...ys)], [Math.max(...xs), Math.max(...ys)]], { padding: (() => { const b = freeBox(); return { left: b.L + 30, right: innerWidth - b.R + 30, top: b.T + 30, bottom: innerHeight - b.B + 30 }; })(), maxZoom: 13.2, pitch: camNow().pitch, bearing: camNow().bearing, duration: reduceMotion ? 0 : 2000, essential: true });
+  showRes(r);
+});
+
+/* ---------- load ---------- */
+map.getCanvasContainer().insertBefore(cv, map.getCanvas().nextSibling);   // above the map, under the markers
+const dataP = fetch('data/day26/water.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
+Promise.all([dataP, styleP]).then(([d]) => {
+  D = d;
+  const f = D.facts;
+  $('h-demand').textContent = `${f.demand_mgd} mgd`;
+  $('v-n').innerHTML = `${f.newater_mgd}<small>mgd</small>`; $('v-d').innerHTML = `${f.desal_mgd}<small>mgd</small>`;
+  $('b-n').style.width = `${100 * f.newater_mgd / f.demand_mgd}%`; $('b-d').style.width = `${100 * f.desal_mgd / f.demand_mgd}%`;
+  document.querySelector('[data-tap="i"] .bar i').style.width = `${100 * f.import_mgd / f.demand_mgd}%`;
+  const sel = $('find');
+  [...D.res.map((r, k) => [r.n, k])].sort((x, y) => x[0].localeCompare(y[0])).forEach(([n, k]) => sel.append(new Option(n, k)));
+  sel.append(new Option('Linggiu Reservoir (Johor)', 'ling'));
+  addLayers();
+  addMarkers();
+  buildPaths();
+  sizeCanvas();
+  layoutTop();
+  intro();
+  const q = new URLSearchParams(location.search);
+  if (!q.has('view')) fitView(!q.has('still'));
+  if (reduceMotion) { map.on('render', drawStatic); drawStatic(); } else raf = requestAnimationFrame(loop);
+  map.once('idle', () => { $('loading').hidden = true; });
+}).catch(err => { $('loading').textContent = 'The water data could not be loaded. Please reload.'; console.error(err); });
+if (document.fonts) document.fonts.ready.then(layoutTop);
+</script>
+</body>
+</html>
