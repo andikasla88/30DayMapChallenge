@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#0B1220">
+<title>Day 04 · Where the Cabs Gather</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 4, Clusters: DBSCAN on every free taxi in Singapore, 6 pm against 2 am, as glowing prisms on a swipe map, with a live clustering playground.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
+<link rel="stylesheet" href="kit/dmc.css">
+<style>
+/* ===== Day 04: two synchronised maps, a swipe divider, DBSCAN prisms ===== */
+:root { --pm: #FF8A4C; --pm-rgb: 255, 138, 76; --am: #4FE3FF; --am-rgb: 79, 227, 255; --split: 50vw; }
+#map-pm { z-index: 0; }
+#map { z-index: 1; clip-path: inset(0 0 0 var(--split)); }
+#dmc-stamp, .lab, .strip { z-index: 4; }   /* panels sit above the divider */
+.dusk { position: absolute; inset: 0; pointer-events: none; background:
+  linear-gradient(180deg, rgba(255, 140, 90, .22) 0%, rgba(255, 200, 150, .04) 40%, rgba(80, 70, 130, .14) 100%); mix-blend-mode: multiply; }
+
+/* divider: the line stays in focus mode (it is part of the map); the knob is chrome */
+.divider { position: fixed; z-index: 3; top: 0; bottom: 0; left: var(--split); width: 28px; margin-left: -14px; cursor: ew-resize; touch-action: none; }
+.divider::before { content: ""; position: absolute; top: 0; bottom: 0; left: 13px; width: 2px; background: linear-gradient(180deg, rgba(var(--pm-rgb), .0), rgba(255, 255, 255, .95) 12%, rgba(255, 255, 255, .95) 88%, rgba(var(--am-rgb), 0)); box-shadow: 0 0 10px rgba(255, 255, 255, .45), 0 0 1px rgba(0, 0, 0, .6); }
+.divider:focus-visible { outline: none; }
+.divider:focus-visible .knob { outline: 2px solid var(--day-accent); outline-offset: 3px; }
+.knob { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 50%;
+  background: conic-gradient(from 180deg, var(--pm) 0 50%, var(--am) 50% 100%); box-shadow: 0 0 0 3px rgba(11, 18, 32, .85), 0 0 22px rgba(255, 255, 255, .35); }
+.knob svg { width: 22px; height: 22px; fill: none; stroke: #0B1220; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+
+/* side tags ride the divider */
+.tag { position: fixed; z-index: 3; top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); display: grid; gap: 2px; padding: 7px 11px 7px; pointer-events: none; min-width: 0; }
+.tag.pm { right: calc(100vw - var(--split) + 14px); text-align: right; }
+.tag.am { left: calc(var(--split) + 14px); }
+.tag .hr { display: flex; align-items: baseline; gap: 7px; font-family: var(--display); font-size: 25px; font-weight: 800; line-height: .95; letter-spacing: .01em; }
+.tag.pm .hr { flex-direction: row-reverse; color: #FFD2B4; text-shadow: 0 0 16px rgba(var(--pm-rgb), .6); }
+.tag.am .hr { color: #C9F6FF; text-shadow: 0 0 16px rgba(var(--am-rgb), .6); }
+.tag .hr small { font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--text-2); text-shadow: none; }
+.tag .st { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tag .st b { color: var(--text); font-weight: 600; }
+
+/* cluster labels (MapLibre markers, lifted to the prism tops) */
+.cl { pointer-events: none; }
+.cl-in { position: absolute; left: 0; bottom: 0; transform: translateX(-50%); display: grid; justify-items: center; transition: opacity .2s; }
+.cl.hide .cl-in { opacity: 0; }
+.cl-box { display: flex; align-items: baseline; gap: 5px; padding: 3px 8px 3px 7px; border-radius: 999px; white-space: nowrap; font-size: 11px; font-weight: 600; color: #fff;
+  background: rgba(9, 14, 24, .82); border: 1px solid rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
+.cl-box b { font-family: var(--display); font-size: 14px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
+.cl.pm .cl-box b { color: #FFB38A; }
+.cl.am .cl-box b { color: var(--am); }
+.cl-stem { width: 1.5px; height: 12px; background: linear-gradient(rgba(255, 255, 255, .85), rgba(255, 255, 255, 0)); }
+
+/* playground */
+.lab { top: calc(var(--gutter) + env(safe-area-inset-top, 0px) + 184px); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); width: 264px; padding: 10px 12px 11px; display: grid; gap: 9px; }
+.lab-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.lab-h h2 { font-family: var(--display); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.lab-toggle { display: none; }
+.lab-reset { font: inherit; font-size: 10.5px; font-weight: 600; color: var(--text-2); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; min-height: 22px; cursor: pointer; }
+.lab-reset:hover { color: var(--text); }
+.lab-reset[disabled] { opacity: .35; cursor: default; }
+.lab-body { display: grid; gap: 9px; }
+.knobrow { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; align-items: center; }
+.knobrow label { font-size: 11px; color: var(--text-2); }
+.knobrow label b { color: var(--text); font-weight: 600; }
+.knobrow output { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
+.knobrow input { grid-column: 1 / -1; }
+input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; margin: 0; background: transparent; cursor: pointer; }
+input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--day-accent) var(--p, 50%), rgba(255, 255, 255, .16) var(--p, 50%)); }
+input[type="range"]::-moz-range-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--day-accent) var(--p, 50%), rgba(255, 255, 255, .16) var(--p, 50%)); }
+input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 3px rgba(var(--day-accent-rgb), .35); }
+input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 3px rgba(var(--day-accent-rgb), .35); }
+
+.hours-h { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; color: var(--text-2); }
+.hours-h b { color: var(--text); font-weight: 600; }
+.hours { position: relative; height: 46px; margin-top: 2px; touch-action: none; cursor: pointer; }
+.hours svg { position: absolute; inset: 0 0 12px; width: 100%; height: calc(100% - 12px); overflow: visible; }
+.hours .bar { fill: rgba(255, 255, 255, .14); }
+.hours .bin { fill: rgba(255, 255, 255, .5); }
+.hours .bar.pm { fill: rgba(var(--pm-rgb), .35); } .hours .bin.pm { fill: var(--pm); }
+.hours .bar.am { fill: rgba(var(--am-rgb), .3); } .hours .bin.am { fill: var(--am); }
+.hours .night { fill: rgba(120, 140, 255, .07); }
+.thumb { position: absolute; bottom: 0; width: 22px; height: 22px; margin-left: -11px; padding: 0; border: 0; background: none; cursor: grab; }
+.thumb::before { content: ""; position: absolute; left: 50%; bottom: 3px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 0 2px rgba(11, 18, 32, .9); }
+.thumb.pm::before { background: var(--pm); } .thumb.am::before { background: var(--am); }
+.thumb::after { content: ""; position: absolute; inset: -10px -4px -6px; }
+.thumb:focus-visible { outline: none; }
+.thumb:focus-visible::before { box-shadow: 0 0 0 2px #fff; }
+.hours-ax { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-2); margin-top: -2px; font-variant-numeric: tabular-nums; }
+
+.nights { display: flex; align-items: center; gap: 6px; }
+.nights > span { font-size: 11px; color: var(--text-2); }
+.nights .dmc-seg { flex: 1; justify-content: space-between; }
+.nights .dmc-seg button { flex: 1; padding: 3px 0; min-height: 24px; font-size: 11px; }
+.why { font-size: 11px; line-height: 1.45; color: var(--text-2); border-top: 1px solid var(--line); padding-top: 8px; }
+.why b { color: var(--text); font-weight: 600; }
+
+/* comparison strip */
+.strip { left: 50%; transform: translateX(-50%); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); width: min(880px, calc(100vw - 2 * var(--gutter))); padding: 9px 12px 8px; display: grid; gap: 7px; }
+.strip-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.strip-h h2 { font-size: 12px; font-weight: 600; }
+.strip-h h2 i { font-style: normal; color: var(--text-2); font-weight: 500; }
+.strip-h p { font-size: 10.5px; color: var(--text-2); white-space: nowrap; }
+.rank { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
+.rank li { min-width: 0; }
+.rank button { width: 100%; display: grid; gap: 3px; text-align: left; padding: 6px 8px 7px; font: inherit; color: var(--text); background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; cursor: pointer; }
+.rank button:hover { background: rgba(255, 255, 255, .09); }
+.rank .nm { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rank .nm em { font-style: normal; color: var(--text-2); font-weight: 500; margin-right: 4px; font-variant-numeric: tabular-nums; }
+.rank .vals { display: flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
+.rank .vals b { font-family: var(--display); font-size: 19px; font-weight: 800; line-height: 1; }
+.rank .vals .p { color: #FFB38A; } .rank .vals .a { color: var(--am); }
+.rank .vals i { font-style: normal; font-size: 11px; color: var(--text-2); }
+.rank .bars { display: grid; gap: 2px; }
+.rank .bars span { display: block; height: 3px; border-radius: 2px; min-width: 2px; }
+.rank .bars .p { background: var(--pm); box-shadow: 0 0 6px rgba(var(--pm-rgb), .6); }
+.rank .bars .a { background: var(--am); box-shadow: 0 0 6px rgba(var(--am-rgb), .6); }
+.rank .wk { font-size: 10px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.strip .dmc-credits { font-size: 9.5px; }
+
+/* ---- compact screens ---- */
+@media (max-width: 640px), (max-height: 520px) {
+  .tag { padding: 5px 8px; }
+  .tag .hr { font-size: 20px; }
+  .tag .hr small { font-size: 10px; }
+  .tag .st { font-size: 10px; }
+  .rank { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 1px; }
+  .rank::-webkit-scrollbar { display: none; }
+  .rank li { flex: 0 0 132px; scroll-snap-align: start; }
+  .lab { top: auto; right: auto; left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); width: min(264px, calc(100vw - 2 * var(--gutter))); padding: 7px 10px; gap: 8px; }
+  .lab-toggle { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: none; border: 0; padding: 4px 0; min-height: 28px; cursor: pointer; }
+  .lab-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .2s; }
+  .lab[aria-expanded="true"] .lab-toggle svg { transform: rotate(180deg); }
+  .lab-h h2 { display: none; }
+  .lab:not([aria-expanded="true"]) { width: auto; }
+  .lab:not([aria-expanded="true"]) .lab-body, .lab:not([aria-expanded="true"]) .lab-reset { display: none; }
+}
+@media (max-width: 640px) and (orientation: portrait) {
+  .strip { left: 0; right: 0; transform: none; width: auto; bottom: 0; border-radius: 16px 16px 0 0; border-bottom: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .strip-h p { display: none; }
+  .tag { top: auto; bottom: calc(var(--strip-h, 150px) + 10px); }
+  .lab { bottom: calc(var(--strip-h, 150px) + 66px); }
+  .knob { width: 36px; height: 36px; }
+}
+@media (max-height: 520px) and (orientation: landscape) {
+  .strip { left: auto; right: calc(var(--gutter) + 48px); transform: none; width: min(420px, 50vw); }
+  .rank li { flex-basis: 120px; }
+  .lab { top: auto; bottom: var(--gutter); }
+  .tag { top: calc(var(--gutter) + 82px); }   /* clear of the stamp */
+  .strip-h p, .strip .dmc-credits { display: none; }
+}
+</style>
+</head>
+<body>
+<div id="map-pm" class="dmc-map" role="region" aria-label="Left map: free taxis and their DBSCAN clusters in the evening"></div>
+<div id="map" class="dmc-map" role="region" aria-label="Right map: free taxis and their DBSCAN clusters in the small hours"></div>
+
+<div id="divider" class="divider" role="slider" tabindex="0" aria-label="Swipe between the evening map (left) and the night map (right)" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="Divider at 50 percent">
+  <div class="knob dmc-chrome"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></div>
+</div>
+<div id="tag-pm" class="tag pm dmc-glass dmc-chrome" aria-live="polite"><div class="hr"><span id="pm-hr">6 PM</span><small id="pm-day"></small></div><div class="st" id="pm-st">&nbsp;</div></div>
+<div id="tag-am" class="tag am dmc-glass dmc-chrome" aria-live="polite"><div class="hr"><span id="am-hr">2 AM</span><small id="am-day"></small></div><div class="st" id="am-st">&nbsp;</div></div>
+
+<header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
+
+<section id="lab" class="dmc-glass lab" data-dmc-overlay aria-label="DBSCAN playground" aria-expanded="true">
+  <div class="lab-h">
+    <h2>DBSCAN playground</h2>
+    <button id="lab-toggle" class="lab-toggle" type="button" aria-controls="lab-body" aria-expanded="false">DBSCAN · <span id="lab-sum">200 m · 8</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg></button>
+    <button id="reset" class="lab-reset" type="button" disabled>Reset</button>
+  </div>
+  <div id="lab-body" class="lab-body">
+    <div class="knobrow">
+      <label for="eps"><b>eps</b> · search radius</label><output id="eps-o" for="eps">200 m</output>
+      <input id="eps" type="range" min="60" max="600" step="10" value="200">
+    </div>
+    <div class="knobrow">
+      <label for="minpts"><b>minPts</b> · cabs to make a crowd</label><output id="minpts-o" for="minpts">8</output>
+      <input id="minpts" type="range" min="3" max="30" step="1" value="8">
+    </div>
+    <div>
+      <div class="hours-h"><span>Hour by hour, <b>Wed 28 Oct</b></span><span id="hours-note">bars: free · clustered</span></div>
+      <div id="hours" class="hours">
+        <svg id="hbars" aria-hidden="true"></svg>
+        <button id="th-pm" class="thumb pm" type="button" role="slider" aria-label="Hour shown on the left map" aria-valuemin="0" aria-valuemax="23" aria-valuenow="18"></button>
+        <button id="th-am" class="thumb am" type="button" role="slider" aria-label="Hour shown on the right map" aria-valuemin="0" aria-valuemax="23" aria-valuenow="2"></button>
+      </div>
+      <div class="hours-ax" aria-hidden="true"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>11p</span></div>
+    </div>
+    <div class="nights"><span>Night</span><div id="nights" class="dmc-seg" role="group" aria-label="Which weeknight: 6 pm that evening against 2 am after"></div></div>
+    <p class="why" id="why">A cab is <b>core</b> when at least <b>minPts</b> free cabs (itself included) sit within <b>eps</b> of it; cores chain into clusters.</p>
+  </div>
+</section>
+
+<section id="strip" class="dmc-glass strip" data-dmc-overlay aria-label="Where taxis gather, left map against right map">
+  <div class="strip-h"><h2 id="strip-t">Biggest taxi crowds <i>6 pm → 2 am</i></h2><p id="strip-n">tap a place to fly there</p></div>
+  <ol id="rank" class="rank"></ol>
+  <p id="credits" class="dmc-credits"></p>
+</section>
+
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<script src="kit/dmc.js"></script>
+<script>
+'use strict';
+const DAY = { n: 4, title: 'Where the cabs gather: 6 pm against 2 am',
+  deck: 'Every free taxi in Singapore, run through DBSCAN (200 m, 8 cabs) and stood up as prisms as tall as the crowd. Left is a weekday evening at 6, right is 2 am that night: drag the divider to swipe between them. The airport holds its queue all night while the city centre empties; the playground re-runs the clustering live in your browser.',
+  accent: '#FF8A4C', basemapBg: '#0B1426',
+  styleCredit: 'Basemap: <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>, <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
+  camera: { pitch: 50, bearing: 20, tiltPitch: 50 },
+  bounds: [[103.69, 1.255], [104.0, 1.425]], maxBounds: [[102.6, 0.5], [105.0, 2.2]], minZoom: 8,   /* the cab belt: Jurong East to Changi */
+  buildings: false, creditsEl: 'credits',
+  attribution: ['Taxis: <a href="https://data.gov.sg/datasets?query=taxi%20availability" target="_blank" rel="noopener noreferrer">LTA taxi availability via data.gov.sg</a>, Singapore Open Data Licence',
+    'Place names: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors via <a href="https://photon.komoot.io/" target="_blank" rel="noopener noreferrer">Photon</a>'],
+  author: '', nav: null };
+DMC.mountStamp(DAY);
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
+const COMPACT = matchMedia(DMC.COMPACT_Q);
+const $ = id => document.getElementById(id);
+
+/* ---------- maps: right = kit map (2 am, night), left = evening map (dusk) ----------
+   One OpenFreeMap vector style (positron, labels dropped) painted twice: a warm dusk palette
+   and a navy night palette, so both sides show exactly the same streets. */
+const PALETTE = {
+  dusk: { bg: '#EFE4D9', water: '#AFBDD3', green: '#DFD9C4', land: '#EADDD0', building: '#E2D0C0', aero: '#F5E8DC', runway: '#FFF6EE',
+    minor: '#F9EBDF', major: '#FFF7EF', casing: '#DDC1AA', motorway: '#FFDDBF', rail: '#D7C0AD' },
+  night: { bg: '#0B1426', water: '#040915', green: '#0D1A2D', land: '#0D172A', building: '#14213A', aero: '#101C32', runway: '#1D2C49',
+    minor: '#17243D', major: '#1F2F4D', casing: '#0B1426', motorway: '#2C4068', rail: '#17233B' },
+};
+function roleOf(l) {
+  const id = l.id;
+  if (l.type === 'symbol' || /boundary|ice_shelf|glacier|dashline|tunnel/.test(id) || l.source === 'ne2_shaded') return null;
+  if (l.type === 'background' || /pier/.test(id)) return 'bg';
+  if (/^water(way)?$/.test(id)) return 'water';
+  if (/park|wood/.test(id)) return 'green';
+  if (/landuse/.test(id)) return 'land';
+  if (id === 'building') return 'building';
+  if (id === 'aeroway-area') return 'aero';
+  if (/aeroway/.test(id)) return 'runway';
+  if (/rail/.test(id)) return 'rail';
+  if (/casing/.test(id)) return 'casing';
+  if (/motorway/.test(id)) return 'motorway';
+  if (/major/.test(id)) return 'major';
+  return 'minor';
+}
+function paintStyle(base, pal) {
+  const st = JSON.parse(JSON.stringify(base));
+  delete st.sources.ne2_shaded;
+  st.layers = st.layers.filter(l => roleOf(l)).map(l => {
+    const c = pal[roleOf(l)], p = l.paint || (l.paint = {});
+    if (l.type === 'background') p['background-color'] = c;
+    else if (l.type === 'fill') { p['fill-color'] = c; delete p['fill-pattern']; if ('fill-outline-color' in p) p['fill-outline-color'] = c; }
+    else if (l.type === 'line') p['line-color'] = c;
+    return l;
+  });
+  return st;
+}
+const FALLBACK = { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#0B1426' } }] };
+let mapAm, mapPm;
+const ready = {};
+function initMaps(base) {
+  DAY.style = base ? paintStyle(base, PALETTE.night) : FALLBACK;
+  mapAm = DMC.createMap(DAY);
+  mapPm = new maplibregl.Map({
+    container: 'map-pm', style: base ? paintStyle(base, PALETTE.dusk) : FALLBACK,
+    center: mapAm.getCenter(), zoom: mapAm.getZoom(), pitch: mapAm.getPitch(), bearing: mapAm.getBearing(),
+    minZoom: mapAm.getMinZoom(), maxZoom: mapAm.getMaxZoom(), maxPitch: 78, maxBounds: mapAm.getMaxBounds(),
+    attributionControl: false, dragRotate: true, pitchWithRotate: true, touchPitch: true,
+  });
+  { // a warm dusk wash over the evening basemap, under the markers
+    const wash = document.createElement('div'); wash.className = 'dusk';
+    mapPm.getCanvas().after(wash);
+  }
+  let syncing = false;
+  const link = (a, b) => a.on('move', () => {
+    if (syncing) return;
+    syncing = true;
+    b.jumpTo({ center: a.getCenter(), zoom: a.getZoom(), bearing: a.getBearing(), pitch: a.getPitch(), padding: a.getPadding() });
+    syncing = false;
+  });
+  link(mapAm, mapPm); link(mapPm, mapAm);
+  mapPm.jumpTo({ center: mapAm.getCenter(), zoom: mapAm.getZoom(), bearing: mapAm.getBearing(), pitch: mapAm.getPitch() });
+  addEventListener('resize', () => mapPm.resize());
+  mapAm.on('move', queuePlace);
+  ready.pm = new Promise(r => mapPm.on('load', r));
+  ready.am = new Promise(r => mapAm.on('load', r));
+}
+
+/* ---------- divider ---------- */
+const divider = $('divider');
+let split = 0.5;
+function setSplit(f) {
+  const w = innerWidth;
+  const px = Math.max(20, Math.min(w - 64, f * w));
+  split = px / w;
+  document.documentElement.style.setProperty('--split', px + 'px');
+  divider.setAttribute('aria-valuenow', String(Math.round(split * 100)));
+  divider.setAttribute('aria-valuetext', `Divider at ${Math.round(split * 100)} percent`);
+  placeTags();
+}
+divider.addEventListener('pointerdown', e => {
+  divider.setPointerCapture(e.pointerId);
+  const move = ev => setSplit(ev.clientX / innerWidth);
+  const up = () => { divider.removeEventListener('pointermove', move); divider.removeEventListener('pointerup', up); divider.removeEventListener('pointercancel', up); };
+  divider.addEventListener('pointermove', move); divider.addEventListener('pointerup', up); divider.addEventListener('pointercancel', up);
+  e.preventDefault();
+});
+divider.addEventListener('keydown', e => {
+  const step = e.shiftKey ? 0.1 : 0.02;
+  if (e.key === 'ArrowLeft') setSplit(split - step);
+  else if (e.key === 'ArrowRight') setSplit(split + step);
+  else if (e.key === 'Home') setSplit(0);
+  else if (e.key === 'End') setSplit(1);
+  else return;
+  e.preventDefault();
+});
+addEventListener('resize', () => setSplit(split));
+// The tags hug the divider; one that would run off its edge of the screen fades out.
+function placeTags() {
+  const w = innerWidth, x = split * w, pm = $('tag-pm'), am = $('tag-am');
+  pm.style.opacity = x - 14 - pm.offsetWidth < 6 ? 0 : '';
+  am.style.opacity = x + 14 + am.offsetWidth > w - 6 ? 0 : '';
+}
+
+// Once, on arrival: sweep the divider right and back, so the evening side shows the airport too.
+function teaser() {
+  let stop = false;
+  const cancel = () => { stop = true; };
+  for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, cancel, { once: true, capture: true });
+  const t0 = performance.now() + 700, dur = 2600, from = split, to = Math.min(0.8, 1 - 90 / innerWidth);
+  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+  const step = now => {
+    if (stop) return;
+    const t = Math.max(0, Math.min(1, (now - t0) / dur));
+    const k = t < 0.5 ? ease(t * 2) : ease((1 - t) * 2);   // out and back
+    setSplit(from + (to - from) * k);
+    if (t < 1) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
+}
+
+/* ---------- data helpers ---------- */
+let D = null, toLL = null;
+const hourLabel = h => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
+const dayLabel = key => new Date(Date.UTC(+key.slice(0, 4), +key.slice(4, 6) - 1, +key.slice(6, 8))).toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+const fmt = n => n.toLocaleString('en-SG');
+
+// DBSCAN on SVY21 metres with a uniform grid index (cell = eps): only the 3 x 3 cells around a
+// point can hold neighbours, so each query touches a few dozen cabs instead of 2,000.
+function dbscan(xy, eps, minPts) {
+  const n = xy.length >> 1, inv = 1 / eps, grid = new Map(), gx = new Int32Array(n), gy = new Int32Array(n);
+  for (let i = 0; i < n; i++) {
+    gx[i] = Math.floor(xy[2 * i] * inv); gy[i] = Math.floor(xy[2 * i + 1] * inv);
+    const k = gx[i] * 8192 + gy[i];
+    let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(i);
+  }
+  const e2 = eps * eps, lab = new Int32Array(n).fill(-2), nb = [], queue = [];
+  const region = i => {
+    nb.length = 0;
+    const x = xy[2 * i], y = xy[2 * i + 1];
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
+      const a = grid.get((gx[i] + dx) * 8192 + gy[i] + dy);
+      if (a) for (const j of a) { const ux = xy[2 * j] - x, uy = xy[2 * j + 1] - y; if (ux * ux + uy * uy <= e2) nb.push(j); }
+    }
+    return nb;
+  };
+  let c = 0;
+  for (let i = 0; i < n; i++) {
+    if (lab[i] !== -2) continue;
+    if (region(i).length < minPts) { lab[i] = -1; continue; }
+    lab[i] = c; queue.length = 0;
+    for (const j of nb) if (j !== i) queue.push(j);
+    for (let q = 0; q < queue.length; q++) {
+      const j = queue[q];
+      if (lab[j] === -1) { lab[j] = c; continue; }     // border cab: joins, does not spread
+      if (lab[j] !== -2) continue;
+      lab[j] = c;
+      if (region(j).length >= minPts) for (const k of nb) if (lab[k] < 0) queue.push(k);
+    }
+    c++;
+  }
+  return { lab, count: c };
+}
+// Convex hull (monotone chain) of the cabs, each widened to a 40 m octagon.
+function hull(pts, pad) {
+  const P = [];
+  for (const [x, y] of pts) for (let k = 0; k < 8; k++) P.push([x + pad * Math.cos(k * Math.PI / 4), y + pad * Math.sin(k * Math.PI / 4)]);
+  P.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
+  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+  const lo = [], up = [];
+  for (const p of P) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
+  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
+  const ring = lo.slice(0, -1).concat(up.slice(0, -1));
+  ring.push(ring[0]);
+  return ring;
+}
+// Same naming rule as the build: the hand-checked named area holding most of the cluster's cabs
+// (if areas hold 30 %+ of them; "and around" when 3+ areas hold a real share), else the
+// landmark with the best (kind weight − distance / 150 m) within 700 m of the centroid.
+function nameFor(m, cx, cy) {
+  const A = D.areas, cnt = new Array(A.length).fill(0);
+  let inside = 0;
+  for (const [x, y] of m) {
+    let bi = -1, bq = 1;
+    for (let k = 0; k < A.length; k++) { const q = Math.hypot(A[k][1] - x, A[k][2] - y) / A[k][3]; if (q <= bq && (bi < 0 || q < bq)) { bq = q; bi = k; } }
+    if (bi >= 0) { cnt[bi]++; inside++; }
+  }
+  if (inside >= 0.3 * m.length) {
+    let top = 0; for (let k = 1; k < A.length; k++) if (cnt[k] > cnt[top]) top = k;
+    const real = cnt.filter(c => c >= Math.max(3, 0.1 * m.length)).length;
+    return A[top][0] + (real >= 3 ? ' and around' : '');
+  }
+  let best = null, bs = -Infinity;
+  const R = D.params.nameR, R2 = R * R;
+  for (const l of D.landmarks) {
+    const dx = l[2] - cx, dy = l[3] - cy, d2 = dx * dx + dy * dy;
+    if (d2 > R2) continue;
+    const s = D.kinds[l[1]] - Math.sqrt(d2) / 150;
+    if (s > bs) { bs = s; best = l[0]; }
+  }
+  return best;
+}
+const groupFor = name => { if (!name) return null; for (const [re, g] of D.groupsRe) if (re.test(name)) return g; return name; };
+
+const cache = new Map();
+function analyse(key, eps, minPts) {
+  const id = `${key}|${eps}|${minPts}`;
+  if (cache.has(id)) return cache.get(id);
+  const s = D.snaps[key], xy = s.xy;
+  let res;
+  if (eps === D.params.eps && minPts === D.params.minPts && D.clusters[key]) {
+    // the baked result (identical rule), plus the labels for the dots
+    const { lab } = dbscan(xy, eps, minPts);
+    res = { lab, clusters: D.clusters[key].map(c => ({ ...c })) };
+  } else {
+    const { lab, count } = dbscan(xy, eps, minPts);
+    const members = Array.from({ length: count }, () => []);
+    for (let i = 0; i < lab.length; i++) if (lab[i] >= 0) members[lab[i]].push([xy[2 * i], xy[2 * i + 1]]);
+    const clusters = members.map(m => {
+      let sx = 0, sy = 0; for (const p of m) { sx += p[0]; sy += p[1]; }
+      const cx = sx / m.length, cy = sy / m.length, name = nameFor(m, cx, cy);
+      return { name, group: groupFor(name), n: m.length, c: toLL(cx, cy), hull: hull(m, D.params.pad).map(p => toLL(p[0], p[1])) };
+    }).sort((a, b) => b.n - a.n);
+    res = { lab, clusters };
+  }
+  res.inCl = 0; for (const l of res.lab) if (l >= 0) res.inCl++;
+  if (cache.size > 400) cache.clear();
+  cache.set(id, res);
+  return res;
+}
+
+/* ---------- map layers ---------- */
+const THEME = {
+  pm: { dot: '#4A3A30', dotOp: 0.42, core: '#E8692E', glow: '#FF8A4C', ramp: ['#FFC27A', '#FF8A4C', '#F0582F', '#C8352A'], line: '#FFE1C8' },
+  am: { dot: '#A9DDFF', dotOp: 0.7, core: '#4FE3FF', glow: '#3FD0FF', ramp: ['#2F7DFF', '#38B8FF', '#4FE3FF', '#D4FBFF'], line: '#E4FDFF' },
+};
+// prism height: metres per cab, gentler as you zoom in so a close look is not a wall
+const PER_CAB = [[9, 60], [11, 34], [13, 10], [15, 4]];
+const perCab = z => { if (z <= PER_CAB[0][0]) return PER_CAB[0][1]; for (let i = 1; i < PER_CAB.length; i++) { const [z1, v1] = PER_CAB[i], [z0, v0] = PER_CAB[i - 1]; if (z <= z1) return v0 + (v1 - v0) * (z - z0) / (z1 - z0); } return PER_CAB.at(-1)[1]; };
+const heightExpr = ['interpolate', ['linear'], ['zoom'], ...PER_CAB.flatMap(([z, v]) => [z, ['*', ['get', 'n'], v]])];
+function addLayers(map, side) {
+  const t = THEME[side], empty = { type: 'FeatureCollection', features: [] };
+  map.addSource('dots', { type: 'geojson', data: empty });
+  map.addSource('hulls', { type: 'geojson', data: empty });
+  map.addSource('cents', { type: 'geojson', data: empty });
+  map.addLayer({ id: 'glow', type: 'circle', source: 'cents', paint: {
+    'circle-color': t.glow, 'circle-blur': 1, 'circle-opacity': side === 'am' ? 0.55 : 0.4, 'circle-pitch-alignment': 'map',
+    'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 9, ['*', 0.45, ['sqrt', ['get', 'n']]], 15, ['*', 29, ['sqrt', ['get', 'n']]]] } });   // ~70 m × √n on the ground
+  map.addLayer({ id: 'dots', type: 'circle', source: 'dots', paint: {
+    'circle-color': ['case', ['get', 'c'], t.core, t.dot],
+    'circle-opacity': ['case', ['get', 'c'], 0.95, t.dotOp],
+    'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, ['case', ['get', 'c'], 1.6, 1.1], 13, ['case', ['get', 'c'], 3, 2.2], 16, ['case', ['get', 'c'], 5, 4]],
+    'circle-stroke-width': 0, 'circle-pitch-alignment': 'map' } });
+  map.addLayer({ id: 'halo', type: 'line', source: 'hulls', paint: { 'line-color': t.glow, 'line-width': 7, 'line-blur': 6, 'line-opacity': 0.75 } });
+  map.addLayer({ id: 'prism', type: 'fill-extrusion', source: 'hulls', paint: {
+    'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'n'], 8, t.ramp[0], 30, t.ramp[1], 90, t.ramp[2], 220, t.ramp[3]],
+    'fill-extrusion-height': heightExpr, 'fill-extrusion-base': 0,
+    'fill-extrusion-opacity': side === 'am' ? 0.88 : 0.92, 'fill-extrusion-vertical-gradient': true } });
+  map.addLayer({ id: 'rim', type: 'line', source: 'hulls', paint: { 'line-color': t.line, 'line-width': 1, 'line-opacity': 0.8 } });
+}
+
+/* ---------- labels on the prism tops ---------- */
+const labels = { pm: [], am: [] };
+function lift(map, lngLat, h) {
+  const tr = map.transform;
+  const ground = map.project(lngLat);
+  if (tr && typeof tr.coordinatePoint === 'function') {
+    try { const top = tr.coordinatePoint(maplibregl.MercatorCoordinate.fromLngLat(lngLat), h); return [top.x - ground.x, top.y - ground.y]; } catch (e) { /* fall through */ }
+  }
+  const mpp = 40075016.686 * Math.cos(lngLat[1] * Math.PI / 180) / (512 * 2 ** map.getZoom());
+  return [0, -h / mpp * Math.sin(map.getPitch() * Math.PI / 180)];
+}
+function setLabels(side, clusters) {
+  const map = side === 'pm' ? mapPm : mapAm;
+  labels[side].forEach(l => l.marker.remove());
+  labels[side] = clusters.filter(c => c.n >= 10 && c.name).slice(0, 7).map((c, i) => {
+    const el = document.createElement('div');
+    el.className = `cl ${side}`;
+    el.innerHTML = `<div class="cl-in"><div class="cl-box"><b>${c.n}</b><span></span></div><div class="cl-stem"></div></div>`;
+    el.querySelector('span').textContent = c.name;
+    const marker = new maplibregl.Marker({ element: el, anchor: 'top-left' }).setLngLat(c.c).addTo(map);
+    return { marker, el, c, rank: i };
+  });
+  placeLabels(side);
+}
+function placeLabels(side) {
+  const map = side === 'pm' ? mapPm : mapAm, z = map.getZoom(), boxes = [];
+  for (const l of labels[side]) {
+    const [ox, oy] = lift(map, l.c.c, l.c.n * perCab(z));
+    l.marker.setOffset([ox, oy]);
+    const p = map.project(l.c.c), inner = l.el.firstChild;
+    const w = inner.offsetWidth || 90, h = inner.offsetHeight || 30;
+    const b = { x0: p.x + ox - w / 2 - 3, x1: p.x + ox + w / 2 + 3, y0: p.y + oy - h - 2, y1: p.y + oy };
+    const hit = boxes.some(o => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
+    l.el.classList.toggle('hide', hit);
+    if (!hit) boxes.push(b);
+  }
+}
+let placeQueued = false;
+const queuePlace = () => { if (placeQueued) return; placeQueued = true; requestAnimationFrame(() => { placeQueued = false; placeLabels('pm'); placeLabels('am'); }); };
+
+/* ---------- state ---------- */
+const S = { eps: 200, minPts: 8, pair: 2, hPm: 18, hAm: 2, hourly: false };
+const keyFor = side => S.hourly ? `${D.rep}T${DMC.pad2(side === 'pm' ? S.hPm : S.hAm)}` : D.pairs[S.pair][side];
+
+function render() {
+  if (!D) return;
+  const out = {};
+  for (const side of ['pm', 'am']) {
+    const key = keyFor(side), snap = D.snaps[key], r = analyse(key, S.eps, S.minPts);
+    out[side] = r;
+    const xy = snap.xy, feats = new Array(xy.length >> 1);
+    for (let i = 0; i < feats.length; i++) feats[i] = { type: 'Feature', properties: { c: r.lab[i] >= 0 }, geometry: { type: 'Point', coordinates: toLL(xy[2 * i], xy[2 * i + 1]) } };
+    const map = side === 'pm' ? mapPm : mapAm;
+    map.getSource('dots').setData({ type: 'FeatureCollection', features: feats });
+    map.getSource('hulls').setData({ type: 'FeatureCollection', features: r.clusters.map(c => ({ type: 'Feature', properties: { n: c.n }, geometry: { type: 'Polygon', coordinates: [c.hull] } })) });
+    map.getSource('cents').setData({ type: 'FeatureCollection', features: r.clusters.map(c => ({ type: 'Feature', properties: { n: c.n }, geometry: { type: 'Point', coordinates: c.c } })) });
+    setLabels(side, r.clusters);
+    const h = +key.slice(-2), real = snap.ts;   // ts is the feed's own time, e.g. 17:59
+    $(`${side}-hr`).textContent = hourLabel(h);
+    $(`${side}-day`).textContent = dayLabel(key);
+    $(`${side}-st`).innerHTML = `<b>${fmt(snap.n)}</b> free · <b>${r.clusters.length}</b> clusters · <b>${Math.round(100 * r.inCl / snap.n)}%</b> in one`;
+    $(`${side}-st`).title = `Feed time ${real.replace('T', ' ')}; ${fmt(snap.raw - snap.n)} duplicate reports merged`;
+  }
+  renderStrip(out.pm, out.am);
+  renderThumbs();
+  placeTags();
+}
+
+/* ---------- comparison strip ---------- */
+function agg(clusters) { const g = new Map(); for (const c of clusters) if (c.group) g.set(c.group, (g.get(c.group) || 0) + c.n); return g; }
+function renderStrip(pm, am) {
+  const a = agg(pm.clusters), b = agg(am.clusters);
+  const where = new Map();
+  for (const c of pm.clusters.concat(am.clusters)) if (c.group && !where.has(c.group)) where.set(c.group, c.c);
+  const rows = [...new Set([...a.keys(), ...b.keys()])].map(g => ({ g, p: a.get(g) || 0, q: b.get(g) || 0 }))
+    .sort((x, y) => Math.max(y.p, y.q) - Math.max(x.p, x.q)).slice(0, 6);
+  // the same places over all five weeknights (6 pm vs 2 am), at the current settings
+  let wk = null;
+  if (!S.hourly) {
+    wk = new Map();
+    for (const p of D.pairs) {
+      const ap = agg(analyse(p.pm, S.eps, S.minPts).clusters), aa = agg(analyse(p.am, S.eps, S.minPts).clusters);
+      for (const r of rows) { const w = wk.get(r.g) || [0, 0]; w[0] += (ap.get(r.g) || 0) / 5; w[1] += (aa.get(r.g) || 0) / 5; wk.set(r.g, w); }
+    }
+  }
+  const max = Math.max(1, ...rows.map(r => Math.max(r.p, r.q)));
+  const ol = $('rank');
+  ol.replaceChildren(...rows.map((r, i) => {
+    const li = document.createElement('li'), btn = document.createElement('button');
+    btn.type = 'button';
+    const w = wk && wk.get(r.g);
+    btn.innerHTML = `<span class="nm"><em>${i + 1}</em></span><span class="vals"><b class="p">${r.p}</b><i>→</i><b class="a">${r.q}</b></span>`
+      + `<span class="bars"><span class="p" style="width:${100 * r.p / max}%"></span><span class="a" style="width:${100 * r.q / max}%"></span></span>`
+      + (w ? `<span class="wk">Mon–Fri avg ${Math.round(w[0])} → ${Math.round(w[1])}</span>` : '');
+    btn.querySelector('.nm').append(r.g);
+    btn.title = `${r.g}: ${r.p} free cabs at ${$('pm-hr').textContent}, ${r.q} at ${$('am-hr').textContent}`;
+    btn.setAttribute('aria-label', `${r.g}: ${r.p} cabs on the left map, ${r.q} on the right. Fly there.`);
+    btn.addEventListener('click', () => {
+      const c = where.get(r.g);
+      if (c) mapAm[REDUCED ? 'jumpTo' : 'flyTo']({ center: c, zoom: 14.2, pitch: 55, bearing: mapAm.getBearing(), duration: 2400, essential: true });
+    });
+    li.append(btn);
+    return li;
+  }));
+  $('strip-t').innerHTML = `Biggest taxi crowds <i>${$('pm-hr').textContent.toLowerCase()} → ${$('am-hr').textContent.toLowerCase()}</i>`;
+  $('strip-n').textContent = S.hourly ? 'Wed 28 Oct · tap a place to fly there' : `${D.pairs[S.pair].label} night · tap a place to fly there`;
+  document.documentElement.style.setProperty('--strip-h', $('strip').offsetHeight + 'px');
+}
+
+/* ---------- hour bars and the two thumbs ---------- */
+const hoursEl = $('hours'), thumbs = { pm: $('th-pm'), am: $('th-am') };
+function renderBars() {
+  const svg = $('hbars'), W = hoursEl.clientWidth || 240, H = 32;
+  const rows = Array.from({ length: 24 }, (_, h) => { const key = `${D.rep}T${DMC.pad2(h)}`; return { h, n: D.snaps[key].n, c: analyse(key, S.eps, S.minPts).inCl }; });
+  const max = Math.max(...rows.map(r => r.n)), bw = W / 24;
+  const y = v => H - H * v / max;
+  let s = `<rect class="night" x="0" y="0" width="${bw * 7}" height="${H}"/><rect class="night" x="${bw * 19}" y="0" width="${bw * 5}" height="${H}"/>`;
+  for (const r of rows) {
+    const cls = S.hPm === r.h ? ' pm' : S.hAm === r.h ? ' am' : '';
+    s += `<rect class="bar${cls}" x="${r.h * bw + 1}" y="${y(r.n)}" width="${bw - 2}" height="${H - y(r.n)}" rx="1"><title>${hourLabel(r.h)}: ${r.n} free, ${r.c} clustered</title></rect>`;
+    s += `<rect class="bin${cls}" x="${r.h * bw + 1}" y="${y(r.c)}" width="${bw - 2}" height="${H - y(r.c)}" rx="1"/>`;
+  }
+  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
+  svg.innerHTML = s;
+}
+function renderThumbs() {
+  for (const side of ['pm', 'am']) {
+    const h = side === 'pm' ? S.hPm : S.hAm, t = thumbs[side];
+    t.style.left = `${(h + 0.5) / 24 * 100}%`;
+    t.setAttribute('aria-valuenow', String(h));
+    t.setAttribute('aria-valuetext', `${hourLabel(h)}, Wednesday 28 October`);
+  }
+  if (D) renderBars();
+  for (const b of $('nights').children) b.setAttribute('aria-pressed', String(!S.hourly && +b.dataset.i === S.pair));
+}
+function setHour(side, h) {
+  h = Math.max(0, Math.min(23, h));
+  if (side === 'pm') S.hPm = h; else S.hAm = h;
+  S.hourly = true;
+  render();
+}
+let dragSide = null;
+hoursEl.addEventListener('pointerdown', e => {
+  const r = hoursEl.getBoundingClientRect(), h = Math.floor((e.clientX - r.left) / r.width * 24);
+  dragSide = e.target === thumbs.am ? 'am' : e.target === thumbs.pm ? 'pm' : (Math.abs(h - S.hPm) <= Math.abs(h - S.hAm) ? 'pm' : 'am');
+  hoursEl.setPointerCapture(e.pointerId);
+  thumbs[dragSide].focus({ preventScroll: true });
+  setHour(dragSide, h);
+});
+hoursEl.addEventListener('pointermove', e => {
+  if (!dragSide) return;
+  const r = hoursEl.getBoundingClientRect(), h = Math.max(0, Math.min(23, Math.floor((e.clientX - r.left) / r.width * 24)));
+  if (h !== (dragSide === 'pm' ? S.hPm : S.hAm)) setHour(dragSide, h);
+});
+for (const ev of ['pointerup', 'pointercancel']) hoursEl.addEventListener(ev, () => { dragSide = null; });
+for (const side of ['pm', 'am']) thumbs[side].addEventListener('keydown', e => {
+  const h = side === 'pm' ? S.hPm : S.hAm;
+  const to = { ArrowLeft: h - 1, ArrowDown: h - 1, ArrowRight: h + 1, ArrowUp: h + 1, Home: 0, End: 23 }[e.key];
+  if (to === undefined) return;
+  e.preventDefault(); setHour(side, to);
+});
+
+/* ---------- eps / minPts ---------- */
+const eps = $('eps'), minpts = $('minpts');
+const paintRange = i => i.style.setProperty('--p', `${100 * (i.value - i.min) / (i.max - i.min)}%`);
+let paramTimer = 0;
+function onParams() {
+  S.eps = +eps.value; S.minPts = +minpts.value;
+  $('eps-o').textContent = `${S.eps} m`; $('minpts-o').textContent = S.minPts;
+  $('lab-sum').textContent = `${S.eps} m · ${S.minPts}`;
+  paintRange(eps); paintRange(minpts);
+  $('reset').disabled = S.eps === 200 && S.minPts === 8;
+  clearTimeout(paramTimer); paramTimer = setTimeout(render, 30);
+}
+eps.addEventListener('input', onParams); minpts.addEventListener('input', onParams);
+$('reset').addEventListener('click', () => { eps.value = 200; minpts.value = 8; onParams(); });
+paintRange(eps); paintRange(minpts);
+
+// phones: the playground folds to one line
+const labEl = $('lab'), labToggle = $('lab-toggle');
+function setLab(open) { labEl.setAttribute('aria-expanded', String(open)); labToggle.setAttribute('aria-expanded', String(open)); }
+labToggle.addEventListener('click', () => setLab(labEl.getAttribute('aria-expanded') !== 'true'));
+const syncLab = () => setLab(!COMPACT.matches);
+COMPACT.addEventListener('change', syncLab); syncLab();
+
+/* ---------- load ---------- */
+// the maps start as soon as the style arrives; the taxis follow
+const mapsP = fetch('https://tiles.openfreemap.org/styles/positron').then(r => r.json()).catch(() => null).then(initMaps);
+Promise.all([fetch('data/day04/taxis.json').then(r => r.json()), mapsP]).then(async ([data]) => {
+  D = data;
+  const g = D.geo;
+  toLL = (x, y) => {
+    const u = (x - g.x0) / g.s, v = (y - g.y0) / g.s, L = g.lon, A = g.lat;
+    return [+(L[0] + L[1] * u + L[2] * v + L[3] * u * u + L[4] * u * v + L[5] * v * v).toFixed(6),
+      +(A[0] + A[1] * u + A[2] * v + A[3] * u * u + A[4] * u * v + A[5] * v * v).toFixed(6)];
+  };
+  D.groupsRe = D.groups.map(([p, gname]) => [new RegExp(p), gname]);
+  const seg = $('nights');
+  D.pairs.forEach((p, i) => {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.i = i; b.textContent = p.label;
+    b.title = `6 pm ${dayLabel(p.pm)} against 2 am ${dayLabel(p.am)}`;
+    b.addEventListener('click', () => { S.pair = i; S.hourly = false; S.hPm = 18; S.hAm = 2; render(); });
+    seg.append(b);
+  });
+  $('why').innerHTML = `A cab is <b>core</b> when at least <b>minPts</b> free cabs (itself included) sit within <b>eps</b>; cores chain into clusters, the rest is noise. <b>${D.params.eps} m</b> is one airport kerb or a mall frontage: only ${Math.round(D.params.pct200 * 100)}% of cabs have 7 others that close, so what survives is a real crowd. <b>${D.params.minPts}</b> beats the few parked at any HDB carpark.`;
+  await Promise.all([ready.pm, ready.am]);
+  addLayers(mapPm, 'pm'); addLayers(mapAm, 'am');
+  render();
+  if (!REDUCED && !new URLSearchParams(location.search).has('view')) teaser();
+}).catch(err => {
+  console.error(err);
+  $('strip-t').textContent = 'Could not load the taxi snapshots.';
+});
+setSplit(0.5);
+</script>
+</body></html>
