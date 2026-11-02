@@ -1,6 +1,6 @@
 """Day 03 data prep, step 1 of 2 (run build.sh for the whole pipeline).
 
-Reads the URA Master Plan 2019 Land Use layer and the MP2019 Planning Area
+Reads the URA Master Plan 2025 Land Use layer and the MP2025 Planning Area
 boundary (no sea) from data.gov.sg, sorts the 33 land-use descriptions into
 15 "fabrics", tags every polygon with its planning area, and writes:
   <out>/patches.geojson  every non-road land-use polygon, props c,u,g,p (full precision)

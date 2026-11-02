@@ -1,11 +1,12 @@
 // Day 03 data prep, step 3 of 3: pack the simplified patches (TopoJSON) and the island
-// outline into one compact JSON the page decodes itself (see decodeQuilt in the page).
+// outline into one compact script (window.DAY03 = {...}) the page decodes itself (see decodeQuilt
+// in the page). A script rather than JSON so the page also works opened straight from disk.
 //   arcs:  TopoJSON's quantized, delta-coded arcs, each written as a polyline-style
 //          varint string (zigzag, 5-bit chunks + 63), so ~3 bytes a vertex.
 //   f:     one row per patch: [fabric, landUse, gprIndex, planningArea, areaM2, ...rings]
 //          each ring a varint string of delta-coded arc references (~i = reversed arc).
 //   island: outline rings as varint strings of delta-coded 1e5 lng/lat.
-// usage: node encode.mjs <patches.topo.json> <island.geojson> <stats.json> <out.json>
+// usage: node encode.mjs <patches.topo.json> <island.geojson> <stats.json> <out.js>
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const [topoPath, islandPath, statsPath, outPath] = process.argv.slice(2);
@@ -54,7 +55,7 @@ for (const feat of island.features) {
 
 const out = {
   v: 1,
-  source: 'URA Master Plan 2019 Land Use layer (data.gov.sg d_90d86daa5bfaa371668b84fa5f01424f), planning areas d_4765db0e87b9c86336792efe8a1f7a66',
+  source: 'URA Master Plan 2025 Land Use layer (data.gov.sg d_a8c3546b26712e35021f3a681d0353ae), planning areas d_2cc750190544007400b2cfd5d7f53209',
   built: new Date().toISOString().slice(0, 10),
   transform: topo.transform,
   fabrics: stats.fabric_keys,
@@ -66,5 +67,5 @@ const out = {
   f,
   island: isl,
 };
-writeFileSync(outPath, JSON.stringify(out));
+writeFileSync(outPath, `window.DAY03 = ${JSON.stringify(out)};\n`);
 console.log(`patches ${f.length} (dropped ${dropped} empty), arcs ${arcs.length}, island parts ${isl.length}, gpr values ${G.length}`);
