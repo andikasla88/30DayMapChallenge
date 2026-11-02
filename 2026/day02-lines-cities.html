@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#EFE6D2">
+<title>Day 02 · Visualizing the cities with world class public transportation (print)</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 2, Lines, print edition: every bus route and urban rail line in Singapore, Hong Kong, Stockholm and Copenhagen, inked darker where more routes share the road, all at the same scale on one A3 sheet.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<style>
+/* ===== Day 02, print edition: a cream A3 landscape sheet, 1:1 in print, scaled to fit on screen ===== */
+@page { size: 420mm 297mm; margin: 0; }
+:root {
+  --paper: #F1E9D8; --mat: #FBF7EE; --ink: #1D2536; --ink-2: rgba(29, 37, 54, .68); --rule: rgba(29, 37, 54, .16);
+  --accent: #1B3A6B; --display: "Big Shoulders Display", "Arial Narrow", sans-serif; --font: "Instrument Sans", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #D9D0BD; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.bar { position: fixed; top: 10px; right: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.bar button { font: inherit; font-weight: 600; color: var(--ink); background: var(--mat); border: 1px solid var(--rule); border-radius: 999px; padding: 6px 14px; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
+.bar button:hover { background: #fff; }
+.bar button:disabled { opacity: .5; cursor: progress; }
+.stage { width: 100vw; height: 100vh; overflow: hidden; display: grid; place-items: center; }
+.sheet { width: 420mm; height: 297mm; flex: none; padding: 10mm; display: grid; grid-template-columns: 70mm 1fr; gap: 8mm; transform-origin: center; position: relative; overflow: hidden;
+  background: radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(140, 110, 60, .10)), var(--paper); box-shadow: 0 6px 40px rgba(0, 0, 0, .25); }
+/* Paper grain: fine noise, multiplied in. */
+.sheet::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .35; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .47 0 0 0 0 .35 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+.side { position: relative; display: flex; flex-direction: column; gap: 6mm; min-height: 0; }
+.badge { display: flex; align-items: center; gap: 3mm; }
+.badge .n { font-family: var(--display); font-size: 22mm; font-weight: 900; line-height: .78; color: var(--accent); }
+.badge .t { display: grid; gap: 1mm; }
+.badge .t b { font-family: var(--display); font-size: 6.5mm; font-weight: 800; letter-spacing: .03em; line-height: 1; text-transform: uppercase; }
+.badge .t span { font-size: 2.7mm; color: var(--ink-2); }
+h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900; line-height: .9; letter-spacing: .005em; }
+.key { display: grid; gap: 3mm; font-size: 2.9mm; color: var(--ink-2); }
+.key h2 { margin: 0 0 .5mm; font-size: 2.6mm; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.key .ramp { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2mm; }
+.key .ramp i { height: 1.6mm; border-radius: 1mm; background: linear-gradient(to right, #AABBD0, #7189AC 35%, #3F5D8E 70%, #213E70); }
+.key .row { display: flex; align-items: center; gap: 2.5mm; }
+.key .rails { display: flex; gap: .8mm; flex-wrap: wrap; max-width: 30mm; }
+.key .rails i { width: 4.5mm; height: 1.3mm; border-radius: 1mm; }
+.key .stn { width: 2.6mm; height: 2.6mm; border-radius: 50%; background: #fff; border: .5mm solid var(--ink); flex: none; }
+.table { width: 100%; border-collapse: collapse; font-size: 2.9mm; font-variant-numeric: tabular-nums; }
+.table th, .table td { padding: 1.2mm 0; text-align: right; border-bottom: .2mm solid var(--rule); }
+.table th { font-weight: 600; color: var(--ink-2); font-size: 2.2mm; line-height: 1.2; letter-spacing: .04em; text-transform: uppercase; vertical-align: bottom; }
+.table th + th, .table td + td { padding-left: 2mm; }
+.table th:first-child, .table td:first-child { text-align: left; }
+.table td:first-child { font-weight: 600; }
+.notes { margin-top: auto; font-size: 2.4mm; line-height: 1.45; color: var(--ink-2); display: grid; gap: 2mm; }
+.notes p { margin: 0; }
+.notes a { color: inherit; }
+.grid { position: relative; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6mm; min-height: 0; }
+/* A framed picture: carved frame (SVG), a cream mat, then the map. */
+.panel { position: relative; margin: 0; filter: drop-shadow(0 .8mm 1.2mm rgba(70, 50, 20, .28)); }
+.panel svg.frame { position: absolute; inset: 0; width: 100%; height: 100%; }
+.panel .mat { position: absolute; inset: var(--frame); background: var(--mat); padding: var(--matw); box-shadow: inset 0 0 1.4mm rgba(60, 40, 10, .35); }
+.panel .map { position: relative; width: 100%; height: 100%; overflow: hidden; box-shadow: 0 0 0 .2mm rgba(60, 40, 10, .35); }
+.panel canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.panel .label { position: absolute; left: 3mm; top: 3mm; display: grid; gap: .8mm; padding: 2.4mm 3.2mm 2.2mm; max-width: 72%; pointer-events: none; background: rgba(251, 247, 238, .9); border: .25mm solid var(--rule); border-radius: 1mm; box-shadow: 0 .4mm 1.2mm rgba(70, 50, 20, .18); }
+.panel .label:empty { display: none; }
+.panel .label b { font-family: var(--display); font-size: 9mm; font-weight: 900; line-height: .85; letter-spacing: .01em; text-transform: uppercase; }
+.panel .label em { font-style: normal; font-size: 3.2mm; font-weight: 600; color: var(--ink-2); }
+.panel .label span { font-size: 2.6mm; color: var(--ink-2); font-variant-numeric: tabular-nums; }
+.panel .scale { position: absolute; right: 3.5mm; bottom: 3mm; display: grid; justify-items: end; gap: .8mm; font-size: 2.3mm; color: var(--ink-2); text-shadow: 0 0 1.5mm var(--mat); }
+.panel .scale i { display: block; height: 1.2mm; border: .3mm solid rgba(29, 37, 54, .75); border-top: 0; }
+.panel .osm { position: absolute; left: 0; bottom: 0; padding: .5mm 1.2mm; font-size: 1.9mm; color: var(--ink-2); background: rgba(251, 247, 238, .8); }
+.panel .status { position: absolute; inset: 0; display: grid; place-items: center; padding: 6mm; text-align: center; font-size: 3mm; color: var(--ink-2); }
+.panel .status[hidden] { display: none; }
+@media print {
+  html, body { background: var(--paper); }
+  .bar { display: none; }
+  .stage { width: auto; height: auto; display: block; overflow: visible; }
+  .sheet { transform: none !important; box-shadow: none; }
+}
+</style>
+</head>
+<body>
+<div class="bar"><span id="progress">Drawing…</span><button id="print" type="button" disabled>Print / PDF</button></div>
+<div class="stage">
+<main class="sheet" id="sheet">
+  <aside class="side">
+    <div class="badge"><span class="n">02</span><span class="t"><b>Lines</b><span>#30DayMapChallenge 2026 · print edition</span></span></div>
+    <h1>Visualizing the cities with world class public transportation</h1>
+    <div class="key">
+      <div><h2>Bus routes on a road</h2><div class="ramp"><span>1</span><i></i><span>80+</span></div></div>
+      <div class="row"><span class="rails" id="rail-swatches"></span><span>Urban rail and tram, in each line's colours</span></div>
+      <div class="row"><span class="stn"></span><span>Station (heavier ring: interchange)</span></div>
+    </div>
+    <table class="table" aria-label="Network numbers by city">
+      <thead><tr><th></th><th>Bus<br>routes</th><th>Bus road<br>km</th><th>Rail<br>lines</th><th>Stations</th></tr></thead>
+      <tbody id="stats"></tbody>
+    </table>
+    <div class="notes">
+      <p id="credits">Routes: © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a> (ODbL), via the Overpass API. Basemap: <a href="https://openfreemap.org">OpenFreeMap</a> (Positron style, in grey), © <a href="https://www.openmaptiles.org/">OpenMapTiles</a>, © OpenStreetMap contributors.</p>
+    </div>
+  </aside>
+  <section class="grid" id="grid" aria-label="Four maps at the same scale"></section>
+</main>
+</div>
+<script>
+'use strict';
+const DPI = 300, PX_PER_MM = DPI / 25.4;
+const FRAME = 6, MAT = 1.8;   // mm: carved frame band, cream mat inside it
+const nf = new Intl.NumberFormat('en-SG');
+const $ = id => document.getElementById(id);
+
+/* ---------- the four cities and their frames ----------
+   Each frame borrows a motif the city is known for, drawn as a square tile the width of the frame (SVG, so it prints sharp). */
+const CITIES = [
+  { id: 'singapore', native: '新加坡 · Singapura · சிங்கப்பூர்', motif: 'Peranakan tiles' },
+  { id: 'hongkong', native: '香港', motif: 'Window lattice and neon' },
+  { id: 'stockholm', native: 'Sverige', motif: 'Dala horses' },
+  { id: 'copenhagen', native: 'København', motif: 'Blue fluted porcelain' },
+];
+const FRAMES = {
+  // Peranakan shophouse tiles: teal circles where tiles meet, a pink four-petal flower in each.
+  singapore: {
+    edge: '#23585C', inner: '#B9893B',
+    tile: `<rect width="9" height="9" fill="#F7EEDA"/>
+      ${[[0, 0], [9, 0], [0, 9], [9, 9]].map(([x, y]) => `<circle cx="${x}" cy="${y}" r="2.7" fill="#3E9C9A"/><circle cx="${x}" cy="${y}" r="1.5" fill="#F7EEDA"/><circle cx="${x}" cy="${y}" r=".8" fill="#E7B23F"/>`).join('')}
+      ${[0, 90].map(a => `<ellipse cx="4.5" cy="4.5" rx=".75" ry="3" fill="#5E9A55" transform="rotate(${a} 4.5 4.5)"/>`).join('')}
+      ${[45, 135].map(a => `<ellipse cx="4.5" cy="4.5" rx="1.25" ry="3.1" fill="#D35D7A" transform="rotate(${a} 4.5 4.5)"/>`).join('')}
+      <circle cx="4.5" cy="4.5" r="1.1" fill="#E7B23F"/><circle cx="4.5" cy="4.5" r=".45" fill="#B8463F"/>
+      <rect x=".1" y=".1" width="8.8" height="8.8" fill="none" stroke="#2F6F79" stroke-width=".18"/>`,
+    corner: `<rect width="9" height="9" fill="#23585C"/>
+      ${[0, 45, 90, 135].map(a => `<ellipse cx="4.5" cy="4.5" rx="1.1" ry="3.6" fill="${a % 90 ? '#D35D7A' : '#F7EEDA'}" transform="rotate(${a} 4.5 4.5)"/>`).join('')}
+      <circle cx="4.5" cy="4.5" r="1.3" fill="#E7B23F"/>`,
+  },
+  // Chinese window lattice (回 fret) in gold on lacquer red, with a neon-sign pink line inside.
+  hongkong: {
+    edge: '#5E1015', inner: '#FF3E9A', neon: true,
+    tile: `<rect width="9" height="9" fill="#A8232B"/>
+      <path d="M1 1H8V8H2.6V2.6H6.4V6.4H4.2V4.2" fill="none" stroke="#D9A640" stroke-width=".75" stroke-linecap="square"/>`,
+    corner: `<rect width="9" height="9" fill="#5E1015"/><circle cx="4.5" cy="4.5" r="3.3" fill="#D9A640"/>
+      <circle cx="4.5" cy="4.5" r="2.3" fill="#A8232B"/><path d="M4.5 2.6V6.4M2.6 4.5H6.4" stroke="#D9A640" stroke-width=".6"/><circle cx="4.5" cy="4.5" r=".7" fill="#D9A640"/>`,
+  },
+  // Dalarna horses, red with a yellow saddle, on Swedish blue.
+  stockholm: {
+    edge: '#123E78', inner: '#F2C230',
+    tile: `<rect width="9" height="9" fill="#1F5AA6"/>
+      <path d="M1.9 7.9L2.25 5.3Q2.1 4.5 2.85 4.2L5.4 4.1L6 2.5Q6.3 1.6 7.1 1.9L7.9 2.35L7.35 2.85L7 2.85L6.75 4.35L7 5.2L7.25 7.9H6.35L6.05 5.95H3.5L3.15 7.9Z" fill="#C8312A"/>
+      <path d="M3.2 4.4Q4.2 5.6 5.3 4.35" fill="none" stroke="#F2C230" stroke-width=".45"/>
+      <path d="M3.4 5.25Q4.25 5.9 5.1 5.25" fill="none" stroke="#FBF7EE" stroke-width=".25"/>
+      <circle cx="6.85" cy="2.55" r=".22" fill="#F2C230"/>
+      <circle cx=".9" cy="1.2" r=".35" fill="#F2C230"/><circle cx="8.2" cy="8.3" r=".3" fill="#F2C230"/>`,
+    corner: `<rect width="9" height="9" fill="#123E78"/><rect x="3.5" width="2" height="9" fill="#F2C230"/><rect y="3.5" width="9" height="2" fill="#F2C230"/>`,
+  },
+  // Blue fluted porcelain: cobalt on white, fluting with a flowering stem.
+  copenhagen: {
+    edge: '#1E3A86', inner: '#1E3A86',
+    tile: `<rect width="9" height="9" fill="#FBFAF4"/>
+      ${[0.75, 2.25, 3.75, 5.25, 6.75, 8.25].map(x => `<path d="M${x} 0V9" stroke="#C7D1EA" stroke-width=".35"/>`).join('')}
+      <path d="M0 6.2C2 6.2 2.2 2.8 4.5 2.8S7 6.2 9 6.2" fill="none" stroke="#24438F" stroke-width=".35"/>
+      <path d="M1.6 5.7Q.9 4.6 1.5 3.7Q2.3 4.6 1.6 5.7Z" fill="#24438F"/>
+      <path d="M7.4 5.7Q8.1 4.6 7.5 3.7Q6.7 4.6 7.4 5.7Z" fill="#24438F"/>
+      ${[0, 72, 144, 216, 288].map(r => `<ellipse cx="4.5" cy="1.75" rx=".55" ry="1" fill="#24438F" transform="rotate(${r} 4.5 2.8)"/>`).join('')}
+      <circle cx="4.5" cy="2.8" r=".55" fill="#FBFAF4"/><circle cx="4.5" cy="2.8" r=".25" fill="#24438F"/>
+      <path d="M0 8.6Q1.125 7.7 2.25 8.6T4.5 8.6T6.75 8.6T9 8.6" fill="none" stroke="#24438F" stroke-width=".3"/>`,
+    corner: `<rect width="9" height="9" fill="#FBFAF4"/>
+      ${[0, 60, 120, 180, 240, 300].map(a => `<ellipse cx="4.5" cy="2.4" rx=".75" ry="1.7" fill="#24438F" transform="rotate(${a} 4.5 4.5)"/>`).join('')}
+      <circle cx="4.5" cy="4.5" r="1" fill="#24438F"/><rect x=".25" y=".25" width="8.5" height="8.5" fill="none" stroke="#24438F" stroke-width=".3"/>`,
+  },
+};
+// The frame: four bands, each tiled with whole (slightly stretched) tiles, and a block at each corner.
+function frameSVG(id, w, h) {
+  const f = FRAMES[id], F = FRAME, defs = [], parts = [];
+  const band = (k, x, y, bw, bh, along) => {
+    const len = along === 'x' ? bw : bh, n = Math.max(1, Math.round(len / F)), t = len / n;
+    const [pw, ph] = along === 'x' ? [t, F] : [F, t];
+    defs.push(`<pattern id="${id}-${k}" patternUnits="userSpaceOnUse" x="${x}" y="${y}" width="${pw}" height="${ph}" viewBox="0 0 9 9" preserveAspectRatio="none">${f.tile}</pattern>`);
+    parts.push(`<rect x="${x}" y="${y}" width="${bw}" height="${bh}" fill="url(#${id}-${k})"/>`);
+  };
+  band('t', F, 0, w - 2 * F, F, 'x');
+  band('b', F, h - F, w - 2 * F, F, 'x');
+  band('l', 0, F, F, h - 2 * F, 'y');
+  band('r', w - F, F, F, h - 2 * F, 'y');
+  defs.push(`<symbol id="${id}-c" viewBox="0 0 9 9">${f.corner}</symbol>`);
+  for (const [x, y] of [[0, 0], [w - F, 0], [0, h - F], [w - F, h - F]]) parts.push(`<use href="#${id}-c" x="${x}" y="${y}" width="${F}" height="${F}"/>`);
+  // Mouldings: a dark outer lip, the band's own edge lines, then an inner fillet (gold, or neon pink for Hong Kong).
+  parts.push(`<rect x=".25" y=".25" width="${w - .5}" height="${h - .5}" fill="none" stroke="${f.edge}" stroke-width=".5"/>`);
+  parts.push(`<rect x="${F - .2}" y="${F - .2}" width="${w - 2 * F + .4}" height="${h - 2 * F + .4}" fill="none" stroke="${f.edge}" stroke-width=".4"/>`);
+  parts.push(f.neon
+    ? `<rect x="${F - .9}" y="${F - .9}" width="${w - 2 * F + 1.8}" height="${h - 2 * F + 1.8}" fill="none" stroke="#FF3E9A" stroke-width=".55" opacity=".9"/><rect x="${F - .9}" y="${F - .9}" width="${w - 2 * F + 1.8}" height="${h - 2 * F + 1.8}" fill="none" stroke="#FFC2DF" stroke-width=".18"/>`
+    : `<rect x="${F - .8}" y="${F - .8}" width="${w - 2 * F + 1.6}" height="${h - 2 * F + 1.6}" fill="none" stroke="${f.inner}" stroke-width=".35"/>`);
+  return `<svg class="frame" viewBox="0 0 ${w} ${h}" aria-hidden="true"><defs>${defs.join('')}</defs>${parts.join('')}</svg>`;
+}
+
+/* ---------- screen: scale the sheet to the window (print is always 1:1) ---------- */
+function fit() {
+  const s = $('sheet');
+  s.style.transform = `scale(${Math.min((innerWidth - 24) / s.offsetWidth, (innerHeight - 24) / s.offsetHeight)})`;
+}
+addEventListener('resize', fit);
+fit();
+
+/* ---------- data: plain scripts, so the sheet also works opened from disk (file://), where fetch is blocked ---------- */
+const loaded = new Map();
+function script(src) {
+  if (!loaded.has(src)) loaded.set(src, new Promise((res, rej) => {
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = () => rej(new Error(`could not load ${src}`));
+    document.head.append(s);
+  }));
+  return loaded.get(src);
+}
+
+/* ---------- geometry ---------- */
+function decode(str) {   // Google polyline, precision 5 -> [[lng, lat]]
+  const out = [];
+  let i = 0, lat = 0, lng = 0;
+  while (i < str.length) {
+    for (const k of [0, 1]) {
+      let shift = 0, res = 0, b;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (k === 0) lat += d; else lng += d;
+    }
+    out.push([lng / 1e5, lat / 1e5]);
+  }
+  return out;
+}
+// Web Mercator in world pixels at zoom z (256 px tiles).
+const wx = (lng, z) => (lng + 180) / 360 * 256 * 2 ** z;
+const wy = (lat, z) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2 * 256 * 2 ** z;
+
+/* ---------- the ink ----------
+   The interactive Day 02 adds light per route; on paper the same sum becomes ink. Each route
+   adds the same amount to its road, and the total runs through the same saturating curve, so
+   a road with 1 route is a pale blue hairline and one with 80 is a heavy navy stroke. */
+const PER_ROUTE = 0.07, PALE = [170, 187, 208], DEEP = [33, 62, 112];
+function ink(n) {
+  const m = 1 - Math.exp(-n * PER_ROUTE * 1.15), t = Math.pow(m, 0.75);
+  return { rgb: PALE.map((c, i) => Math.round(c + (DEEP[i] - c) * t)), m };
+}
+
+/* ---------- basemap: OpenFreeMap's "Positron" style (OpenStreetMap data), drawn by MapLibre, in grey ----------
+   Free, no key, and its servers send the CORS headers that a page opened straight from disk
+   needs (tile.openstreetmap.org refuses such pages). Each basemap is rendered once in a hidden
+   MapLibre map at print resolution, with labels at their screen size (0.26 mm a pixel), copied
+   onto the panel's canvas, and the map removed. One at a time, so the browser never holds four
+   WebGL contexts. Needs a connection when the sheet opens. */
+const STYLE = 'https://tiles.openfreemap.org/styles/positron';
+const CSS_PX_MM = 25.4 / 96;
+let mapQueue = Promise.resolve();
+function basemap(ctx, W, H, centre, mpp) {
+  const job = mapQueue.then(() => new Promise(res => {
+    const ratio = PX_PER_MM * CSS_PX_MM;   // sheet pixels per CSS pixel: 3.125 at 300 dpi
+    const box = document.createElement('div');
+    box.style.cssText = `position:fixed;left:-20000px;top:0;width:${W / ratio}px;height:${H / ratio}px;`;
+    document.body.append(box);
+    // MapLibre zooms on 512 px tiles; pick the zoom whose CSS pixel covers mpp * ratio metres.
+    const zoom = Math.log2(2 * Math.PI * 6378137 * Math.cos(centre[1] * Math.PI / 180) / (512 * mpp * ratio));
+    const m = new maplibregl.Map({ container: box, style: STYLE, center: centre, zoom, interactive: false, attributionControl: false,
+      pixelRatio: ratio, preserveDrawingBuffer: true, fadeDuration: 0 });
+    let done = false;
+    const finish = ok => {
+      if (done) return;
+      done = true;
+      clearTimeout(timer);
+      if (ok) { ctx.filter = 'grayscale(1) contrast(.8) brightness(1.06)'; ctx.drawImage(m.getCanvas(), 0, 0, W, H); ctx.filter = 'none'; }   // grey and a little faded, so the routes carry all the colour and contrast
+      m.remove(); box.remove();
+      res(ok);
+    };
+    m.once('idle', () => finish(true));
+    m.on('error', e => console.warn('basemap:', e.error ? e.error.message : e));
+    const timer = setTimeout(() => finish(m.isStyleLoaded()), 60000);   // draw what there is rather than hang
+  }));
+  mapQueue = job;
+  return job;
+}
+
+async function draw(city, panel) {
+  await script(`data/day02/${city.id}.js`);
+  const d = (window.DAY02 || {})[city.id];
+  if (!d) throw new Error('data missing');
+  const map = panel.querySelector('.map');
+  const W = Math.round(map.dataset.wmm * PX_PER_MM), H = Math.round(map.dataset.hmm * PX_PER_MM);
+  const [lng0, lat0] = d.centre;
+  const mpp = d.frameKm[0] * 1000 / W;   // ground metres per sheet pixel, the same in every panel
+  const z = Math.log2(2 * Math.PI * 6378137 * Math.cos(lat0 * Math.PI / 180) / (256 * mpp));
+  const ox = wx(lng0, z) - W / 2, oy = wy(lat0, z) - H / 2;
+  const P = ([lng, lat]) => [wx(lng, z) - ox, wy(lat, z) - oy];
+  const pathOf = (ctx, encs) => {
+    ctx.beginPath();
+    for (const e of encs) { const pts = decode(e); pts.forEach((p, i) => { const [x, y] = P(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); }
+  };
+  const mm = v => v * PX_PER_MM;
+  const canvas = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.lineCap = 'round'; x.lineJoin = 'round'; return [c, x]; };
+
+  const [cv, ctx] = canvas();
+  map.prepend(cv);
+  ctx.fillStyle = '#F2F2F0'; ctx.fillRect(0, 0, W, H);   // Positron's land grey, in case the basemap fails
+  const got = await basemap(ctx, W, H, d.centre, mpp) ? 1 : 0;
+
+  // Bus ink: drawn on its own sheet, lightest first, then multiplied onto the map with a soft bleed.
+  const [L, lc] = canvas();
+  for (const [n, encs] of d.bus) {
+    const { rgb, m } = ink(n);
+    pathOf(lc, encs);
+    lc.strokeStyle = `rgba(${rgb},${(0.6 + 0.4 * m).toFixed(3)})`;
+    lc.lineWidth = mm(0.15 + 0.38 * m);
+    lc.stroke();
+  }
+  const [B, bc] = canvas();
+  bc.filter = `blur(${mm(0.9)}px)`; bc.drawImage(L, 0, 0); bc.filter = 'none';
+  ctx.globalCompositeOperation = 'multiply';
+  ctx.globalAlpha = 0.25; ctx.drawImage(B, 0, 0); ctx.globalAlpha = 1;
+  ctx.drawImage(L, 0, 0);
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Rail on top: a paper-coloured casing so lines read over the ink, then the line colour.
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  for (const [, , colour, encs] of d.rail) {
+    pathOf(ctx, encs);
+    ctx.strokeStyle = '#FBF7EE'; ctx.lineWidth = mm(1.05); ctx.stroke();
+    ctx.strokeStyle = colour; ctx.lineWidth = mm(0.6); ctx.stroke();
+  }
+  for (const [lng, lat, k] of d.stations) {
+    const [x, y] = P([lng, lat]);
+    ctx.beginPath(); ctx.arc(x, y, mm(k > 1 ? 0.62 : 0.45), 0, 2 * Math.PI);
+    ctx.fillStyle = '#FFFFFF'; ctx.fill();
+    ctx.strokeStyle = '#1D2536'; ctx.lineWidth = mm(k > 1 ? 0.3 : 0.17); ctx.stroke();
+  }
+  // A faint warm edge, like light falling off across a print.
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.hypot(W, H) / 2);
+  g.addColorStop(0, 'rgba(120, 90, 50, 0)'); g.addColorStop(1, 'rgba(120, 90, 50, .12)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+
+  // Label (name, native name, numbers, frame motif) and a 10 km scale bar, identical on all four.
+  const s = d.stats;
+  panel.querySelector('.label').innerHTML = `<b>${d.name}</b><em>${city.native}</em><span>${nf.format(s.busServices)} bus routes · ${s.railLines} rail lines · frame: ${city.motif}</span>`;
+  panel.querySelector('.scale').innerHTML = `<i style="width:${(10000 / mpp / PX_PER_MM).toFixed(2)}mm"></i><span>10 km</span>`;
+  panel.querySelector('.status').hidden = true;
+  return { d, got };
+}
+
+/* ---------- build the sheet ---------- */
+const grid = $('grid');
+const mmPerCss = 25.4 / 96;   // read from the 1:1 layout: the sheet's transform does not change offset sizes
+const panels = CITIES.map(c => {
+  const p = document.createElement('figure');
+  p.className = 'panel';
+  p.style.setProperty('--frame', `${FRAME}mm`);
+  p.style.setProperty('--matw', `${MAT}mm`);
+  p.innerHTML = '<div class="mat"><div class="map"><div class="label"></div><div class="scale"></div><div class="osm">© OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors</div><div class="status">Loading…</div></div></div>';
+  grid.append(p);
+  return p;
+});
+for (const [i, p] of panels.entries()) {
+  const map = p.querySelector('.map');
+  map.dataset.wmm = (map.offsetWidth * mmPerCss).toFixed(3);
+  map.dataset.hmm = (map.offsetHeight * mmPerCss).toFixed(3);
+  p.insertAdjacentHTML('afterbegin', frameSVG(CITIES[i].id, +(p.offsetWidth * mmPerCss).toFixed(2), +(p.offsetHeight * mmPerCss).toFixed(2)));
+}
+
+Promise.allSettled(CITIES.map((c, i) => draw(c, panels[i]).catch(e => { panels[i].querySelector('.status').textContent = `Could not draw ${c.id}: ${e.message}`; throw e; })))
+  .then(all => {
+    const done = all.filter(r => r.status === 'fulfilled').map(r => r.value), res = done.map(r => r.d), failed = all.length - res.length;
+    const gaps = done.some(r => r.got < 1);
+    $('stats').innerHTML = res.map(d => `<tr><td>${d.name}</td><td>${nf.format(d.stats.busServices)}</td><td>${nf.format(d.stats.busKm)}</td><td>${d.stats.railLines}</td><td>${nf.format(d.stats.stations)}</td></tr>`).join('');
+    const sw = res.flatMap(d => d.rail.filter(r => r[1] === 'subway').map(r => r[2])).filter((c, i, a) => a.indexOf(c) === i).slice(0, 10);
+    $('rail-swatches').innerHTML = sw.map(c => `<i style="background:${c}"></i>`).join('');
+    const when = res.map(d => d.osm).filter(Boolean).sort()[0];
+    if (when) $('credits').insertAdjacentHTML('beforeend', ` OSM data as of ${when.slice(0, 10)}.`);
+    $('progress').textContent = failed ? `${failed} map(s) failed to draw` : gaps ? 'Ready (a basemap did not finish loading)' : 'Ready';
+    $('print').disabled = false;
+    document.body.dataset.ready = '1';
+  });
+
+$('print').addEventListener('click', () => print());
+</script>
+</body>
+</html>
