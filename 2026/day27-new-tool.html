@@ -949,7 +949,7 @@ setEx(EXS.indexOf(ex), false);
 setView('overview', true);
 requestAnimationFrame(frame);
 
-fetch('data/day27/underground.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+DMC.loadData('data/day27/underground.js', 'DAY27').then(d => {
   window.ugReady = true;
   build(d);
   buildLadder();

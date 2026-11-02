@@ -1,4 +1,4 @@
-"""Day 23 (Taste): build ../bib.json from the cached raw data. Run fetch.py first.
+"""Day 23 (Taste): build ../bib.js from the cached raw data. Run fetch.py first.
 
 Requires python 3.10+ (standard library only).    usage: python -I process.py <raw-dir> <out-dir>
 
@@ -132,9 +132,9 @@ out = {
               'neaUpdated': (meta.get('data') or meta).get('lastUpdatedAt', '')},
 }
 os.makedirs(OUT, exist_ok=True)
-json.dump(out, open(os.path.join(OUT, 'bib.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
+open(os.path.join(OUT, 'bib.js'), 'w', encoding='utf-8').write('window.DAY23 = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n')
 print('dishes:', dict(dish_n))
 print('venue names:', [v['name'] for v in venues])
 print('venues:', len(venues), '| in NEA hawker centres:', hawker_n, '| hotspots (2+):', hot)
 print('ambiguous names:', out['stats']['ambiguous'])
-print('bytes:', os.path.getsize(os.path.join(OUT, 'bib.json')))
+print('bytes:', os.path.getsize(os.path.join(OUT, 'bib.js')))

@@ -1,4 +1,4 @@
-"""Day 26 · Water: build data/day26/water.json from the raw inputs.
+"""Day 26 · Water: build data/day26/water.js from the raw inputs.
 
 Requirements (Python 3.10+ venv): pip install numpy scipy rasterio shapely pyproj
 Order: fetch.py -> osm_extract.py -> process.py
@@ -26,7 +26,7 @@ from shapely.ops import unary_union, transform
 from pyproj import Transformer
 
 RAW = sys.argv[1] if len(sys.argv) > 1 else 'raw'
-OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), '..', 'water.json')
+OUT = sys.argv[2] if len(sys.argv) > 2 else os.path.join(os.path.dirname(__file__), '..', 'water.js')
 W, S, E, N = 103.52, 1.13, 104.22, 2.06
 Q = 1e4   # coordinate quantum: 1e-4 degrees, about 11 m
 
@@ -261,5 +261,5 @@ out = {
               'desal_mgd': sum(n['mgd'] for n in out_nodes if n['tap'] == 'd')},
     'src': SRC,
 }
-json.dump(out, open(OUT, 'w'), separators=(',', ':'))
+open(OUT, 'w', encoding='utf-8').write('window.DAY26 = ' + json.dumps(out, separators=(',', ':')) + ';\n')
 print('wrote', OUT, round(os.path.getsize(OUT) / 1024), 'KB', out['facts'])

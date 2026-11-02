@@ -1,10 +1,10 @@
 #!/bin/sh
-# Day 30 data build: fetch SLA's coast into $RAW (outside the repo), then write ../paper.json.
+# Day 30 data build: fetch SLA's coast into $RAW (outside the repo), then write ../paper.js.
 # usage: sh build.sh <raw-dir>
 # PY must point at a Python with shapely>=2, pyproj>=3 and numpy:
 #   python -m venv venv && venv/Scripts/pip install shapely pyproj numpy
 # Also reads Day 10's files, read only: ../../day10/build/answer.json (Claude's drawing)
-# and ../../day10/memory.json (Day 10's published scores and its station points).
+# and ../../day10/memory.js (Day 10's published scores and its station points).
 set -e
 RAW="${1:?raw dir}"; HERE="$(cd "$(dirname "$0")" && pwd)"
 PY="${PY:-python}"
@@ -16,4 +16,4 @@ if [ ! -s nmp.geojson ]; then
   curl -sf -o nmp.geojson "$url"
 fi
 D10="$HERE/../../day10"
-"$PY" -I "$HERE/process.py" nmp.geojson "$D10/build/answer.json" "$D10/memory.json" "$HERE/../paper.json"
+"$PY" -I "$HERE/process.py" nmp.geojson "$D10/build/answer.json" "$D10/memory.js" "$HERE/../paper.js"

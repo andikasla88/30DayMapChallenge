@@ -553,6 +553,6 @@ for area in AREAS:
                  'stations': labels, 'exits': exits})
     out['areas'].append(data)
 
-with open(os.path.join(OUT, 'network.json'), 'w') as f:
-    json.dump(out, f, separators=(',', ':'))
-print('wrote', os.path.getsize(os.path.join(OUT, 'network.json')) // 1024, 'kB')
+with open(os.path.join(OUT, 'network.js'), 'w') as f:
+    f.write('window.DAY24 = ' + json.dumps(out, separators=(',', ':')) + ';\n')
+print('wrote', os.path.getsize(os.path.join(OUT, 'network.js')) // 1024, 'kB')

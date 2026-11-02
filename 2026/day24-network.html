@@ -791,7 +791,7 @@ if (document.fonts) document.fonts.ready.then(layout);
 if (!matchMedia(DMC.COMPACT_Q).matches) $('more').open = true;
 
 /* ---------- load ---------- */
-const dataP = fetch('data/day24/network.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day24/network.js', 'DAY24');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(([d]) => {
   NET = d;

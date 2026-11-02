@@ -1,14 +1,14 @@
-"""Day 16: turn pasted share links into pins.json entries. Standard library only.
+"""Day 16: turn pasted share links into pins.js entries. Standard library only.
 
 usage:
   python -I pin_links.py <link> [<link> ...]                 print the entries
   python -I pin_links.py --by @someone <link>                credit the follower (optional)
-  python -I pin_links.py --write [--by ...] <link> ...       append them to ../pins.json
+  python -I pin_links.py --write [--by ...] <link> ...       append them to ../pins.js
   (or paste links on stdin, one per line, instead of passing them as arguments)
 
 A share link looks like
   https://.../day16-collaborative.html?pin=1.28047,103.84554,kopi-o.gau.siewdai.peng,Ah%20Seng%20Kopi
-The checks match the page: the spot must fall inside Singapore (the outline in ../kopi.json),
+The checks match the page: the spot must fall inside Singapore (the outline in ../kopi.js),
 the stall name is cleaned and capped at 60 characters, and the order code keeps only known words.
 """
 import json
@@ -20,8 +20,13 @@ from datetime import date
 from urllib.parse import parse_qs, urlsplit
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-PINS = os.path.join(HERE, '..', 'pins.json')
-KOPI = os.path.join(HERE, '..', 'kopi.json')
+PINS = os.path.join(HERE, '..', 'pins.js')
+KOPI = os.path.join(HERE, '..', 'kopi.js')
+
+
+def load_js(p):   # a data script (window.DAYNN = {...};) back to its object
+    t = open(p, encoding='utf-8').read()
+    return json.loads(t[t.index('=') + 1:].strip().rstrip(';'))
 CTRL = re.compile('[' + ''.join(re.escape(chr(a)) + '-' + re.escape(chr(b)) for a, b in (
     (0x00, 0x1F), (0x7F, 0x9F), (0xAD, 0xAD), (0x200B, 0x200F), (0x2028, 0x202E), (0x2060, 0x206F), (0xFEFF, 0xFEFF), (0xFFF9, 0xFFFB))) + ']')
 XS = ['tarik', 'guyou', 'peng', 'tapao']
@@ -35,7 +40,7 @@ def clean(s, n):
 
 def rings():
     out = []
-    for f in json.load(open(KOPI, encoding='utf-8'))['land']:
+    for f in load_js(KOPI)['land']:
         x, y = f[0], f[1]
         pts = [(x / 1e5, y / 1e5)]
         for i in range(2, len(f), 2):
@@ -118,7 +123,7 @@ def main(argv):
             links.append(a)
     if not links:
         links = [ln for ln in sys.stdin.read().splitlines() if ln.strip()]
-    pins = json.load(open(PINS, encoding='utf-8')) if write else []
+    pins = load_js(PINS) if write else []
     new = []
     for link in links:
         try:
@@ -133,7 +138,7 @@ def main(argv):
     print(json.dumps(new, ensure_ascii=False, indent=2))
     if write and new:
         with open(PINS, 'w', encoding='utf-8') as f:
-            json.dump(pins + new, f, ensure_ascii=False, indent=2)
+            f.write('window.DAY16_PINS = ' + json.dumps(pins + new, ensure_ascii=False, indent=2) + ';\n')
             f.write('\n')
         print(f'added {len(new)} pin(s) to {os.path.normpath(PINS)}', file=sys.stderr)
 

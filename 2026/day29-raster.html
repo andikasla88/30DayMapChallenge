@@ -634,7 +634,8 @@ async function loadCodes(url) {
   return { codes: out, w: bmp.width, h: bmp.height };
 }
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
-Promise.all([fetch('data/day29/lst.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }), loadCodes('data/day29/lst.png'), styleP]).then(([j, img]) => {
+const lstP = DMC.loadData('data/day29/lst.js', 'DAY29');   // the code PNG rides inside it as a data URL (j.png)
+Promise.all([lstP, lstP.then(j => loadCodes(j.png)), styleP]).then(([j, img]) => {
   J = j; CODES = img.codes; GW = img.w; GH = img.h;
   if (GW !== J.grid.w || GH !== J.grid.h) throw new Error('grid size mismatch');
   gridX0 = mercX(J.grid.bounds[0][0]); gridY1 = mercY(J.grid.bounds[1][1]); gridRes = (mercX(J.grid.bounds[1][0]) - gridX0) / GW;

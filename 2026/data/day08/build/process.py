@@ -222,7 +222,7 @@ out = dict(
                 land=round(LAND_KM2 * 1e6), gbtb=GBTB_HA * 10000, tunnel={c: round(v) for c, v in skipped.items()}),
     names=names, st=stats, P=polys, L=lines, cells=cell_arr)
 s = json.dumps(out, separators=(',', ':'), ensure_ascii=False)
-open(OUT, 'w', encoding='utf-8').write(s)
+open(OUT, 'w', encoding='utf-8').write('window.DAY08 = ' + s + ';\n')
 print('bytes', len(s), 'P chars', sum(len(r) for p in polys for part in p[2] for r in part), 'lines', nlines,
       'polys', len(polys), 'cells', len(cells))
 print('top names:')

@@ -21,10 +21,6 @@
 }
 * { box-sizing: border-box; }
 html, body { margin: 0; background: #D9D0BD; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-.bar { position: fixed; top: 10px; right: 12px; z-index: 5; display: flex; gap: 8px; align-items: center; font-size: 12px; color: var(--ink-2); }
-.bar button { font: inherit; font-weight: 600; color: var(--ink); background: var(--mat); border: 1px solid var(--rule); border-radius: 999px; padding: 6px 14px; cursor: pointer; box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
-.bar button:hover { background: #fff; }
-.bar button:disabled { opacity: .5; cursor: progress; }
 .stage { width: 100vw; height: 100vh; overflow: hidden; display: grid; place-items: center; }
 .sheet { width: 420mm; height: 297mm; flex: none; padding: 10mm; display: grid; grid-template-columns: 70mm 1fr; gap: 8mm; transform-origin: center; position: relative; overflow: hidden;
   background: radial-gradient(120% 90% at 50% 40%, transparent 60%, rgba(140, 110, 60, .10)), var(--paper); box-shadow: 0 6px 40px rgba(0, 0, 0, .25); }
@@ -91,16 +87,66 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
 .panel .osm { position: absolute; left: 0; bottom: 0; padding: .5mm 1.2mm; font-size: 1.9mm; color: var(--ink-2); background: rgba(255, 255, 255, .7); }
 .panel .status { position: absolute; inset: 0; display: grid; place-items: center; padding: 6mm; text-align: center; font-size: 3mm; color: var(--ink-2); }
 .panel .status[hidden] { display: none; }
+/* Phones and narrow windows: no A3 sheet to scale down. Title and key first, then the four
+   framed maps one under another at full width, keeping the print panel's 158 : 135.5 shape. */
+@media (max-width: 900px) {
+  html, body { background: var(--paper); }
+  .stage { width: auto; height: auto; display: block; overflow: visible; }
+  .sheet { width: auto; height: auto; padding: 18px 14px 28px; display: flex; flex-direction: column; gap: 20px; transform: none !important; box-shadow: none; overflow: visible; }
+  .side { gap: 14px; }
+  .badge { gap: 10px; }
+  .badge .n { font-size: 64px; }
+  .badge .t { gap: 3px; }
+  .badge .t b { font-size: 22px; }
+  .badge .t span { font-size: 11px; }
+  h1 { font-size: clamp(28px, 8.5vw, 40px); }
+  .key { gap: 10px; font-size: 13px; }
+  .key h2 { margin-bottom: 4px; font-size: 11px; }
+  .key .ramp { gap: 8px; }
+  .key .ramp i { height: 7px; border-radius: 4px; }
+  .key .row { gap: 10px; }
+  .key .rails { gap: 3px; max-width: 120px; }
+  .key .rails i { width: 16px; height: 5px; }
+  .key .stn { width: 11px; height: 11px; border-width: 2px; box-shadow: inset 0 0 0 1.5px #fff; }
+  .table { font-size: 13px; }
+  .table th { font-size: 10px; }
+  .table th, .table td { padding: 6px 0; }
+  .table th + th, .table td + td { padding-left: 8px; }
+  .notes { margin-top: 0; font-size: 11px; gap: 6px; }
+  .grid { display: flex; flex-direction: column; gap: 18px; }
+  .panel { aspect-ratio: 158 / 135.5; }
+  .panel .label { left: 8px; top: 8px; padding: 7px 9px 6px; gap: 2px; border-radius: 4px; max-width: 80%; }
+  .panel .label b { font-size: 24px; }
+  .panel .label em { font-size: 12px; }
+  .panel .label span { font-size: 10px; }
+  .panel .scale { right: 8px; bottom: 8px; font-size: 9px; gap: 2px; }
+  .panel .scale i { height: 4px; border-width: 1px; }
+  .panel .osm { font-size: 7px; padding: 1px 4px; }
+  .panel .open { right: auto; left: 50%; top: auto; bottom: calc(var(--frame) + var(--matw) + 10px); transform: translateX(-50%); padding: 5px 12px; font-size: 12px; white-space: nowrap; }
+  .panel[data-live]:focus-visible { outline-width: 3px; outline-offset: 3px; }
+  /* The live map takes the whole screen. */
+  .live .box { width: 100vw; height: 100vh; height: 100dvh; border-radius: 0; border-width: 4px; }
+  .live header { gap: 4px 10px; padding: 8px 8px 8px 12px; font-size: 11px; }
+  .live header b { font-size: 22px; }
+  .live header .ramp i { width: 60px; }
+  .live header .hint { display: none; }
+  .live header button { margin-left: auto; }
+}
+/* Touch screens have no hover: the "explore" tag stays visible. */
+@media (hover: none) {
+  .panel[data-live] .open { opacity: 1; }
+}
 @media print {
   html, body { background: var(--paper); }
-  .bar, .live, .panel .open { display: none !important; }
+  .live, .panel .open { display: none !important; }
   .stage { width: auto; height: auto; display: block; overflow: visible; }
-  .sheet { transform: none !important; box-shadow: none; }
+  .sheet { width: 420mm; height: 297mm; padding: 10mm; display: grid; grid-template-columns: 70mm 1fr; gap: 8mm; transform: none !important; box-shadow: none; overflow: hidden; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6mm; }
+  .panel { aspect-ratio: auto; }
 }
 </style>
 </head>
 <body>
-<div class="bar"><span id="progress">Drawing…</span><button id="print" type="button" disabled>Print / PDF</button></div>
 <div class="stage">
 <main class="sheet" id="sheet">
   <aside class="side">
@@ -127,7 +173,7 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
     <header>
       <b id="live-name"></b><span id="live-sub"></span>
       <span class="ramp"><span>1 bus route</span><i></i><span>80+ on a road</span></span>
-      <span class="hint">Drag to pan · scroll or pinch to zoom · hover a line for details</span>
+      <span class="hint">Drag to pan · scroll or pinch to zoom · hover or tap a line for details</span>
       <button type="button" id="live-close" aria-label="Close map">×</button>
     </header>
     <div class="lmap" id="lmap"><div class="tip" id="live-tip" hidden></div></div>
@@ -136,7 +182,9 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
 <script>
 'use strict';
 const DPI = 300, PX_PER_MM = DPI / 25.4;
-const FRAME = 6, MAT = 1.8;   // mm: carved frame band, cream mat inside it
+const NARROW = matchMedia('(max-width: 900px)');   // phones: the stacked layout (see the CSS)
+const TOUCH = matchMedia('(hover: none)').matches;
+const FRAME = NARROW.matches ? 3.5 : 6, MAT = NARROW.matches ? 1.2 : 1.8;   // mm: carved frame band, cream mat inside it
 const nf = new Intl.NumberFormat('en-SG');
 const $ = id => document.getElementById(id);
 
@@ -222,9 +270,9 @@ function frameSVG(id, w, h) {
 }
 
 /* ---------- screen: scale the sheet to the window (print is always 1:1) ---------- */
-function fit() {
+function fit() {   // on phones the sheet is a plain page, never scaled
   const s = $('sheet');
-  s.style.transform = `scale(${Math.min((innerWidth - 24) / s.offsetWidth, (innerHeight - 24) / s.offsetHeight)})`;
+  s.style.transform = NARROW.matches ? '' : `scale(${Math.min((innerWidth - 24) / s.offsetWidth, (innerHeight - 24) / s.offsetHeight)})`;
 }
 addEventListener('resize', fit);
 fit();
@@ -324,7 +372,7 @@ async function draw(city, panel) {
     ctx.beginPath();
     for (const e of encs) { const pts = decode(e); pts.forEach((p, i) => { const [x, y] = P(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); }
   };
-  const mm = v => v * PX_PER_MM;
+  const mm = v => v * PX_PER_MM * Math.min(1, map.dataset.wmm / 142);
   const canvas = () => { const c = document.createElement('canvas'); c.width = W; c.height = H; const x = c.getContext('2d'); x.lineCap = 'round'; x.lineJoin = 'round'; return [c, x]; };
 
   const [cv, ctx] = canvas();
@@ -385,7 +433,7 @@ const panels = CITIES.map(c => {
   p.setAttribute('aria-label', `Explore the ${c.id} map`);
   p.style.setProperty('--frame', `${FRAME}mm`);
   p.style.setProperty('--matw', `${MAT}mm`);
-  p.innerHTML = '<span class="open">Click to explore</span><div class="mat"><div class="map"><div class="label"></div><div class="scale"></div><div class="osm">© OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors</div><div class="status">Loading…</div></div></div>';
+  p.innerHTML = `<span class="open">${TOUCH ? 'Tap' : 'Click'} to explore</span><div class="mat"><div class="map"><div class="label"></div><div class="scale"></div><div class="osm">© OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors</div><div class="status">Loading…</div></div></div>`;
   grid.append(p);
   return p;
 });
@@ -398,19 +446,15 @@ for (const [i, p] of panels.entries()) {
 
 Promise.allSettled(CITIES.map((c, i) => draw(c, panels[i]).catch(e => { panels[i].querySelector('.status').textContent = `Could not draw ${c.id}: ${e.message}`; throw e; })))
   .then(all => {
-    const done = all.filter(r => r.status === 'fulfilled').map(r => r.value), res = done.map(r => r.d), failed = all.length - res.length;
-    const gaps = done.some(r => r.got < 1);
+    const res = all.filter(r => r.status === 'fulfilled').map(r => r.value.d);
     $('stats').innerHTML = res.map(d => `<tr><td>${d.name}</td><td>${nf.format(d.stats.busServices)}</td><td>${nf.format(d.stats.busKm)}</td><td>${d.stats.railLines}</td><td>${nf.format(d.stats.stations)}</td></tr>`).join('');
     const sw = res.flatMap(d => d.rail.filter(r => r[1] === 'subway').map(r => r[2])).filter((c, i, a) => a.indexOf(c) === i).slice(0, 10);
     $('rail-swatches').innerHTML = sw.map(c => `<i style="background:${c}"></i>`).join('');
     const when = res.map(d => d.osm).filter(Boolean).sort()[0];
     if (when) $('credits').insertAdjacentHTML('beforeend', ` OSM data as of ${when.slice(0, 10)}.`);
-    $('progress').textContent = failed ? `${failed} map(s) failed to draw` : gaps ? 'Ready (a basemap did not finish loading)' : 'Ready';
-    $('print').disabled = false;
     document.body.dataset.ready = '1';
   });
 
-$('print').addEventListener('click', () => print());
 
 /* ---------- the live map ----------
    Clicking a panel opens the same city in MapLibre: the grey basemap, bus routes in the same ramp
@@ -482,14 +526,18 @@ async function openLive(i) {
       paint: { 'circle-color': '#0B1220', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, ['case', ['>', ['get', 'k'], 1], 2.4, 1.8], 15, ['case', ['>', ['get', 'k'], 1], 6, 4.5]],
         'circle-stroke-color': '#fff', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 15, 2] } });
     const tip = $('live-tip');
-    m.on('mousemove', e => {
-      const f = m.queryRenderedFeatures([[e.point.x - 4, e.point.y - 4], [e.point.x + 4, e.point.y + 4]], { layers: ['rail', 'bus'] })[0];
+    const explain = e => {   // the line under the pointer (mouse) or finger (tap, with a bigger target)
+      const r = TOUCH ? 12 : 4;
+      const f = m.queryRenderedFeatures([[e.point.x - r, e.point.y - r], [e.point.x + r, e.point.y + r]], { layers: ['rail', 'bus'] })[0];
       m.getCanvas().style.cursor = f ? 'pointer' : '';
       if (!f) { tip.hidden = true; return; }
       tip.textContent = f.layer.id === 'rail' ? f.properties.name
         : `${f.properties.n} bus route${f.properties.n > 1 ? 's' : ''} on this road (each direction counted)`;
-      tip.style.left = `${e.point.x}px`; tip.style.top = `${e.point.y}px`; tip.hidden = false;
-    });
+      tip.style.left = `${Math.min(e.point.x, m.getContainer().clientWidth - 230)}px`; tip.style.top = `${e.point.y}px`; tip.hidden = false;
+    };
+    m.on('mousemove', explain);
+    m.on('click', explain);
+    m.on('movestart', () => { if (TOUCH) tip.hidden = true; });
     m.on('mouseout', () => { tip.hidden = true; });
   });
 }

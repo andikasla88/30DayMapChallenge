@@ -1,6 +1,6 @@
 """Merge the day 06 build outputs into the one file the page loads, with every context
 geometry packed as Google-polyline strings (lng, lat at 1e5).
-usage: python merge.py <context.json> <blocks.json> <out sheet.json>
+usage: python merge.py <context.json> <blocks.json> <out sheet.js>
 Run order: fetch.py, fetch_osm.py, geocode_streets.py, build_context.py, build_blocks.py, merge.py
 Packed geometry: {"t": "P", "c": [[ring, ...], ...]} (polygons) or {"t": "L", "c": [line, ...]} (lines)."""
 import sys, json
@@ -44,5 +44,5 @@ for k, v in ctx.items():
 blk = json.load(open(sys.argv[2], encoding='utf-8'))
 blk['ctx'] = out
 s = json.dumps(blk, separators=(',', ':'))
-open(sys.argv[3], 'w', encoding='utf-8').write(s)
-print('sheet.json bytes', len(s), 'context', len(json.dumps(out, separators=(',', ':'))))
+open(sys.argv[3], 'w', encoding='utf-8').write('window.DAY06 = ' + s + ';\n')
+print('sheet.js bytes', len(s), 'context', len(json.dumps(out, separators=(',', ':'))))

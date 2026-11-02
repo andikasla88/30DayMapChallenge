@@ -304,7 +304,7 @@ let cumBlk = {}, cumFlat = {};
 
 /* ---------- data ---------- */
 const loaded = new Promise(res => map.once('load', res));
-fetch('data/day06/sheet.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(async data => {
+DMC.loadData('data/day06/sheet.js', 'DAY06').then(async data => {
   D = data;
   await loaded;
   build();

@@ -1038,7 +1038,7 @@ function applyWind(raw, live, first) {
   else if (pinAt) sniff(pinAt, pin.getElement().querySelector('.tag').textContent);
 }
 
-const dataP = fetch('data/day19/smell.json').then(r => { if (!r.ok) throw new Error(`smell.json: ${r.status}`); return r.json(); });
+const dataP = DMC.loadData('data/day19/smell.js', 'DAY19');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 dataP.then(d => {
   setCentres(d);

@@ -1,4 +1,4 @@
-"""Day 19 · Smell: turn the raw downloads into data/day19/smell.json.
+"""Day 19 · Smell: turn the raw downloads into data/day19/smell.js.
 
   hawkers  every hawker centre that is open today (status "Existing", "Existing (new)",
            "Existing (replacement)" or "Interim Centre"; the 6 still under construction
@@ -82,7 +82,7 @@ out = {
     'wind': {'time': rd['timestamp'], 'speedTime': rs['timestamp'], 'type': [wd['readingType'], ws['readingType']],
              'fields': ['id', 'name', 'lng', 'lat', 'dirFrom', 'knots'], 'rows': wind},
 }
-OUT.write_text(json.dumps(out, ensure_ascii=False, separators=(',', ':')), encoding='utf-8')
+OUT.write_text('window.DAY19 = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n', encoding='utf-8')
 print(f'{len(rows)} open centres ({len(cooking)} with cooked food, {summary["stalls"]:,} stalls); '
       f'skipped {skipped}; largest {summary["largest"]}; median {summary["medianStalls"]} stalls')
 print(f'wind snapshot {rd["timestamp"]}: {len(wind)} stations')

@@ -807,7 +807,7 @@ if (document.fonts) document.fonts.ready.then(layout);
 addEventListener('resize', layout);
 
 /* ---------- load ---------- */
-const dataP = fetch('data/day21/bubbletea.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day21/bubbletea.js', 'DAY21');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 dataP.then(d => {
   decode(d);

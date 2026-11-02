@@ -1,4 +1,4 @@
-"""Day 28 Feeling: turn the raw downloads into data/day28/feeling.json.
+"""Day 28 Feeling: turn the raw downloads into data/day28/feeling.js.
 
 Requires: Python 3.10+, shapely>=2, pyproj>=3, numpy
           (pip install shapely pyproj numpy)
@@ -179,5 +179,5 @@ out = {
     'check': check,
 }
 with open(OUT, 'w', encoding='utf-8') as f:
-    json.dump(out, f, separators=(',', ':'), ensure_ascii=False)
+    f.write('window.DAY28 = ' + json.dumps(out, separators=(',', ':'), ensure_ascii=False) + ';\n')
 print(f'{OUT}: {os.path.getsize(OUT):,} bytes')

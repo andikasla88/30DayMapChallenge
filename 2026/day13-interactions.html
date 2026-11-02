@@ -842,7 +842,7 @@ addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { if 
 document.addEventListener('dmc:focus', () => { if (view) setTimeout(() => frameView(), 30); });
 
 /* ---------- load ---------- */
-const dataP = fetch('data/day13/od.json').then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); });
+const dataP = DMC.loadData('data/day13/od.js', 'DAY13');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(([d]) => {
   addLayers(decode(d));

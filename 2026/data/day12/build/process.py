@@ -276,5 +276,5 @@ out = {
     'season': season, 'tengeh': tengeh,
 }
 s = json.dumps(out, separators=(',', ':'), ensure_ascii=False)
-open(OUT, 'w', encoding='utf-8').write(s)
+open(OUT, 'w', encoding='utf-8').write('window.DAY12 = ' + s + ';\n')
 print(f'wrote {OUT}: {len(s):,} bytes')

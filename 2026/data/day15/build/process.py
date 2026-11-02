@@ -3,7 +3,7 @@
 Requires: numpy shapely pyproj rasterio pillow scipy   (run osm_names.py first)
 usage: python -I process.py <raw-dir> <out-dir>
   reads  <raw-dir>/osm.pkl, <raw-dir>/mss/*.tif, notes.json (next to this script)
-  writes <out-dir>/inside-out.json, <out-dir>/landsat-1973.jpg
+  writes <out-dir>/inside-out.js (window.DAY15, with the 1973 picture inside as a JPEG data URL)
 
 Method, in plain words
   Names     Every OSM street, place, MRT station, park, cape, beach and island in Singapore whose
@@ -29,6 +29,8 @@ Method, in plain words
             waterline; otherwise "can't tell". Island names whose spot is now inside other land
             are "no longer an island".
 """
+import base64
+import io
 import json
 import os
 import pickle
@@ -282,7 +284,9 @@ dark, mid, light = np.array([20, 14, 9.]), np.array([140, 104, 68.]), np.array([
 Lx = L[..., None]
 rgb = np.where(Lx < .5, dark + (mid - dark) * (Lx / .5), mid + (light - mid) * ((Lx - .5) / .5))
 os.makedirs(OUT, exist_ok=True)
-Image.fromarray(rgb.astype(np.uint8)).save(os.path.join(OUT, 'landsat-1973.jpg'), quality=82, optimize=True, progressive=True)
+buf = io.BytesIO()   # the picture rides inside inside-out.js as a data URL, so the page also works opened from disk
+Image.fromarray(rgb.astype(np.uint8)).save(buf, 'JPEG', quality=82, optimize=True, progressive=True)
+img_url = 'data:image/jpeg;base64,' + base64.b64encode(buf.getvalue()).decode()
 print('picture', W, 'x', H)
 
 mtl = json.load(open(os.path.join(mss, 'mtl.json')))['LANDSAT_METADATA_FILE']
@@ -297,10 +301,11 @@ stats = {
     'counts': {s: sum(g['s'] == s for g in out_groups) for s in ('wrong', 'joined', 'right', 'unsure')},
 }
 print(stats)
-json.dump({
+out = {
     'stats': stats,
-    'img': {'url': 'data/day15/landsat-1973.jpg', 'coords': [[EXTENT[0], EXTENT[3]], [EXTENT[2], EXTENT[3]], [EXTENT[2], EXTENT[1]], [EXTENT[0], EXTENT[1]]]},
+    'img': {'url': img_url, 'coords': [[EXTENT[0], EXTENT[3]], [EXTENT[2], EXTENT[3]], [EXTENT[2], EXTENT[1]], [EXTENT[0], EXTENT[1]]]},
     'geo': geo, 'groups': out_groups,
     'words': NOTES['words'], 'notes': NOTES['names'], 'zones': NOTES['zones'], 'left': NOTES['left_out'],
-}, open(os.path.join(OUT, 'inside-out.json'), 'w', encoding='utf-8'), ensure_ascii=False, separators=(',', ':'))
-print('json', os.path.getsize(os.path.join(OUT, 'inside-out.json')), 'bytes;', 'jpg', os.path.getsize(os.path.join(OUT, 'landsat-1973.jpg')), 'bytes')
+}
+open(os.path.join(OUT, 'inside-out.js'), 'w', encoding='utf-8').write('window.DAY15 = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n')
+print('json', os.path.getsize(os.path.join(OUT, 'inside-out.js')), 'bytes;', 'jpg', len(buf.getvalue()), 'bytes')

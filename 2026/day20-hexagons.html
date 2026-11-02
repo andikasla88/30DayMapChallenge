@@ -823,7 +823,7 @@ let rT = 0;
 addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => { layout(); if (D) drawTiles(); }, 150); });
 
 /* ---------- load ---------- */
-const dataP = fetch('data/day20/hex.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day20/hex.js', 'DAY20');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 dataP.then(d => {
   prepare(d);

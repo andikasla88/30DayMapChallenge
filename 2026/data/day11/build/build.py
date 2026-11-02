@@ -1,4 +1,4 @@
-"""Day 11 · Sound: bake storm.json from the raw lightning days that fetch.py saved.
+"""Day 11 · Sound: bake storm.js from the raw lightning days that fetch.py saved.
 
 Steps
 1. Read every raw day file. Each 2-minute record lists the strikes of the 2 minutes before
@@ -189,5 +189,5 @@ out = {
                 'zigzag step in round((lng - x0) * 1e4), zigzag step in round((lat - y0) * 1e4)',
     's': packed,
 }
-OUT.write_text(json.dumps(out, separators=(',', ':')))
+OUT.write_text('window.DAY11 = ' + json.dumps(out, separators=(',', ':')) + ';\n')
 print('wrote', OUT, OUT.stat().st_size, 'bytes,', len(S), 'strikes on', best)

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Day 09 data build. Raw downloads go to $RAW (outside the repo); output to ../density.json.
+# Day 09 data build. Raw downloads go to $RAW (outside the repo); output to ../density.js.
 # usage: sh build.sh <raw-dir>
 set -e
 RAW="${1:?raw dir}"; HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -19,4 +19,4 @@ for id in d_8594ae9ff96d0c708bc2af633048edfb d_90d86daa5bfaa371668b84fa5f01424f;
   url=$(curl -s "https://api-open.data.gov.sg/v1/public/api/datasets/$id/poll-download" | "$PY" -c "import sys,json;print(json.load(sys.stdin)['data']['url'])")
   curl -s -o "$id.geojson" "$url"
 done
-"$PY" -I "$HERE/prep.py" respop2026.xlsx respopagesextod2026.csv d_8594ae9ff96d0c708bc2af633048edfb.geojson d_90d86daa5bfaa371668b84fa5f01424f.geojson "$HERE/../density.json"
+"$PY" -I "$HERE/prep.py" respop2026.xlsx respopagesextod2026.csv d_8594ae9ff96d0c708bc2af633048edfb.geojson d_90d86daa5bfaa371668b84fa5f01424f.geojson "$HERE/../density.js"

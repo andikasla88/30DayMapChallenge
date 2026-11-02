@@ -25,7 +25,7 @@ The schematic (how the diagram end is made)
      nodes, so every line through one passes through the same point. The finished diagram is
      scaled and centred onto the true positions by least squares (scale and shift only, no rotation).
 
-Output: ../diagram.json. Positions are SVY21 (EPSG:3414) metres, rounded to 1 m. The page draws
+Output: ../diagram.js. Positions are SVY21 (EPSG:3414) metres, rounded to 1 m. The page draws
 them with a fitted affine SVY21 -> WGS84 transform (its worst error is printed and stored).
 
 usage: python -I process.py <sg-rail.geojson> <routes.citymapper.json> <out.json>
@@ -471,7 +471,7 @@ def main(rail_path, routes_path, out_path):
         'E': E_out,
     }
     with open(out_path, 'w', encoding='utf-8') as fh:
-        json.dump(out, fh, separators=(',', ':'), ensure_ascii=False)
+        fh.write('window.DAY25 = ' + json.dumps(out, separators=(',', ':'), ensure_ascii=False) + ';\n')
     print(json.dumps(out['meta'], indent=1, ensure_ascii=False))
 
 

@@ -323,7 +323,7 @@ function decode(str) {   // Google polyline, precision 5 -> [[lng, lat]]
 }
 let D = null, MAJ = null, MIN = null, CELLS = null;
 const featById = new Map();
-const dataReady = fetch('data/day08/utopia.json').then(r => r.json()).then(d => {
+const dataReady = DMC.loadData('data/day08/utopia.js', 'DAY08').then(d => {
   D = d;
   MAJ = { type: 'FeatureCollection', features: d.P.map(([n, c, parts], i) => ({ type: 'Feature', properties: { i, n, c },
     geometry: { type: 'MultiPolygon', coordinates: parts.map(rings => rings.map(decode)) } })) };

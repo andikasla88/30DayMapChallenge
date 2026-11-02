@@ -288,7 +288,7 @@ const DAY = {
   basemap: 'Grey',
   basemapPaint: { 'raster-contrast': -.12, 'raster-brightness-min': .08 },
   basemapBg: '#F3EEE3',
-  bounds: [[103.565, 1.15671], [104.115, 1.523276]],   // the sheet's window, also in data/day30/paper.json
+  bounds: [[103.565, 1.15671], [104.115, 1.523276]],   // the sheet's window, also in data/day30/paper.js
   maxBounds: [[102.6, .5], [105.0, 2.2]], minZoom: 8, maxZoom: 17,
   camera: { pitch: 0, bearing: 0, tiltPitch: 50 },
   buildings: false,
@@ -1116,7 +1116,7 @@ function setFriendIntro() {
 })();
 
 /* ---------- data ---------- */
-fetch('data/day30/paper.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+DMC.loadData('data/day30/paper.js', 'DAY30').then(d => {
   D = d;
   T = prepTruth(d);
   TR = overlap([], 20);

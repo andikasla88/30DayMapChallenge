@@ -1116,7 +1116,7 @@ addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(relayout, 1
 document.addEventListener('dmc:focus', () => { hideProbe(); setTimeout(relayout, 30); });
 
 /* ---------- start ---------- */
-fetch('data/day22/projections.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+DMC.loadData('data/day22/projections.js', 'DAY22').then(d => {
   setup(d);
   setDragRaw();
   fillWords();

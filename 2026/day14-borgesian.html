@@ -981,7 +981,7 @@ if (document.fonts) document.fonts.ready.then(() => { layout(); drawSld(); });
 
 /* ---------- start ---------- */
 let viewerMoved = params.has('view');
-fetch('data/day14/street.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => {
+DMC.loadData('data/day14/street.js', 'DAY14').then(d => {
   D = d;
   LAT = D.meta.origin[1]; COS = Math.cos(LAT * Math.PI / 180); kx = 111320 * COS;
   AX = dec(D.axis); AXM = AX.map(toM);

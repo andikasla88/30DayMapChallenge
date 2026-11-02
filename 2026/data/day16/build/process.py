@@ -1,7 +1,7 @@
 """Day 16 (Collaborative map): seed the "Best kopi near you" map with real places.
 
 Requires python 3.10+ with: osmium shapely pyproj (numpy comes with shapely)
-usage: python -I process.py <raw-dir> <out-dir>          writes <out-dir>/kopi.json
+usage: python -I process.py <raw-dir> <out-dir>          writes <out-dir>/kopi.js
 
 WHAT IS INCLUDED, AND HOW (the page repeats this in plain words)
   From the OpenStreetMap extract, every node or area tagged amenity = cafe, food_court, restaurant
@@ -24,9 +24,9 @@ WHAT IS INCLUDED, AND HOW (the page repeats this in plain words)
 
   "Inside Singapore": within 100 m of land (OSM coastline rings, the islands included) and inside
   Singapore's national boundary (OSM relation 536780). The same shape, simplified, ships in
-  kopi.json so the page can check that a shared pin is in Singapore.
+  kopi.js so the page can check that a shared pin is in Singapore.
 
-OUTPUT kopi.json
+OUTPUT kopi.js
   p      places: [x, y, kind, chain, name, address, hours, osm ref, stalls]
          x, y = round(lon * 1e5), round(lat * 1e5); kind 0 coffee shop, 1 chain, 2 hawker centre;
          chain = index into chains or -1; stalls = NEA cooked-food stalls (hawker centres) or 0
@@ -262,8 +262,8 @@ out = {
     'border': border_out,
 }
 os.makedirs(OUT, exist_ok=True)
-path = os.path.join(OUT, 'kopi.json')
+path = os.path.join(OUT, 'kopi.js')
 with open(path, 'w', encoding='utf-8') as f:
-    json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
+    f.write('window.DAY16 = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n')
 print(json.dumps(counts, indent=1, ensure_ascii=False))
 print(path, os.path.getsize(path), 'bytes')

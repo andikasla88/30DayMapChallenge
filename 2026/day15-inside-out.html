@@ -306,7 +306,7 @@ let D = null, G = [];
 const show = { wrong: true, joined: true, unsure: true, right: true };
 let selected = null;
 
-const dataP = fetch('data/day15/inside-out.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day15/inside-out.js', 'DAY15');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 
 /* ---------- map layers ---------- */

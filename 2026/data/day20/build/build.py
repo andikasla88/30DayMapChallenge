@@ -1,11 +1,11 @@
 """Day 20: HDB resale $/psf binned to H3 hexagons, res 8 and res 9.
 Requirements (own venv): pip install h3==4.5.0 requests
-usage: python -X utf8 build.py <raw_dir> <day06 sheet.json> <out hex.json> [cache_dir]
+usage: python -X utf8 build.py <raw_dir> <day06 sheet.js> <out hex.js> [cache_dir]
 Run fetch.py first (it writes <raw_dir>/resale_2017on.csv and resale_metadata.json).
 
 Price per square foot = resale_price / (floor_area_sqm x 10.7639)   (1 m2 = 10.7639 sq ft)
 
-Where each block is: its HDB building footprint centroid, read from day 06's sheet.json (HDB Existing
+Where each block is: its HDB building footprint centroid, read from day 06's sheet.js (HDB Existing
 Building footprints joined to HDB Property Information on block + street). Blocks not found there are
 geocoded with OneMap search ("<block> <street>", block number must match), cached in <cache_dir>.
 
@@ -67,7 +67,8 @@ def encode(pts):
 
 
 # ---------- 1. block coordinates from day 06 ----------
-sheet = json.load(open(SHEET, encoding='utf-8'))
+t = open(SHEET, encoding='utf-8').read()   # day 06's sheet.js: window.DAY06 = {...};
+sheet = json.loads(t[t.index('=') + 1:].strip().rstrip(';'))
 O, K = sheet['o'], sheet['k']
 norm = lambda b: b.strip().upper().lstrip('0')
 acc = collections.defaultdict(lambda: [0.0, 0.0, 0.0])   # key -> [sum a*x, sum a*y, sum a]
@@ -241,7 +242,7 @@ out = {
     'land': sheet['ctx']['land']['c'], 'reservoirs': sheet['ctx']['reservoirs']['c'],
 }
 s = json.dumps(out, separators=(',', ':'), ensure_ascii=False)
-open(OUT, 'w', encoding='utf-8').write(s)
+open(OUT, 'w', encoding='utf-8').write('window.DAY20 = ' + s + ';\n')
 print('wrote', OUT, len(s.encode('utf-8')), 'bytes')
 print('island all years, all flats:', island_out['0|0'], '| latest year:', island_out[f'{len(years)}|0'], '| 2017:', island_out['1|0'])
 for line in geo['onemapList'] + geo['unplacedList']: print('  ', line)

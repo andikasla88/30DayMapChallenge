@@ -13,7 +13,7 @@ Reads what fetch.py saved:
    counted (points inside the buffer; lines and areas touching it, each feature once).
 2. The street with the most objects among those 300-900 m long is chosen.
 3. Everything within BUF metres of it is clipped, reprojected to WGS84 and written to
-   <out>/street.json, with each object's chainage (metres along the street) and offset.
+   <out>/street.js, with each object's chainage (metres along the street) and offset.
 All lengths and distances are measured in SVY21 metres.
 """
 import sys, os, json, math, glob
@@ -382,6 +382,6 @@ res = {
 print(res['meta'])
 print(res['codes']['lane'])
 os.makedirs(OUT, exist_ok=True)
-fn = os.path.join(OUT, 'street.json')
-json.dump(res, open(fn, 'w', encoding='utf-8'), separators=(',', ':'), ensure_ascii=False)
+fn = os.path.join(OUT, 'street.js')
+open(fn, 'w', encoding='utf-8').write('window.DAY14 = ' + json.dumps(res, separators=(',', ':'), ensure_ascii=False) + ';\n')
 print('wrote', fn, os.path.getsize(fn) // 1024, 'kB')

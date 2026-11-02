@@ -574,7 +574,7 @@ $('find').addEventListener('change', e => {
 
 /* ---------- load ---------- */
 map.getCanvasContainer().insertBefore(cv, map.getCanvas().nextSibling);   // above the map, under the markers
-const dataP = fetch('data/day26/water.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day26/water.js', 'DAY26');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(([d]) => {
   D = d;

@@ -452,10 +452,8 @@ const fireworks = {
 };
 
 /* ---------- data ---------- */
-async function loadData() {
-  const r = await fetch('data/day05/buildings.json');
-  if (!r.ok) throw new Error(`buildings.json: HTTP ${r.status}`);
-  return r.json();
+function loadData() {
+  return DMC.loadData('data/day05/buildings.js', 'DAY05');
 }
 
 function decode(json) {

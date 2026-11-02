@@ -7,4 +7,4 @@ set -e
 RAW="${1:?raw dir}"; HERE="$(cd "$(dirname "$0")" && pwd)"
 PY="${PY:-python}"
 "$PY" -I "$HERE/fetch.py" "$RAW"              # OSM extract, Name Suggestion Index, Wikidata checks
-"$PY" -I "$HERE/process.py" "$RAW" "$HERE/.."   # -> bubbletea.json
+"$PY" -I "$HERE/process.py" "$RAW" "$HERE/.."   # -> bubbletea.js

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Day 10 data build. Raw downloads go to $RAW (outside the repo); output to ../memory.json.
+# Day 10 data build. Raw downloads go to $RAW (outside the repo); output to ../memory.js.
 # answer.json and prompt.md in this folder are the transcript: written first, never edited.
 # usage: sh build.sh <raw-dir>
 set -e
@@ -17,4 +17,4 @@ if [ ! -s nmp.geojson ]; then
   url=$(curl -sf "https://api-open.data.gov.sg/v1/public/api/datasets/$ID/poll-download" | "$PY" -c "import sys,json;print(json.load(sys.stdin)['data']['url'])")
   curl -sf -o nmp.geojson "$url"
 fi
-"$PY" -I "$HERE/process.py" "$HERE/answer.json" sg-rail.geojson routes.citymapper.json nmp.geojson "$HERE/../memory.json"
+"$PY" -I "$HERE/process.py" "$HERE/answer.json" sg-rail.geojson routes.citymapper.json nmp.geojson "$HERE/../memory.js"

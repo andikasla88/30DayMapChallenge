@@ -1,4 +1,4 @@
-"""Day 04 · Clusters: bake taxis.json from the raw snapshots and landmarks.
+"""Day 04 · Clusters: bake taxis.js from the raw snapshots and landmarks.
 
 Steps
 1. Each LTA snapshot -> SVY21 (EPSG:3414) metres, rounded to 1 m. Points closer than 1.5 m
@@ -209,5 +209,5 @@ doc = {
     'areas': [[a[0], int(round(x)), int(round(y)), a[3]] for a, (x, y) in zip(AREAS, AR)],
 }
 OUT.parent.mkdir(parents=True, exist_ok=True)
-OUT.write_text(json.dumps(doc, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
+OUT.write_text('window.DAY04 = ' + json.dumps(doc, separators=(',', ':'), ensure_ascii=False) + ';\n', encoding='utf-8')
 print(OUT, OUT.stat().st_size // 1024, 'KB')

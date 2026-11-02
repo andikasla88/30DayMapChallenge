@@ -253,5 +253,5 @@ out = dict(
     crs=crsinfo, coast=coast, world=world, cities=cities,
 )
 with open(OUT, 'w', encoding='utf-8') as fh:
-    json.dump(out, fh, separators=(',', ':'), ensure_ascii=False)
+    fh.write('window.DAY22 = ' + json.dumps(out, separators=(',', ':'), ensure_ascii=False) + ';\n')
 print(f'\nwrote {OUT}: {os.path.getsize(OUT) / 1024:.0f} KB')

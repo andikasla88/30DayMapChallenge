@@ -386,6 +386,17 @@ const DMC = (() => {
     map.setPaintProperty(hi, 'raster-opacity', same ? a : ['step', ['zoom'], b, 11, a]);
     map.setPaintProperty(lo, 'raster-opacity', same ? a : ['step', ['zoom'], a, 9.5, b]);
   }
+  // Day data ships as a script that sets a global (data/dayNN/x.js: window.DAYNN = {...}), not as JSON,
+  // so the pages also work opened straight from disk, where fetch() of a local file is blocked.
+  function loadData(src, name) {
+    return new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = src;
+      s.onload = () => (window[name] !== undefined ? res(window[name]) : rej(new Error(`${src} loaded without ${name}`)));
+      s.onerror = () => rej(new Error(`${src} failed to load`));
+      document.head.appendChild(s);
+    });
+  }
   function setBasemapVisible(map, style, on) {
     for (const id of [`basemap-${style}`, `basemap-${style}-lo`]) {
       if (map.getLayer(id) && (map.getLayoutProperty(id, 'visibility') !== 'none') !== on) map.setLayoutProperty(id, 'visibility', on ? 'visible' : 'none');
@@ -393,6 +404,6 @@ const DMC = (() => {
   }
 
   return { THEMES, SG_BOUNDS, CBD, BASEMAPS, ONEMAP_CREDIT, OSM_CREDIT: OSM, COMPACT_Q, pad2, rgb, mountStamp, fitStamp, overlayPadding,
-    createMap, frame, setBasemapPaint, setBasemapOpacity, setBasemapVisible, addBuildings, setBuildings, setFocus };
+    createMap, frame, loadData, setBasemapPaint, setBasemapOpacity, setBasemapVisible, addBuildings, setBuildings, setFocus };
 })();
 /* ===== end 30DMC KIT v3 ===== */

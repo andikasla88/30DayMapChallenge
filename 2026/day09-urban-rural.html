@@ -636,7 +636,7 @@ addEventListener('resize', () => { clearTimeout(rT); rT = setTimeout(() => {
 document.addEventListener('dmc:focus', () => { const c = STEPS[active] && STEPS[active].cam; if (c) go(cameraFor(c)); });
 
 /* ---------- load ---------- */
-const dataP = fetch('data/day09/density.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day09/density.js', 'DAY09');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(([d]) => {
   D = buildData(d);

@@ -489,7 +489,7 @@ function addLayers() {
   }
   if (D.s2) {
     const [w, s, e, n] = D.s2.bounds;
-    map.addSource('s2', { type: 'image', url: 'data/day18/zero-s2.webp', coordinates: [[w, n], [e, n], [e, s], [w, s]] });
+    map.addSource('s2', { type: 'image', url: D.s2.img, coordinates: [[w, n], [e, n], [e, s], [w, s]] });
     map.addLayer({ id: 's2', type: 'raster', source: 's2', paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 900 }, 'raster-fade-duration': 0, 'raster-saturation': -.12 } });
   }
   const T = { duration: reduceMotion ? 0 : 800 };
@@ -802,7 +802,7 @@ addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { lay
 document.addEventListener('dmc:focus', () => { if (wp >= 0 && D) map.easeTo({ ...cameraFor(wp), duration: reduceMotion ? 0 : 600 }); });
 
 /* ---------- load ---------- */
-const dataP = fetch('data/day18/null.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day18/null.js', 'DAY18');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(([d]) => {
   D = d;

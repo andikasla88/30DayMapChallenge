@@ -7,10 +7,10 @@ Inputs (see build.sh):
                 layer Coastal_Outlines: "SINGAPORE - MAIN ISLAND" and the other islands.
                 The same file Day 10 scored Claude's drawing against.
   answer.json   Day 10's transcript: Claude's from-memory outline (read only).
-  memory.json   Day 10's published scores, and its LTA station points from cheeaun/sgraildata
+  memory.js   Day 10's published scores, and its LTA station points from cheeaun/sgraildata
                 v5.1.0 (read only). Four stations stand for the four landmark pins.
 
-Output: paper.json, loaded by day30-pen-paper.html. The page scores drawings itself, in the
+Output: paper.js, loaded by day30-pen-paper.html. The page scores drawings itself, in the
 browser, with the same measures as Day 10:
   overlap      area inside both outlines / area inside either (main island, holes kept)
   area         the drawing's area against the real island's (Day 10: geodesic WGS84 km2)
@@ -24,7 +24,7 @@ This script re-scores Claude's Day 10 outline from the shipped (rounded) ring an
 against Day 10's published numbers, and writes a second, shifted-and-scaled test outline with
 its shapely scores, so the page's own scorer can be checked against shapely (see the test).
 
-usage: python -I process.py <nmp.geojson> <answer.json> <memory.json> <out.json>
+usage: python -I process.py <nmp.geojson> <answer.json> <memory.js> <out.json>
 """
 import json
 import math
@@ -106,7 +106,8 @@ def score(guess_svy, real_svy):
 def main(nmp_path, answer_path, memory_path, out_path):
     nmp = json.load(open(nmp_path, encoding='utf-8'))
     A = json.load(open(answer_path, encoding='utf-8'))
-    M = json.load(open(memory_path, encoding='utf-8'))
+    t = open(memory_path, encoding='utf-8').read()   # day 10's memory.js: window.DAY10 = {...};
+    M = json.loads(t[t.index('=') + 1:].strip().rstrip(';'))
 
     by_name, upd = {}, None
     for f in nmp['features']:
@@ -188,7 +189,7 @@ def main(nmp_path, answer_path, memory_path, out_path):
         'check': {'claude': rnd(claude), 'test': {'ring': [[round(x, 7), round(y, 7)] for x, y in test_ll], 'score': rnd(test)}},
     }
     with open(out_path, 'w', encoding='utf-8') as fh:
-        json.dump(out, fh, separators=(',', ':'))
+        fh.write('window.DAY30 = ' + json.dumps(out, separators=(',', ':')) + ';\n')
     print('window', window)
     print('truth', out['truth'])
     print('claude re-scored vs Day 10:', {k: (round(a, 4), round(b, 4)) for k, (a, b) in check.items()})

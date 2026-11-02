@@ -1,7 +1,7 @@
 """Day 21 (OpenStreetMap): bubble tea chains in Singapore, as OSM maps them, and the tagging to-do list.
 
 Requires: osmium shapely pyproj
-usage: python -I process.py <raw-dir> <out-dir>          writes <out-dir>/bubbletea.json
+usage: python -I process.py <raw-dir> <out-dir>          writes <out-dir>/bubbletea.js
 
 What it does
   1. Reads every node, way and multipolygon in the Singapore OSM extract and keeps the ones that sell
@@ -354,9 +354,9 @@ data = {
     'others': [[r5(p.x), r5(p.y), SHORT[ty], oid, t.get('name', '') or t.get('name:en', ''), int('brand' in t)] for ty, oid, t, p in others],
 }
 os.makedirs(OUT, exist_ok=True)
-with open(os.path.join(OUT, 'bubbletea.json'), 'w', encoding='utf-8') as f:
-    json.dump(data, f, ensure_ascii=False, separators=(',', ':'))
-print('bubbletea.json', os.path.getsize(os.path.join(OUT, 'bubbletea.json')), 'bytes')
+with open(os.path.join(OUT, 'bubbletea.js'), 'w', encoding='utf-8') as f:
+    f.write('window.DAY21 = ' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n')
+print('bubbletea.js', os.path.getsize(os.path.join(OUT, 'bubbletea.js')), 'bytes')
 for c in sorted(CHAINS, key=lambda c: -counts[c['id']]):
     mine = [o for o in outlets if o['c'] is c]
     if mine:

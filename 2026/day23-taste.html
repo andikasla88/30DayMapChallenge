@@ -586,7 +586,7 @@ function addNea() {
 }
 
 /* ---------- start ---------- */
-const dataP = fetch('data/day23/bib.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day23/bib.js', 'DAY23');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 dataP.then(load).then(() => { setTab(params.get('tab') === 'where' ? 'where' : 'hot'); setDish(CAT.includes(params.get('dish')) ? params.get('dish') : null, false); })
   .catch(err => { $('loading').textContent = 'The menu could not be loaded. Please reload.'; console.error(err); });

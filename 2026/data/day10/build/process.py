@@ -12,7 +12,7 @@ Inputs (see build.sh, which downloads the raw files first):
   nmp.geojson            SLA National Map Polygon, data.gov.sg d_29f066d67df3eae91df8a42f443863c8
                          (layer Coastal_Outlines: "SINGAPORE - MAIN ISLAND", the islands, Johor).
 
-Output: memory.json, the compact file the page loads. Coordinates are integers of 1e-5 degree,
+Output: memory.js (window.DAY10), the compact file the page loads, and transcript.js beside it. Coordinates are integers of 1e-5 degree,
 delta-encoded per ring or list. All distances are metres on the WGS84 ellipsoid (station errors,
 pyproj.Geod) or in SVY21 (EPSG:3414) metres for distances to a coastline; all areas are
 geodesic km2 on WGS84.
@@ -22,6 +22,7 @@ usage: python -I process.py <answer.json> <sg-rail.geojson> <routes.citymapper.j
 import hashlib
 import json
 import math
+import os
 import re
 import sys
 
@@ -355,7 +356,13 @@ def main(answer_path, rail_path, routes_path, nmp_path, out_path):
         'forgot': polys(forgot_land), 'made': polys(made_land),
     }
     with open(out_path, 'w', encoding='utf-8') as fh:
-        json.dump(out, fh, separators=(',', ':'), ensure_ascii=False)
+        fh.write('window.DAY10 = ' + json.dumps(out, separators=(',', ':'), ensure_ascii=False) + ';\n')
+    # the transcript, verbatim, as a script beside it (the page hashes answer to check the seal)
+    here = os.path.dirname(os.path.abspath(answer_path))
+    transcript = {'prompt': open(os.path.join(here, 'prompt.md'), encoding='utf-8').read().replace('\r\n', '\n'),
+                  'answer': open(answer_path, encoding='utf-8', newline='').read()}
+    with open(os.path.join(os.path.dirname(os.path.abspath(out_path)), 'transcript.js'), 'w', encoding='utf-8', newline='\n') as fh:
+        fh.write('window.DAY10_TRANSCRIPT = ' + json.dumps(transcript, separators=(',', ':')) + ';\n')
     s = out['stats']
     print(json.dumps({k: s[k] for k in ('matched', 'invented', 'forgotten', 'median_m', 'mean_m', 'best', 'worst', 'bands')}, indent=1))
     print(json.dumps(s['groups'], indent=1))

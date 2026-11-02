@@ -794,7 +794,7 @@ function say(now) {
 }
 
 /* ---------- start ---------- */
-const dataP = fetch('data/day25/diagram.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day25/diagram.js', 'DAY25');
 dataP.then(d => {
   prep(d);
   buildDom();

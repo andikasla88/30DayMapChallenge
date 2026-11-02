@@ -13,7 +13,7 @@ Inputs (download first, see build.sh):
   landuse.geojson  URA Master Plan 2019 Land Use layer, data.gov.sg
                    d_90d86daa5bfaa371668b84fa5f01424f (for the spikes only).
 
-Output: density.json
+Output: density.js
   sz:    subzones [name, planning area, residents, km2, hdb, condo, landed, other shares (%)]
   geo:   polygons for each subzone, delta-encoded integer lon/lat at 1e-5 deg
   spikes:[lon, lat, residents] per 250 m cell. Each subzone's residents are spread over its
@@ -136,7 +136,7 @@ def main(xlsx, tod_csv, sz_path, lu_path, out):
     data = {'year': 2026, 'cell': CELL, 'fields': ['name', 'pa', 'pop', 'km2', 'hdb', 'condo', 'landed', 'other'],
             'sz': rows, 'geo': geo, 'spikes': spikes}
     with open(out, 'w') as f:
-        json.dump(data, f, separators=(',', ':'))
+        f.write('window.DAY09 = ' + json.dumps(data, separators=(',', ':')) + ';\n')
     d = sz['pop'] / sz.km2
     print('subzones', len(sz), 'residents', int(sz['pop'].sum()), 'km2', round(sz.km2.sum(), 1))
     print('spike cells', len(spikes), 'max cell pop', max(s[2] for s in spikes), 'max cell density', round(max(s[2] for s in spikes) / (CELL * CELL / 1e6)))

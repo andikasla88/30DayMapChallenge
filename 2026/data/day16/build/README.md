@@ -2,10 +2,10 @@
 
 The page has no backend. It shows two kinds of data:
 
-- `kopi.json`: the seed places, built by the scripts here.
-- `pins.json`: the followers' pins, added by hand. It ships empty (`[]`).
+- `kopi.js`: the seed places, built by the scripts here.
+- `pins.js`: the followers' pins, added by hand. It ships empty (`[]`).
 
-## Rebuilding kopi.json
+## Rebuilding kopi.js
 
 ```sh
 PY=/path/to/python sh build.sh /some/scratch/raw
@@ -16,9 +16,9 @@ The Python needs `requests osmium shapely pyproj`. No API keys are used.
 - `fetch.py` downloads two files:
   - the daily OpenStreetMap Singapore extract from download.openstreetmap.fr
   - NEA's *Hawker Centres (GEOJSON)* from data.gov.sg (`d_4a086da0a5553be1d89383cd90d07ecd`)
-- `process.py` picks the places and writes `../kopi.json`. Its docstring lists exactly what is included and why.
+- `process.py` picks the places and writes `../kopi.js`. Its docstring lists exactly what is included and why.
 
-## pins.json: the format
+## pins.js: the format
 
 The file is a JSON array. Each entry looks like this:
 
@@ -37,7 +37,7 @@ The file is a JSON array. Each entry looks like this:
 
 | field | required | rule |
 |---|---|---|
-| `lat`, `lng` | yes | numbers, 5 decimals; the spot must fall inside Singapore (the outline in `kopi.json`) |
+| `lat`, `lng` | yes | numbers, 5 decimals; the spot must fall inside Singapore (the outline in `kopi.js`) |
 | `stall` | yes | text, at most 60 characters; shown as plain text, never as HTML |
 | `order` | yes | an order code (below); unknown words are dropped |
 | `by` | no | how the follower wants to be credited, at most 40 characters; only with their consent |
@@ -66,7 +66,7 @@ day16-collaborative.html?pin=<lat>,<lng>,<order code>,<stall, URL-encoded>
 
 ```sh
 python -I pin_links.py "<link>" "<link>"            # prints the entries; check them
-python -I pin_links.py --write --by @someone "<link>"   # appends to ../pins.json
+python -I pin_links.py --write --by @someone "<link>"   # appends to ../pins.js
 ```
 
 You can also paste links on stdin, one per line.

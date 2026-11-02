@@ -1,4 +1,4 @@
-"""Day 13 · Interactions: bake od.json from the raw LTA origin-destination file and sgraildata.
+"""Day 13 · Interactions: bake od.js from the raw LTA origin-destination file and sgraildata.
 
 Steps
 1. Stations: the station points of cheeaun/sgraildata (one per station; a duplicate
@@ -243,7 +243,7 @@ data = {
     'days': [N_WD, N_WE],
     'lines': lines,
 }
-OUT.write_text(json.dumps(data, separators=(',', ':')))
+OUT.write_text('window.DAY13 = ' + json.dumps(data, separators=(',', ':')) + ';\n')
 print('wrote', OUT, OUT.stat().st_size, 'bytes;', sum(len(x) // 9 for x in od), 'station pairs')
 
 # ---------- 7. headline facts (for the report; the page computes its own from the file) ----------

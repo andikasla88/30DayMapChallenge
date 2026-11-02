@@ -376,8 +376,8 @@ textarea.field { font-size: 12px; line-height: 1.45; resize: none; }
 <script>
 'use strict';
 /* ==========================================================================
-   COMMUNITY PINS: data/day16/pins.json
-   The owner adds followers' pins by hand. The file is a JSON array; [] means no pins yet.
+   COMMUNITY PINS: data/day16/pins.js
+   The owner adds followers' pins by hand. The file sets window.DAY16_PINS to an array; [] means no pins yet.
    Each entry:
      {
        "lat":   1.28047,              number, 5 decimals; must fall inside Singapore
@@ -394,7 +394,7 @@ textarea.field { font-size: 12px; line-height: 1.45; resize: none; }
      drink      kopi | kopi-o | kopi-c | teh | teh-o | teh-c
      strength   gau | po | dilo           sweetness  siewdai | gahdai | kosong (only with -o or -c)
      extras     tarik | guyou (kopi only) | peng | tapao
-   Everything read from the link or pins.json is untrusted: it is cleaned, capped and only ever
+   Everything read from the link or pins.js is untrusted: it is cleaned, capped and only ever
    written into the page with textContent.
    ========================================================================== */
 const COL = ['#7A4424', '#5F7F26', '#2B7A72'], PIN = '#C83A2C';
@@ -697,8 +697,8 @@ document.querySelectorAll('[data-icon]').forEach(el => {
 /* ---------- data ---------- */
 let D = null, P = [], PINS = [], shared = null;
 const visible = new Set([0, 1, 2]);
-const dataP = fetch('data/day16/kopi.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
-const pinsP = fetch('data/day16/pins.json', { cache: 'no-cache' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).catch(() => null);
+const dataP = DMC.loadData('data/day16/kopi.js', 'DAY16');
+const pinsP = DMC.loadData('data/day16/pins.js', 'DAY16_PINS').catch(() => null);
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 
 function fc(features) { return { type: 'FeatureCollection', features }; }

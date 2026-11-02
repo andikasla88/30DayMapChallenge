@@ -1,4 +1,4 @@
-"""Day 27 New tool: Singapore's underground, drawn by depth. Turns the OSM extract into ../underground.json.
+"""Day 27 New tool: Singapore's underground, drawn by depth. Turns the OSM extract into ../underground.js.
 
 usage: python -I process.py <raw-dir> <out.json>
 requirements: osmium>=4 (pyosmium), shapely>=2, numpy
@@ -354,6 +354,6 @@ out = {
     'stats': stats,
 }
 with open(OUT, 'w', encoding='utf-8') as f:
-    json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
+    f.write('window.DAY27 = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n')
 print(json.dumps(stats, indent=1), file=sys.stderr)
 print('wrote', OUT, os.path.getsize(OUT), 'bytes', file=sys.stderr)

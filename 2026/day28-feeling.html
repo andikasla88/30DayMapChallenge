@@ -943,7 +943,7 @@ new ResizeObserver(layout).observe($('dmc-stamp'));
   $('scale-bands').innerHTML = `<span style="left:${at(27)}">Low heat stress</span><span style="left:${at(32)}">Moderate</span><span style="left:${at(34)}">High</span>`;
 })();
 
-const dataP = fetch('data/day28/feeling.json').then(r => { if (!r.ok) throw new Error(`feeling.json: ${r.status}`); return r.json(); });
+const dataP = DMC.loadData('data/day28/feeling.js', 'DAY28');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(async ([g]) => {
   G = g;

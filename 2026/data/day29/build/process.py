@@ -7,7 +7,7 @@ usage: python -I process.py <raw-dir> <out-dir>
                              1 = land with no clear reading, else temperature = 18 + (byte - 2) * 0.2
                              degC (Web Mercator grid)
          <out-dir>/lst.pgw   its world file (EPSG:3857), so GIS software can place it
-         <out-dir>/lst.json  grid bounds, scenes, palette, histogram, zone means, hot clusters, outlines
+         <out-dir>/lst.js  grid bounds, scenes, palette, histogram, zone means, hot clusters, outlines
 
 Method, in plain words
   Temperature  ST_B10 is Landsat's land-surface temperature (Collection 2 Level-2). USGS publishes
@@ -34,6 +34,8 @@ Method, in plain words
                For each, the hottest single scene is reported with its date and time, as measured
                that day (not shifted).
 """
+import base64
+import io
 import json
 import os
 import pickle
@@ -150,11 +152,13 @@ print('land degC', q)
 code = np.zeros((H, W), np.uint8)
 code[land] = 1
 code[valid] = np.clip(np.round((med[valid] - TMIN) / STEP) + 2, 2, 255).astype(np.uint8)
-Image.fromarray(code, 'L').save(os.path.join(OUT, 'lst.png'), optimize=True)
+buf = io.BytesIO()   # the PNG rides inside lst.js as a data URL (png), so the page also works opened from disk
+Image.fromarray(code, 'L').save(buf, 'PNG', optimize=True)
+png_url = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
 with open(os.path.join(OUT, 'lst.pgw'), 'w') as f:   # world file: pixel size, rotation, centre of top-left pixel
     f.write(f'{RES}\n0\n0\n{-RES}\n{x0 + RES / 2}\n{y1 - RES / 2}\n')
 hist = np.bincount(code[valid], minlength=256)[2:].tolist()   # hist[i] counts code i + 2
-print('png bytes', os.path.getsize(os.path.join(OUT, 'lst.png')))
+print('png bytes', len(buf.getvalue()))
 
 
 # ---------------- zones ----------------
@@ -336,6 +340,7 @@ except ImportError:
     sys.exit('pip install cmcrameri (Crameri scientific colour maps) for the palette')
 
 out = {
+    'png': png_url,
     'grid': {'w': W, 'h': H, 'res': RES, 'bounds': [[round(west, 6), round(south, 6)], [round(east, 6), round(north, 6)]],
              'tmin': TMIN, 'step': STEP, 'first': 2, 'nodata_land': int((land & ~valid).sum())},
     'scenes': scenes, 'obs_median': int(np.median(n_obs[valid])),
@@ -356,5 +361,5 @@ out = {
         'land': enc(D['land'], 0.00012),
     },
 }
-json.dump(out, open(os.path.join(OUT, 'lst.json'), 'w'), separators=(',', ':'))
-print('json bytes', os.path.getsize(os.path.join(OUT, 'lst.json')))
+open(os.path.join(OUT, 'lst.js'), 'w', encoding='utf-8').write('window.DAY29 = ' + json.dumps(out, separators=(',', ':')) + ';\n')
+print('json bytes', os.path.getsize(os.path.join(OUT, 'lst.js')))

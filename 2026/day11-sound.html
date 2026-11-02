@@ -1102,7 +1102,7 @@ function frame(now) {
 
 /* ---------- load ---------- */
 let dateLabel = '';
-const dataP = fetch('data/day11/storm.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+const dataP = DMC.loadData('data/day11/storm.js', 'DAY11');
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 Promise.all([dataP, styleP]).then(([d]) => {
   D = d;

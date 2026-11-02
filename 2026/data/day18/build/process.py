@@ -3,10 +3,11 @@
 Requires python 3.10+ with: pyproj shapely numpy pillow rasterio pyshp scipy
 usage: python -I process.py <raw-dir> <out-dir>      (after fetch.py, scan.py and s2.py)
 
-Writes <out-dir>/null.json and <out-dir>/zero-s2.webp. Every number the page shows is computed here.
+Writes <out-dir>/null.js (window.DAY18, the Sentinel-2 crop inside as a WebP data URL). Every number the page shows is computed here.
 Distances are geodesic on the WGS 84 ellipsoid: each "nearest" search runs in an azimuthal equidistant
 projection centred on the point in question, where distance from the centre is exactly the geodesic distance.
 """
+import base64
 import io
 import json
 import math
@@ -359,9 +360,11 @@ if os.path.exists(os.path.join(RAW, 's2', 'scene.json')):
     edge = np.clip((6400 - dist) / 900, 0, 1)
     alpha = (edge * 255).astype('uint8')
     im = Image.fromarray(np.dstack([img.astype('uint8'), alpha]), 'RGBA')
-    im.save(os.path.join(OUT, 'zero-s2.webp'), 'WEBP', quality=74, method=6)
+    buf = io.BytesIO()   # the crop rides inside null.js as a data URL (s2.img), so the page also works opened from disk
+    im.save(buf, 'WEBP', quality=74, method=6)
     s2 = {'id': scene['id'], 'date': scene['datetime'][:10], 'time': scene['datetime'][11:16], 'platform': scene.get('platform'),
-          'bounds': [r6(v) for v in scene['bounds']], 'ships': ships, 'radius_km': R_SHIPS / 1000, 'stac': scene['stac']}
+          'bounds': [r6(v) for v in scene['bounds']], 'ships': ships, 'radius_km': R_SHIPS / 1000, 'stac': scene['stac'],
+          'img': 'data:image/webp;base64,' + base64.b64encode(buf.getvalue()).decode()}
 
 # ---------------------------------------------------------------- 8. the null-record scan
 scan = load('scan.json')
@@ -411,6 +414,6 @@ out = {
     'grid': grid, 'neg': neg, 'box': false_box, 'path': path, 'gulf': gulf_line, 's2': s2, 'scan': scan_out,
 }
 os.makedirs(OUT, exist_ok=True)
-with open(os.path.join(OUT, 'null.json'), 'w', encoding='utf-8') as f:
-    json.dump(out, f, ensure_ascii=False, separators=(',', ':'))
-print('null.json', os.path.getsize(os.path.join(OUT, 'null.json')), 'bytes')
+with open(os.path.join(OUT, 'null.js'), 'w', encoding='utf-8') as f:
+    f.write('window.DAY18 = ' + json.dumps(out, ensure_ascii=False, separators=(',', ':')) + ';\n')
+print('null.js', os.path.getsize(os.path.join(OUT, 'null.js')), 'bytes')

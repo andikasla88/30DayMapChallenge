@@ -789,10 +789,9 @@ function highlightJSON(text) {
 }
 async function loadTranscript() {
   try {
-    const [pr, an] = await Promise.all([
-      fetch('data/day10/build/prompt.md').then(r => { if (!r.ok) throw new Error(r.status); return r.text(); }),
-      fetch('data/day10/build/answer.json').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); }),
-    ]);
+    // build/prompt.md and build/answer.json, verbatim, wrapped as a script so this also works opened from disk
+    const T = await DMC.loadData('data/day10/transcript.js', 'DAY10_TRANSCRIPT');
+    const pr = T.prompt, an = new TextEncoder().encode(T.answer);
     $('prompt').innerHTML = md(pr.replace(/^# The prompt\s*/, ''));
     const text = new TextDecoder().decode(an);
     $('answer').innerHTML = highlightJSON(text);
@@ -935,7 +934,7 @@ map.on('movestart', e => { if (e.originalEvent) hideTip(); });
 
 /* ---------- load ---------- */
 let ready = false;
-const dataP = fetch('data/day10/memory.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(d => { prep(d); return d; });
+const dataP = DMC.loadData('data/day10/memory.js', 'DAY10').then(d => { prep(d); return d; });
 const styleP = new Promise(res => (map.loaded() ? res() : map.once('load', res)));
 loadTranscript();
 Promise.all([dataP, styleP]).then(() => {

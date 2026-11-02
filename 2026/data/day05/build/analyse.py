@@ -398,7 +398,7 @@ meta = {
     'stats': {str(int(zb)): dict(stats[zb]) for zb in BURSTS},
     'n': len(rows), 'built': time.strftime('%Y-%m-%d'),
 }
-json.dump({'meta': meta, 'b': rows}, open(OUT, 'w', encoding='utf-8'), separators=(',', ':'), ensure_ascii=False)
+open(OUT, 'w', encoding='utf-8').write('window.DAY05 = ' + json.dumps({'meta': meta, 'b': rows}, separators=(',', ':'), ensure_ascii=False) + ';\n')
 log('wrote', OUT, os.path.getsize(OUT), 'bytes')
 print(json.dumps(meta['stats'], indent=1))
 for o in keep:

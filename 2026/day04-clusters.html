@@ -666,7 +666,7 @@ COMPACT.addEventListener('change', syncLab); syncLab();
 /* ---------- load ---------- */
 // the maps start as soon as the style arrives; the taxis follow
 const mapsP = fetch('https://tiles.openfreemap.org/styles/positron').then(r => r.json()).catch(() => null).then(initMaps);
-Promise.all([fetch('data/day04/taxis.json').then(r => r.json()), mapsP]).then(async ([data]) => {
+Promise.all([DMC.loadData('data/day04/taxis.js', 'DAY04'), mapsP]).then(async ([data]) => {
   D = data;
   const g = D.geo;
   toLL = (x, y) => {

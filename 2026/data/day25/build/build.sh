@@ -1,5 +1,5 @@
 #!/bin/sh
-# Day 25 data build. Raw downloads go to $RAW (outside the repo); output to ../diagram.json.
+# Day 25 data build. Raw downloads go to $RAW (outside the repo); output to ../diagram.js.
 # usage: sh build.sh <raw-dir>
 set -e
 RAW="${1:?raw dir}"; HERE="$(cd "$(dirname "$0")" && pwd)"
@@ -10,4 +10,4 @@ SGR=https://raw.githubusercontent.com/cheeaun/sgraildata/d64f9408ef
 [ -s sg-rail.geojson ] || curl -sfL -o sg-rail.geojson "$SGR/data/v1/sg-rail.geojson"
 sleep 1
 [ -s routes.citymapper.json ] || curl -sfL -o routes.citymapper.json "$SGR/data/raw/routes.citymapper.json"
-"$PY" -I "$HERE/process.py" sg-rail.geojson routes.citymapper.json "$HERE/../diagram.json"
+"$PY" -I "$HERE/process.py" sg-rail.geojson routes.citymapper.json "$HERE/../diagram.js"
