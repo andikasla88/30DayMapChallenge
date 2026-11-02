@@ -6,10 +6,11 @@
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#EFE6D2">
 <title>Day 02 · Visualizing the cities with world class public transportation (print)</title>
-<meta name="description" content="#30DayMapChallenge 2026, day 2, Lines, print edition: every bus route and urban rail line in Singapore, Hong Kong, Stockholm and Copenhagen, inked darker where more routes share the road, all at the same scale on one A3 sheet.">
+<meta name="description" content="#30DayMapChallenge 2026, day 2, Lines, print edition: every bus route and urban rail line in Singapore, Hong Kong, Stockholm and Copenhagen, glowing stronger where more routes share the road, all at the same scale on one A3 sheet.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <style>
 /* ===== Day 02, print edition: a cream A3 landscape sheet, 1:1 in print, scaled to fit on screen ===== */
@@ -40,11 +41,11 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
 .key { display: grid; gap: 3mm; font-size: 2.9mm; color: var(--ink-2); }
 .key h2 { margin: 0 0 .5mm; font-size: 2.6mm; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
 .key .ramp { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2mm; }
-.key .ramp i { height: 1.6mm; border-radius: 1mm; background: linear-gradient(to right, #AABBD0, #7189AC 35%, #3F5D8E 70%, #213E70); }
+.key .ramp i { height: 1.8mm; border-radius: 1mm; background: linear-gradient(to right, #B2CCE2, #86A9CC 40%, #5A82B2 70%, #34629C); box-shadow: 0 0 1mm rgba(52, 98, 156, .3); }
 .key .row { display: flex; align-items: center; gap: 2.5mm; }
 .key .rails { display: flex; gap: .8mm; flex-wrap: wrap; max-width: 30mm; }
 .key .rails i { width: 4.5mm; height: 1.3mm; border-radius: 1mm; }
-.key .stn { width: 2.6mm; height: 2.6mm; border-radius: 50%; background: #fff; border: .5mm solid var(--ink); flex: none; }
+.key .stn { width: 2.6mm; height: 2.6mm; border-radius: 50%; background: #0B1220; border: .5mm solid #0B1220; box-shadow: inset 0 0 0 .35mm #fff; flex: none; }
 .table { width: 100%; border-collapse: collapse; font-size: 2.9mm; font-variant-numeric: tabular-nums; }
 .table th, .table td { padding: 1.2mm 0; text-align: right; border-bottom: .2mm solid var(--rule); }
 .table th { font-weight: 600; color: var(--ink-2); font-size: 2.2mm; line-height: 1.2; letter-spacing: .04em; text-transform: uppercase; vertical-align: bottom; }
@@ -57,23 +58,42 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
 .grid { position: relative; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 6mm; min-height: 0; }
 /* A framed picture: carved frame (SVG), a cream mat, then the map. */
 .panel { position: relative; margin: 0; filter: drop-shadow(0 .8mm 1.2mm rgba(70, 50, 20, .28)); }
+/* Each map opens a live one: a hint on hover/focus, never printed. */
+.panel[data-live] { cursor: zoom-in; }
+.panel[data-live]:focus-visible { outline: .8mm solid #1B3A6B; outline-offset: 1mm; }
+.panel .open { position: absolute; right: calc(var(--frame) + var(--matw) + 3mm); top: calc(var(--frame) + var(--matw) + 3mm); padding: 1.4mm 3mm; border-radius: 99mm; font-size: 2.6mm; font-weight: 600; color: #EEF2F7; background: rgba(7, 11, 20, .78); opacity: 0; transition: opacity .15s; pointer-events: none; }
+.panel[data-live]:hover .open, .panel[data-live]:focus-visible .open { opacity: 1; }
+/* The live map: almost the whole window. */
+.live { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(20, 16, 8, .55); backdrop-filter: blur(3px); }
+.live[hidden] { display: none; }
+.live .box { position: relative; width: min(96vw, 1800px); height: 92vh; display: grid; grid-template-rows: auto 1fr; border-radius: 10px; overflow: hidden; background: var(--mat); box-shadow: 0 20px 60px rgba(0, 0, 0, .45); border: 6px solid var(--edge, #1B3A6B); }
+.live header { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px; padding: 10px 14px 10px 18px; font-size: 13px; color: var(--ink-2); border-bottom: 1px solid var(--rule); }
+.live header b { font-family: var(--display); font-size: 28px; font-weight: 900; line-height: .9; color: var(--ink); text-transform: uppercase; }
+.live header .ramp { display: flex; align-items: center; gap: 6px; }
+.live header .ramp i { width: 90px; height: 6px; border-radius: 3px; background: linear-gradient(to right, #B2CCE2, #86A9CC 40%, #5A82B2 70%, #34629C); }
+.live header .hint { margin-left: auto; }
+.live header button { font: inherit; font-size: 20px; line-height: 1; width: 36px; height: 36px; border-radius: 50%; border: 1px solid var(--rule); background: #fff; color: var(--ink); cursor: pointer; }
+.live header button:hover { background: #F1E9D8; }
+.live .lmap { position: relative; min-height: 0; }
+.live .tip { position: absolute; z-index: 3; pointer-events: none; padding: 4px 9px; border-radius: 6px; font-size: 12px; color: #EEF2F7; background: rgba(7, 11, 20, .85); transform: translate(12px, 12px); white-space: nowrap; }
+.live .tip[hidden] { display: none; }
 .panel svg.frame { position: absolute; inset: 0; width: 100%; height: 100%; }
 .panel .mat { position: absolute; inset: var(--frame); background: var(--mat); padding: var(--matw); box-shadow: inset 0 0 1.4mm rgba(60, 40, 10, .35); }
 .panel .map { position: relative; width: 100%; height: 100%; overflow: hidden; box-shadow: 0 0 0 .2mm rgba(60, 40, 10, .35); }
 .panel canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
-.panel .label { position: absolute; left: 3mm; top: 3mm; display: grid; gap: .8mm; padding: 2.4mm 3.2mm 2.2mm; max-width: 72%; pointer-events: none; background: rgba(251, 247, 238, .9); border: .25mm solid var(--rule); border-radius: 1mm; box-shadow: 0 .4mm 1.2mm rgba(70, 50, 20, .18); }
+.panel .label { position: absolute; left: 3mm; top: 3mm; display: grid; gap: .8mm; padding: 2.4mm 3.2mm 2.2mm; max-width: 72%; pointer-events: none; color: #EEF2F7; background: rgba(7, 11, 20, .78); border: .25mm solid rgba(255, 255, 255, .14); border-radius: 1mm; }
 .panel .label:empty { display: none; }
 .panel .label b { font-family: var(--display); font-size: 9mm; font-weight: 900; line-height: .85; letter-spacing: .01em; text-transform: uppercase; }
-.panel .label em { font-style: normal; font-size: 3.2mm; font-weight: 600; color: var(--ink-2); }
-.panel .label span { font-size: 2.6mm; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.panel .scale { position: absolute; right: 3.5mm; bottom: 3mm; display: grid; justify-items: end; gap: .8mm; font-size: 2.3mm; color: var(--ink-2); text-shadow: 0 0 1.5mm var(--mat); }
+.panel .label em { font-style: normal; font-size: 3.2mm; font-weight: 600; color: rgba(238, 242, 247, .75); }
+.panel .label span { font-size: 2.6mm; color: rgba(238, 242, 247, .7); font-variant-numeric: tabular-nums; }
+.panel .scale { position: absolute; right: 3.5mm; bottom: 3mm; display: grid; justify-items: end; gap: .8mm; font-size: 2.3mm; color: var(--ink-2); text-shadow: 0 0 1.5mm #fff; }
 .panel .scale i { display: block; height: 1.2mm; border: .3mm solid rgba(29, 37, 54, .75); border-top: 0; }
-.panel .osm { position: absolute; left: 0; bottom: 0; padding: .5mm 1.2mm; font-size: 1.9mm; color: var(--ink-2); background: rgba(251, 247, 238, .8); }
+.panel .osm { position: absolute; left: 0; bottom: 0; padding: .5mm 1.2mm; font-size: 1.9mm; color: var(--ink-2); background: rgba(255, 255, 255, .7); }
 .panel .status { position: absolute; inset: 0; display: grid; place-items: center; padding: 6mm; text-align: center; font-size: 3mm; color: var(--ink-2); }
 .panel .status[hidden] { display: none; }
 @media print {
   html, body { background: var(--paper); }
-  .bar { display: none; }
+  .bar, .live, .panel .open { display: none !important; }
   .stage { width: auto; height: auto; display: block; overflow: visible; }
   .sheet { transform: none !important; box-shadow: none; }
 }
@@ -89,7 +109,7 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
     <div class="key">
       <div><h2>Bus routes on a road</h2><div class="ramp"><span>1</span><i></i><span>80+</span></div></div>
       <div class="row"><span class="rails" id="rail-swatches"></span><span>Urban rail and tram, in each line's colours</span></div>
-      <div class="row"><span class="stn"></span><span>Station (heavier ring: interchange)</span></div>
+      <div class="row"><span class="stn"></span><span>Station (brighter ring: interchange)</span></div>
     </div>
     <table class="table" aria-label="Network numbers by city">
       <thead><tr><th></th><th>Bus<br>routes</th><th>Bus road<br>km</th><th>Rail<br>lines</th><th>Stations</th></tr></thead>
@@ -101,6 +121,17 @@ h1 { margin: 0; font-family: var(--display); font-size: 9.5mm; font-weight: 900;
   </aside>
   <section class="grid" id="grid" aria-label="Four maps at the same scale"></section>
 </main>
+</div>
+<div class="live" id="live" hidden>
+  <div class="box" role="dialog" aria-modal="true" aria-labelledby="live-name">
+    <header>
+      <b id="live-name"></b><span id="live-sub"></span>
+      <span class="ramp"><span>1 bus route</span><i></i><span>80+ on a road</span></span>
+      <span class="hint">Drag to pan · scroll or pinch to zoom · hover a line for details</span>
+      <button type="button" id="live-close" aria-label="Close map">×</button>
+    </header>
+    <div class="lmap" id="lmap"><div class="tip" id="live-tip" hidden></div></div>
+  </div>
 </div>
 <script>
 'use strict';
@@ -228,13 +259,14 @@ function decode(str) {   // Google polyline, precision 5 -> [[lng, lat]]
 const wx = (lng, z) => (lng + 180) / 360 * 256 * 2 ** z;
 const wy = (lat, z) => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2 * 256 * 2 ** z;
 
-/* ---------- the ink ----------
-   The interactive Day 02 adds light per route; on paper the same sum becomes ink. Each route
-   adds the same amount to its road, and the total runs through the same saturating curve, so
-   a road with 1 route is a pale blue hairline and one with 80 is a heavy navy stroke. */
-const PER_ROUTE = 0.07, PALE = [170, 187, 208], DEEP = [33, 62, 112];
-function ink(n) {
-  const m = 1 - Math.exp(-n * PER_ROUTE * 1.15), t = Math.pow(m, 0.75);
+/* ---------- the glow ----------
+   As in the interactive Day 02, each route adds the same amount to its road and the total runs
+   through a saturating curve (m, 0 to 1). On a dark map that sum is light rolling to white; on
+   this light grey map white would vanish, so the same sum deepens instead: a pale ice-blue
+   hairline for 1 route, a muted steel blue with a soft glow for the trunk roads. */
+const PER_ROUTE = 0.05, PALE = [178, 204, 226], DEEP = [52, 98, 156];
+function tone(n) {
+  const m = 1 - Math.exp(-n * PER_ROUTE * 1.15), t = Math.pow(m, 0.7);
   return { rgb: PALE.map((c, i) => Math.round(c + (DEEP[i] - c) * t)), m };
 }
 
@@ -262,7 +294,10 @@ function basemap(ctx, W, H, centre, mpp) {
       if (done) return;
       done = true;
       clearTimeout(timer);
-      if (ok) { ctx.filter = 'grayscale(1) contrast(.8) brightness(1.06)'; ctx.drawImage(m.getCanvas(), 0, 0, W, H); ctx.filter = 'none'; }   // grey and a little faded, so the routes carry all the colour and contrast
+      if (ok) {
+        // Grey and a little faded, so the routes carry all the colour and contrast.
+        ctx.filter = 'grayscale(1) contrast(.8) brightness(1.04)'; ctx.drawImage(m.getCanvas(), 0, 0, W, H); ctx.filter = 'none';
+      }
       m.remove(); box.remove();
       res(ok);
     };
@@ -297,38 +332,37 @@ async function draw(city, panel) {
   ctx.fillStyle = '#F2F2F0'; ctx.fillRect(0, 0, W, H);   // Positron's land grey, in case the basemap fails
   const got = await basemap(ctx, W, H, d.centre, mpp) ? 1 : 0;
 
-  // Bus ink: drawn on its own sheet, lightest first, then multiplied onto the map with a soft bleed.
+  // Bus routes on their own clear sheet: a faint wide skirt then the core, strongest last.
   const [L, lc] = canvas();
   for (const [n, encs] of d.bus) {
-    const { rgb, m } = ink(n);
+    const { rgb, m } = tone(n);
     pathOf(lc, encs);
-    lc.strokeStyle = `rgba(${rgb},${(0.6 + 0.4 * m).toFixed(3)})`;
-    lc.lineWidth = mm(0.15 + 0.38 * m);
-    lc.stroke();
+    lc.strokeStyle = `rgba(${rgb},${(0.04 + 0.085 * m).toFixed(3)})`; lc.lineWidth = mm(0.65); lc.stroke();
+    lc.strokeStyle = `rgba(${rgb},${(0.45 + 0.4 * m).toFixed(3)})`; lc.lineWidth = mm(0.3); lc.stroke();
   }
+  // Glow: a blurred copy of the routes laid under them, then the routes themselves.
   const [B, bc] = canvas();
-  bc.filter = `blur(${mm(0.9)}px)`; bc.drawImage(L, 0, 0); bc.filter = 'none';
-  ctx.globalCompositeOperation = 'multiply';
-  ctx.globalAlpha = 0.25; ctx.drawImage(B, 0, 0); ctx.globalAlpha = 1;
+  bc.filter = `blur(${mm(1.2)}px)`; bc.drawImage(L, 0, 0); bc.filter = 'none';
+  ctx.globalAlpha = 0.22; ctx.drawImage(B, 0, 0); ctx.globalAlpha = 1;
   ctx.drawImage(L, 0, 0);
-  ctx.globalCompositeOperation = 'source-over';
 
-  // Rail on top: a paper-coloured casing so lines read over the ink, then the line colour.
+  // Rail on top, glowing in its own colour: blurred halo, core, white-hot centre.
   ctx.lineCap = 'round'; ctx.lineJoin = 'round';
   for (const [, , colour, encs] of d.rail) {
     pathOf(ctx, encs);
-    ctx.strokeStyle = '#FBF7EE'; ctx.lineWidth = mm(1.05); ctx.stroke();
+    ctx.save(); ctx.filter = `blur(${mm(0.45)}px)`; ctx.globalAlpha = 0.2; ctx.strokeStyle = colour; ctx.lineWidth = mm(1.1); ctx.stroke(); ctx.restore();
     ctx.strokeStyle = colour; ctx.lineWidth = mm(0.6); ctx.stroke();
+    ctx.globalAlpha = 0.55; ctx.strokeStyle = '#FFFFFF'; ctx.lineWidth = mm(0.15); ctx.stroke(); ctx.globalAlpha = 1;
   }
   for (const [lng, lat, k] of d.stations) {
     const [x, y] = P([lng, lat]);
     ctx.beginPath(); ctx.arc(x, y, mm(k > 1 ? 0.62 : 0.45), 0, 2 * Math.PI);
-    ctx.fillStyle = '#FFFFFF'; ctx.fill();
-    ctx.strokeStyle = '#1D2536'; ctx.lineWidth = mm(k > 1 ? 0.3 : 0.17); ctx.stroke();
+    ctx.fillStyle = '#0B1220'; ctx.fill();
+    ctx.strokeStyle = k > 1 ? '#FFFFFF' : 'rgba(238, 242, 247, .8)'; ctx.lineWidth = mm(k > 1 ? 0.24 : 0.16); ctx.stroke();
   }
-  // A faint warm edge, like light falling off across a print.
-  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.5, W / 2, H / 2, Math.hypot(W, H) / 2);
-  g.addColorStop(0, 'rgba(120, 90, 50, 0)'); g.addColorStop(1, 'rgba(120, 90, 50, .12)');
+  // A faint grey edge, like light falling off across a print.
+  const g = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.45, W / 2, H / 2, Math.hypot(W, H) / 2);
+  g.addColorStop(0, 'rgba(40, 44, 52, 0)'); g.addColorStop(1, 'rgba(40, 44, 52, .12)');
   ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
 
   // Label (name, native name, numbers, frame motif) and a 10 km scale bar, identical on all four.
@@ -336,6 +370,7 @@ async function draw(city, panel) {
   panel.querySelector('.label').innerHTML = `<b>${d.name}</b><em>${city.native}</em><span>${nf.format(s.busServices)} bus routes · ${s.railLines} rail lines · frame: ${city.motif}</span>`;
   panel.querySelector('.scale').innerHTML = `<i style="width:${(10000 / mpp / PX_PER_MM).toFixed(2)}mm"></i><span>10 km</span>`;
   panel.querySelector('.status').hidden = true;
+  panel.dataset.live = '1';
   return { d, got };
 }
 
@@ -345,9 +380,12 @@ const mmPerCss = 25.4 / 96;   // read from the 1:1 layout: the sheet's transform
 const panels = CITIES.map(c => {
   const p = document.createElement('figure');
   p.className = 'panel';
+  p.tabIndex = 0;
+  p.setAttribute('role', 'button');
+  p.setAttribute('aria-label', `Explore the ${c.id} map`);
   p.style.setProperty('--frame', `${FRAME}mm`);
   p.style.setProperty('--matw', `${MAT}mm`);
-  p.innerHTML = '<div class="mat"><div class="map"><div class="label"></div><div class="scale"></div><div class="osm">© OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors</div><div class="status">Loading…</div></div></div>';
+  p.innerHTML = '<span class="open">Click to explore</span><div class="mat"><div class="map"><div class="label"></div><div class="scale"></div><div class="osm">© OpenFreeMap · © OpenMapTiles · © OpenStreetMap contributors</div><div class="status">Loading…</div></div></div>';
   grid.append(p);
   return p;
 });
@@ -373,6 +411,102 @@ Promise.allSettled(CITIES.map((c, i) => draw(c, panels[i]).catch(e => { panels[i
   });
 
 $('print').addEventListener('click', () => print());
+
+/* ---------- the live map ----------
+   Clicking a panel opens the same city in MapLibre: the grey basemap, bus routes in the same ramp
+   with a soft glow, rail glowing in its colours, stations. Positron is turned fully grey by
+   rewriting every colour in its style. One map at a time; it is removed on close. */
+let greyStyle = null;
+async function greyStyleJSON() {
+  if (greyStyle) return greyStyle;
+  const st = await (await fetch(STYLE)).json();
+  const probe = document.createElement('canvas').getContext('2d');
+  const grey = v => {   // a CSS colour string -> its grey; anything else back unchanged
+    if (typeof v !== 'string' || /^[a-z_:-]+$/i.test(v) && !/^(black|white|gray|grey)$/i.test(v)) return v;
+    probe.fillStyle = '#010203'; probe.fillStyle = v;
+    const c = probe.fillStyle;
+    if (c === '#010203' && v !== '#010203') return v;
+    const m = c.startsWith('#') ? [1, 3, 5].map(i => parseInt(c.slice(i, i + 2), 16)).concat(1) : c.match(/[\d.]+/g).map(Number);
+    const y = Math.round(0.299 * m[0] + 0.587 * m[1] + 0.114 * m[2]);
+    return `rgba(${y},${y},${y},${m[3] ?? 1})`;
+  };
+  const walk = v => Array.isArray(v) ? v.map(walk) : v && typeof v === 'object' ? Object.fromEntries(Object.entries(v).map(([k, x]) => [k, walk(x)])) : grey(v);
+  for (const l of st.layers) if (l.paint) l.paint = walk(l.paint);
+  return (greyStyle = st);
+}
+const live = { map: null, from: null };
+function rampStops() {   // the print ramp, as a MapLibre colour expression on n
+  const out = ['interpolate', ['linear'], ['get', 'n']];
+  for (const n of [1, 2, 4, 8, 16, 32, 64, 128]) out.push(n, `rgb(${tone(n).rgb})`);
+  return out;
+}
+function liveGeo(d) {
+  const bus = [], rail = [], stn = [];
+  for (const [n, encs] of d.bus) for (const e of encs) bus.push({ type: 'Feature', properties: { n }, geometry: { type: 'LineString', coordinates: decode(e) } });
+  for (const [name, mode, colour, encs] of d.rail) rail.push({ type: 'Feature', properties: { name, mode, colour }, geometry: { type: 'MultiLineString', coordinates: encs.map(decode) } });
+  for (const [lng, lat, k] of d.stations) stn.push({ type: 'Feature', properties: { k }, geometry: { type: 'Point', coordinates: [lng, lat] } });
+  const fc = features => ({ type: 'FeatureCollection', features });
+  return { bus: fc(bus), rail: fc(rail), stn: fc(stn) };
+}
+async function openLive(i) {
+  const city = CITIES[i], d = (window.DAY02 || {})[city.id];
+  if (!d || live.map) return;
+  live.from = panels[i];
+  $('live-name').textContent = d.name;
+  $('live-sub').textContent = `${city.native} · ${nf.format(d.stats.busServices)} bus routes · ${d.stats.railLines} rail lines`;
+  $('live').style.setProperty('--edge', FRAMES[city.id].edge);
+  $('live').hidden = false;
+  $('live-close').focus();
+  const style = await greyStyleJSON().catch(() => STYLE);
+  const [lng0, lat0] = d.centre, dy = d.frameKm[1] / 2 / 110.574, dx = d.frameKm[0] / 2 / (111.32 * Math.cos(lat0 * Math.PI / 180));
+  const m = live.map = new maplibregl.Map({ container: 'lmap', style, bounds: [[lng0 - dx, lat0 - dy], [lng0 + dx, lat0 + dy]], minZoom: 8, maxZoom: 17, attributionControl: false });
+  m.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  m.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-right');
+  m.addControl(new maplibregl.AttributionControl({ compact: true, customAttribution: 'Routes © OpenStreetMap contributors' }), 'bottom-left');
+  m.on('load', () => {
+    const g = liveGeo(d);
+    const nw = ['interpolate', ['linear'], ['get', 'n'], 1, 0.7, 20, 1.2, 80, 1.8];   // busier roads a little wider
+    const zw = k => ['interpolate', ['linear'], ['zoom'], 9, ['*', 0.9 * k, nw], 12, ['*', 1.8 * k, nw], 15, ['*', 3.6 * k, nw], 17, ['*', 6 * k, nw]];
+    m.addSource('bus', { type: 'geojson', data: g.bus });
+    m.addLayer({ id: 'bus-glow', type: 'line', source: 'bus', layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'n'] },
+      paint: { 'line-color': rampStops(), 'line-width': zw(3.2), 'line-blur': zw(2.4), 'line-opacity': ['interpolate', ['linear'], ['get', 'n'], 1, 0.06, 80, 0.2] } });
+    m.addLayer({ id: 'bus', type: 'line', source: 'bus', layout: { 'line-cap': 'round', 'line-join': 'round', 'line-sort-key': ['get', 'n'] },
+      paint: { 'line-color': rampStops(), 'line-width': zw(1), 'line-opacity': ['interpolate', ['linear'], ['get', 'n'], 1, 0.5, 80, 0.85] } });
+    m.addSource('rail', { type: 'geojson', data: g.rail });
+    const rw = k => ['interpolate', ['linear'], ['zoom'], 9, 1.6 * k, 13, 3.2 * k, 17, 6 * k];
+    m.addLayer({ id: 'rail-halo', type: 'line', source: 'rail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'colour'], 'line-width': rw(2.2), 'line-blur': rw(1.4), 'line-opacity': 0.25 } });
+    m.addLayer({ id: 'rail', type: 'line', source: 'rail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': ['get', 'colour'], 'line-width': rw(1) } });
+    m.addLayer({ id: 'rail-hot', type: 'line', source: 'rail', layout: { 'line-cap': 'round', 'line-join': 'round' }, paint: { 'line-color': '#fff', 'line-width': rw(0.25), 'line-opacity': 0.55 } });
+    m.addSource('stn', { type: 'geojson', data: g.stn });
+    m.addLayer({ id: 'stn', type: 'circle', source: 'stn', minzoom: 10,
+      paint: { 'circle-color': '#0B1220', 'circle-radius': ['interpolate', ['linear'], ['zoom'], 10, ['case', ['>', ['get', 'k'], 1], 2.4, 1.8], 15, ['case', ['>', ['get', 'k'], 1], 6, 4.5]],
+        'circle-stroke-color': '#fff', 'circle-stroke-width': ['interpolate', ['linear'], ['zoom'], 10, 1, 15, 2] } });
+    const tip = $('live-tip');
+    m.on('mousemove', e => {
+      const f = m.queryRenderedFeatures([[e.point.x - 4, e.point.y - 4], [e.point.x + 4, e.point.y + 4]], { layers: ['rail', 'bus'] })[0];
+      m.getCanvas().style.cursor = f ? 'pointer' : '';
+      if (!f) { tip.hidden = true; return; }
+      tip.textContent = f.layer.id === 'rail' ? f.properties.name
+        : `${f.properties.n} bus route${f.properties.n > 1 ? 's' : ''} on this road (each direction counted)`;
+      tip.style.left = `${e.point.x}px`; tip.style.top = `${e.point.y}px`; tip.hidden = false;
+    });
+    m.on('mouseout', () => { tip.hidden = true; });
+  });
+}
+function closeLive() {
+  if (!live.map) { $('live').hidden = true; return; }
+  live.map.remove(); live.map = null;
+  $('live-tip').hidden = true;
+  $('live').hidden = true;
+  if (live.from) live.from.focus();
+}
+panels.forEach((p, i) => {
+  p.addEventListener('click', () => { if (p.dataset.live) openLive(i); });
+  p.addEventListener('keydown', e => { if ((e.key === 'Enter' || e.key === ' ') && p.dataset.live) { e.preventDefault(); openLive(i); } });
+});
+$('live-close').addEventListener('click', closeLive);
+$('live').addEventListener('click', e => { if (e.target === $('live')) closeLive(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('live').hidden) closeLive(); });
 </script>
 </body>
 </html>
