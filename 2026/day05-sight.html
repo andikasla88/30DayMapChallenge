@@ -144,7 +144,7 @@
         role="combobox" aria-expanded="false" aria-controls="list" aria-autocomplete="list" aria-label="Find a block or building">
       <ul id="list" class="dmc-glass sx-list" role="listbox" aria-label="Matching buildings" hidden></ul>
     </div>
-    <button id="bday" class="dmc-btn" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8v2.4M8 11.8v2.4M1.8 8h2.4M11.8 8h2.4M3.6 3.6l1.7 1.7M10.7 10.7l1.7 1.7M3.6 12.4l1.7-1.7M10.7 5.3l1.7-1.7"/></svg>Birthday finale</button>
+    <button id="bday" class="dmc-btn" type="button" title="Watch the birthday finale from across the bay"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8v2.4M8 11.8v2.4M1.8 8h2.4M11.8 8h2.4M3.6 3.6l1.7 1.7M10.7 10.7l1.7 1.7M3.6 12.4l1.7-1.7M10.7 5.3l1.7-1.7"/></svg>Birthday finale</button>
     <button id="orbit" class="dmc-btn" type="button" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.6 2.2v2.6H11"/></svg>Orbit</button>
   </div>
 </section>
@@ -168,7 +168,7 @@ const BARGE = [103.8575, 1.2862];
 const DAY = {
   n: 5,
   title: 'Who can see the fireworks from home?',
-  deck: 'Every building within 8 km of the Marina Bay barge, traced floor by floor. A floor glows gold when a straight line from its bay-facing side to the bursts clears every tower and hill in between (earth curvature included, trees not). Heights come from OpenStreetMap and HDB floor counts. Pick a building for its ticket, or search for your block. Every 45 seconds the show ends with a birthday finale for Singapore at 61: the flag and a greeting, drawn in fireworks.',
+  deck: 'Every building within 8 km of the Marina Bay barge, traced floor by floor. A floor glows gold when a straight line from its bay-facing side to the bursts clears every tower and hill in between (earth curvature included, trees not). Heights come from OpenStreetMap and HDB floor counts. Pick a building for its ticket, or search for your block. Every 45 seconds the show ends with a birthday finale for Singapore at 61: the flag and a greeting drawn in fireworks, no bigger than the show and at the same height. Press Birthday finale to watch it from across the bay.',
   accent: '#FFC15E',
   basemap: 'Night',
   underlay: 'esri-imagery',
@@ -311,7 +311,8 @@ void main() {
 /* The birthday finale: a greeting and the flag, drawn in stars. Every star knows its place in the
    picture (uv, in picture units) and the burst it is thrown from. Shells rise from the barge, burst,
    and the stars fly to their places, hold and twinkle (the flag waves from its pole), then fall away
-   as glitter. The picture is a fixed board in the sky: it keeps its size and faces one way. */
+   as glitter. The picture is a fixed board in the sky, no bigger than the show and at the shells'
+   own height, so it is seen from the same floors the bursts are; it faces one way. */
 const M_RISE = 1.6, M_FLY = 1.1, M_HOLD = 6.5, M_FALL = 3.0;
 const M_LAUNCH = [0, 1.3, 2.6, 3.6];   // the words, SINGAPORE, the flag, then 61st
 // It faces the opening view (bearing 165, looking across the bay from the north): its right-hand axis.
@@ -320,7 +321,7 @@ const M_END = M_LAUNCH[3] + M_RISE + M_FLY + M_HOLD, M_DONE = M_END + M_FALL, M_
 const MSG_VS = `
 attribute vec2 a_uv;
 attribute vec3 a_col;
-attribute vec4 a_misc;   // seed, group, kind (0 letter, 1 flag, 2 trail, 3 flash), size (picture units)
+attribute vec4 a_misc;   // seed, group, kind (0 letter, 1 flag, 2 trail, 3 flash), size (picture units; m for trail and flash)
 attribute vec2 a_src;    // the burst it is thrown from (picture units)
 uniform mat4 u_m;
 uniform vec3 u_o, u_r, u_u;   // picture bottom centre (m from the barge), right and up axes
@@ -335,7 +336,7 @@ void main() {
   float L = g < 0.5 ? u_launch.x : g < 1.5 ? u_launch.y : g < 2.5 ? u_launch.z : u_launch.w;
   float tb = L + ${M_RISE.toFixed(2)};
   vec3 B = at(a_src), p = B, col = a_col;
-  float a = 0.0, size = a_misc.w * u_s;
+  float a = 0.0, size = kind > 1.5 ? a_misc.w : a_misc.w * u_s;
   if (kind > 2.5) {
     float tau = u_t - tb;
     if (tau > 0.0 && tau < 0.9) { a = exp(-tau * 5.0); col = vec3(1.0, 0.9, 0.75); }
@@ -457,11 +458,11 @@ const fireworks = {
     if (m !== this.msg) { this.msg = m; this.mDirty = true; }
     this.fin = this.t; this.nextFin = this.t + M_EVERY; this.salvo = true;
   },
-  // Where the picture stands: a fixed board in the sky over the barge, upright, facing the opening
-  // view (across the bay from the heartlands to the north), the same size at every zoom.
+  // Where the picture stands: a fixed board over the barge, centred on the burst height, upright,
+  // facing the opening view (across the bay from the heartlands to the north).
   place() {
     const s = this.msg.s;
-    return { o: [0, 0, 0.08 * this.msg.h * s], r: FACE_R, u: [0, 0, 1], s };
+    return { o: [0, 0, Z - this.msg.h * s / 2], r: FACE_R, u: [0, 0, 1], s };
   },
   render(gl, matrix) {
     const tr = this.map.transform, now = performance.now();
@@ -523,14 +524,14 @@ const fireworks = {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.mbuf);
       const msz = M_FLOATS * 4;
       [[0, 2, 0], [1, 3, 8], [2, 4, 20], [3, 2, 36]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, msz, off); });
-      // its reflection hides behind the towers; the picture itself is drawn over them, so it reads
+      // like the shells, it hides behind the towers in front of it; its reflection is added light
       for (const [mirror, alpha] of [[1, 0.16], [0, 1]]) {
-        if (mirror) { gl.enable(gl.DEPTH_TEST); gl.blendFunc(gl.ONE, gl.ONE); } else { gl.disable(gl.DEPTH_TEST); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); }
+        gl.blendFunc(gl.ONE, mirror ? gl.ONE : gl.ONE_MINUS_SRC_ALPHA);
         gl.uniform1f(q.u('u_mirror'), mirror);
         gl.uniform1f(q.u('u_alpha'), alpha);
         gl.drawArrays(gl.POINTS, 0, this.mn);
       }
-      gl.enable(gl.DEPTH_TEST); gl.blendFunc(gl.ONE, gl.ONE);
+      gl.blendFunc(gl.ONE, gl.ONE);
       for (const loc of [1, 2, 3]) gl.disableVertexAttribArray(loc);
     }
     // sight line
@@ -654,12 +655,12 @@ async function buildMessage(tall) {
     out.push(u, v, r, gg, b, rand(), grp, kind, size, best[0], best[1]);
   }
   for (const [u, v, grp] of bursts) {
-    for (let l = 0; l < 12; l++) out.push(u, v, 1, .8, .5, l * 0.025, grp, 2, 12, u, v);   // the rising trail
-    out.push(u, v, 1, .9, .7, 0, grp, 3, 170, u, v);                                       // the burst flash
+    for (let l = 0; l < 12; l++) out.push(u, v, 1, .8, .5, l * 0.025, grp, 2, 10, u, v);   // the rising trail (m)
+    out.push(u, v, 1, .9, .7, 0, grp, 3, 160, u, v);                                       // the burst flash (m)
   }
-  // metres per picture unit: about 2.8 km by 0.9 km wide, 1.3 by 1.3 km tall, which fills the sky above
-  // the bay in the opening view of each screen
-  return { data: new Float32Array(out), h: CH, s: tall ? 1.4 : 1.9, flag: [F[0] - CW / 2, F[2]] };
+  // metres per picture unit: about 480 m by 150 m wide, 190 by 200 m tall, no bigger than the spread
+  // of the shells themselves
+  return { data: new Float32Array(out), w: CW, h: CH, s: tall ? 0.21 : 0.32, flag: [F[0] - CW / 2, F[2]] };
 }
 document.fonts.load('900 200px "Big Shoulders Display"').catch(() => {}).then(() => Promise.all([buildMessage(false), buildMessage(true)]))
   .then(([wide, tall]) => { fireworks.msgs = { wide, tall }; fireworks.msg = wide; fireworks.mDirty = true; })
@@ -989,11 +990,22 @@ function addPauseButton() {
   sync();
   fireworks.syncPause = sync;
 }
+// The picture is only as big as the show, so the button also takes the camera across the bay to watch
+// it square on, near enough that it fills most of the screen's width, its middle above the bar.
 $('bday').addEventListener('click', () => {
   if (!fireworks.msg) return;
+  stopOrbit();
   fireworks.paused = false;
   fireworks.syncPause?.();
   fireworks.finale();
+  const m = fireworks.msg, W = innerWidth, H = innerHeight, pitch = 70;
+  const ppm = (W < H ? 0.8 : 0.6) * W / (m.w * m.s);   // px per metre
+  const zoom = Math.min(17.5, Math.max(14, Math.log2(ppm * 40075016.686 * Math.cos(BARGE[1] * Math.PI / 180) / 512)));
+  const k = 2 ** zoom * 512 / (40075016.686 * Math.cos(BARGE[1] * Math.PI / 180));
+  const barge = $('bar').getBoundingClientRect().top * 0.45 + Z * Math.sin(pitch * Math.PI / 180) * k;   // where the barge must sit
+  const pad = Math.round(2 * barge - H);
+  map.easeTo({ center: BARGE, zoom, pitch, bearing: 165, duration: reduceMotion ? 0 : 1600, essential: true,
+    padding: { top: Math.max(0, pad), bottom: Math.max(0, -pad), left: 0, right: 0 } });
   map.triggerRepaint();
 });
 
@@ -1003,10 +1015,19 @@ const PLACES = [['Toa Payoh', 103.8476, 1.3343], ['Bishan', 103.8485, 1.3508], [
   ['Marine Parade', 103.9060, 1.3030], ['Whampoa', 103.8530, 1.3260], ['Sentosa', 103.8300, 1.2490], ['MacPherson', 103.8890, 1.3270],
   ['Holland Village', 103.7960, 1.3110], ['Outram', 103.8390, 1.2800], ['Bugis', 103.8560, 1.3000]];
 function addPlaces() {
+  const names = [];
   for (const [name, lng, lat] of PLACES) {
     const el = document.createElement('div'); el.className = 'place'; el.textContent = name;
     new maplibregl.Marker({ element: el, anchor: 'center', pitchAlignment: 'viewport' }).setLngLat([lng, lat]).addTo(map);
+    names.push([el, maplibregl.MercatorCoordinate.fromLngLat([lng, lat])]);
   }
+  // A name behind the camera would be drawn mirrored into the sky, so it hides until it is in front.
+  const behind = () => {
+    const c = maplibregl.MercatorCoordinate.fromLngLat(map.transform.getCameraPosition().lngLat), b = map.getBearing() * Math.PI / 180;
+    for (const [el, p] of names) el.style.visibility = (p.x - c.x) * Math.sin(b) - (p.y - c.y) * Math.cos(b) > 0 ? '' : 'hidden';
+  };
+  map.on('move', behind);
+  behind();
   const el = document.createElement('div'); el.className = 'place barge'; el.textContent = 'Fireworks barge';
   new maplibregl.Marker({ element: el, anchor: 'top', offset: [0, -4] }).setLngLat(BARGE).addTo(map);
 }
