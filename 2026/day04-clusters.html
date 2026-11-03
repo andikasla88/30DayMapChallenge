@@ -5,227 +5,371 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow">
 <meta name="theme-color" content="#0B1220">
-<title>Day 04 · Where the Cabs Gather</title>
-<meta name="description" content="#30DayMapChallenge 2026, day 4, Clusters: DBSCAN on every free taxi in Singapore, 6 pm against 2 am, as glowing prisms on a swipe map, with a live clustering playground.">
+<title>Day 04 · Where Singapore's Trades Huddle</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 4, Clusters: every live business in ACRA's register, by trade. Pick one and watch it gather: specialists in Mount Elizabeth, computer shops in Sim Lim Square, maid agencies in Bukit Timah Shopping Centre.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:wght@400;500;600;700&display=swap">
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="kit/dmc.css">
 <style>
-/* ===== Day 04: two synchronised maps, a swipe divider, DBSCAN prisms ===== */
-:root { --pm: #FF8A4C; --pm-rgb: 255, 138, 76; --am: #4FE3FF; --am-rgb: 79, 227, 255; --split: 50vw; }
-#map-pm { z-index: 0; }
-#map { z-index: 1; clip-path: inset(0 0 0 var(--split)); }
-#dmc-stamp, .lab, .strip { z-index: 4; }   /* panels sit above the divider */
-.dusk { position: absolute; inset: 0; pointer-events: none; background:
-  linear-gradient(180deg, rgba(255, 140, 90, .22) 0%, rgba(255, 200, 150, .04) 40%, rgba(80, 70, 130, .14) 100%); mix-blend-mode: multiply; }
+/* ===== Day 04: each trade raised as mountains; one dot per business, flying in from a random mix ===== */
+:root { --c: #FFC24B; --c-rgb: 255, 194, 75; }
 
-/* divider: the line stays in focus mode (it is part of the map); the knob is chrome */
-.divider { position: fixed; z-index: 3; top: 0; bottom: 0; left: var(--split); width: 28px; margin-left: -14px; cursor: ew-resize; touch-action: none; }
-.divider::before { content: ""; position: absolute; top: 0; bottom: 0; left: 13px; width: 2px; background: linear-gradient(180deg, rgba(var(--pm-rgb), .0), rgba(255, 255, 255, .95) 12%, rgba(255, 255, 255, .95) 88%, rgba(var(--am-rgb), 0)); box-shadow: 0 0 10px rgba(255, 255, 255, .45), 0 0 1px rgba(0, 0, 0, .6); }
-.divider:focus-visible { outline: none; }
-.divider:focus-visible .knob { outline: 2px solid var(--day-accent); outline-offset: 3px; }
-.knob { position: absolute; left: 50%; top: 50%; width: 40px; height: 40px; transform: translate(-50%, -50%); display: grid; place-items: center; border-radius: 50%;
-  background: conic-gradient(from 180deg, var(--pm) 0 50%, var(--am) 50% 100%); box-shadow: 0 0 0 3px rgba(11, 18, 32, .85), 0 0 22px rgba(255, 255, 255, .35); }
-.knob svg { width: 22px; height: 22px; fill: none; stroke: #0B1220; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
+/* light mode: paper glass, ink text, no glows */
+html.light { --glass: rgba(255, 255, 255, .86); --line: rgba(20, 32, 52, .13); --text: #142033; --text-2: rgba(20, 32, 51, .7); color-scheme: light; }
+html.light .dmc-glass { box-shadow: inset 0 1px 0 rgba(255, 255, 255, .7), 0 10px 30px rgba(30, 45, 70, .16); }
+html.light :is(.dmc-more, .dmc-btn, .step, .hots button, .list-close) { background: rgba(20, 32, 52, .05); }
+html.light :is(.dmc-more, .dmc-btn, .step):hover, html.light .rank button:hover { background: rgba(20, 32, 52, .09); }
+html.light .dmc-num, html.light .score .big { text-shadow: none; }
+html.light .dmc-index li { box-shadow: inset 0 0 0 1px rgba(20, 32, 52, .16); }
+html.light .dmc-index li.done { background: rgba(20, 32, 52, .1); }
+html.light .dmc-index li.today { color: #fff; box-shadow: none; }
+html.light .dmc-credits a { text-decoration-color: rgba(20, 32, 52, .3); }
+html.light .dmc-focus-credit { background: rgba(255, 255, 255, .75); }
+html.light .maplibregl-ctrl-group button .maplibregl-ctrl-icon, html.light .maplibregl-ctrl-attrib-button { filter: none; }
+html.light .rank .bar { background: rgba(20, 32, 52, .08); }
+html.light .rank .nm::before, html.light .sq .box.t { box-shadow: none; }
+html.light .sq .box { border-color: rgba(20, 32, 52, .4); }
+html.light .hs-box { background: rgba(255, 255, 255, .94); box-shadow: 0 2px 10px rgba(30, 45, 70, .2); }
+html.light .hs:hover .hs-box, html.light .hs:focus-visible .hs-box { background: rgba(var(--c-rgb), .14); }
+/* the basemap list, beside the map buttons */
+.bases { position: fixed; z-index: 5; width: 200px; padding: 7px; display: grid; gap: 2px; }
+.bases[hidden] { display: none; }
+.bases-h { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--text-2); padding: 1px 5px 4px; }
+.bases-l { display: grid; gap: 2px; }
+.bases-l button { display: flex; align-items: center; gap: 9px; width: 100%; min-height: 34px; padding: 4px 6px; font: inherit; font-size: 12px; font-weight: 600; text-align: left; color: var(--text-2); background: none; border: 0; border-radius: 8px; cursor: pointer; }
+.bases-l button:hover { color: var(--text); background: rgba(255, 255, 255, .06); }
+html.light .bases-l button:hover { background: rgba(20, 32, 52, .06); }
+.bases-l button[aria-pressed="true"] { color: var(--text); background: rgba(var(--day-accent-rgb), .14); box-shadow: inset 0 0 0 1px rgba(var(--day-accent-rgb), .45); }
+.bases-l .sw { flex: none; width: 34px; height: 24px; border-radius: 5px; background: center / cover no-repeat; box-shadow: inset 0 0 0 1px var(--line); }
+.bases-l .sw.plain { background: linear-gradient(135deg, #0B1426 0 50%, #EDEFF2 50% 100%); }
+/* the theme button shows where it would take you: a sun in the dark, a moon in the light */
+#theme .moon, html.light #theme .sun { display: none; }
+html.light #theme .moon { display: inline; }
 
-/* side tags ride the divider */
-.tag { position: fixed; z-index: 3; top: calc(var(--gutter) + env(safe-area-inset-top, 0px)); display: grid; gap: 2px; padding: 7px 11px 7px; pointer-events: none; min-width: 0; }
-.tag.pm { right: calc(100vw - var(--split) + 14px); text-align: right; }
-.tag.am { left: calc(var(--split) + 14px); }
-.tag .hr { display: flex; align-items: baseline; gap: 7px; font-family: var(--display); font-size: 25px; font-weight: 800; line-height: .95; letter-spacing: .01em; }
-.tag.pm .hr { flex-direction: row-reverse; color: #FFD2B4; text-shadow: 0 0 16px rgba(var(--pm-rgb), .6); }
-.tag.am .hr { color: #C9F6FF; text-shadow: 0 0 16px rgba(var(--am-rgb), .6); }
-.tag .hr small { font-family: var(--font); font-size: 11px; font-weight: 600; letter-spacing: 0; color: var(--text-2); text-shadow: none; }
-.tag .st { font-size: 11px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.tag .st b { color: var(--text); font-weight: 600; }
+/* summit signs, placed by script on the land */
+.signs { position: absolute; inset: 0; pointer-events: none; overflow: hidden; transition: opacity .6s; }
+.signs.off { opacity: 0; }
+.signs.off .hs { pointer-events: none; }
+.hs { position: absolute; left: 0; top: 0; pointer-events: auto; will-change: transform; display: grid; justify-items: center; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; color: var(--text); }
+.hs-box { display: flex; align-items: baseline; gap: 6px; padding: 3px 9px 3px 8px; border-radius: 7px; white-space: nowrap; font-size: 11px; font-weight: 600;
+  background: rgba(9, 14, 24, .86); border: 1px solid rgba(var(--c-rgb), .55); box-shadow: 0 0 14px rgba(var(--c-rgb), .25); }
+.hs-box b { font-family: var(--display); font-size: 15px; font-weight: 800; line-height: 1; color: var(--c); font-variant-numeric: tabular-nums; }
+.hs.top .hs-box { font-size: 12.5px; padding: 4px 11px 4px 9px; }
+.hs.top .hs-box b { font-size: 18px; }
+.hs-stem { width: 1.5px; height: 14px; background: linear-gradient(rgba(var(--c-rgb), .9), rgba(var(--c-rgb), 0)); }
+.hs.hide { visibility: hidden; }
+.hs:hover .hs-box, .hs:focus-visible .hs-box { background: rgba(var(--c-rgb), .22); outline: none; }
 
-/* cluster labels (MapLibre markers, lifted to the prism tops) */
-.cl { pointer-events: none; }
-.cl-in { position: absolute; left: 0; bottom: 0; transform: translateX(-50%); display: grid; justify-items: center; transition: opacity .2s; }
-.cl.hide .cl-in { opacity: 0; }
-.cl-box { display: flex; align-items: baseline; gap: 5px; padding: 3px 8px 3px 7px; border-radius: 999px; white-space: nowrap; font-size: 11px; font-weight: 600; color: #fff;
-  background: rgba(9, 14, 24, .82); border: 1px solid rgba(255, 255, 255, .16); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); }
-.cl-box b { font-family: var(--display); font-size: 14px; font-weight: 800; line-height: 1; font-variant-numeric: tabular-nums; }
-.cl.pm .cl-box b { color: #FFB38A; }
-.cl.am .cl-box b { color: var(--am); }
-.cl-stem { width: 1.5px; height: 12px; background: linear-gradient(rgba(255, 255, 255, .85), rgba(255, 255, 255, 0)); }
+/* the ranked list */
+.list { top: calc(var(--gutter) + env(safe-area-inset-top, 0px) + 112px); left: calc(var(--gutter) + env(safe-area-inset-left, 0px));
+  bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); width: 288px; display: grid; grid-template-rows: auto 1fr auto; padding: 10px 6px 8px 10px; }
+.list-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 0 6px 6px 2px; }
+.list-h h2 { font-family: var(--display); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
+.list-h p { font-size: 10.5px; color: var(--text-2); }
+.list-close { display: none; }
+.rank { list-style: none; margin: 0; padding: 0 4px 0 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: rgba(255, 255, 255, .2) transparent; }
+.rank button { width: 100%; display: grid; grid-template-columns: 18px 1fr 92px; align-items: center; gap: 6px; text-align: left; font: inherit; color: var(--text-2);
+  background: none; border: 0; border-radius: 7px; padding: 4px 6px 4px 2px; min-height: 28px; cursor: pointer; }
+.rank button:hover { background: rgba(255, 255, 255, .06); color: var(--text); }
+.rank button[aria-pressed="true"] { background: rgba(var(--c-rgb), .14); color: var(--text); box-shadow: inset 0 0 0 1px rgba(var(--c-rgb), .45); }
+.rank .no { font-size: 10px; text-align: right; color: var(--text-2); font-variant-numeric: tabular-nums; }
+.rank .nm { font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.rank .nm::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--k); box-shadow: 0 0 6px var(--k); }
+.rank .x { display: grid; grid-template-columns: 1fr 34px; align-items: center; gap: 5px; }
+.rank .bar { height: 4px; border-radius: 2px; background: rgba(255, 255, 255, .08); overflow: hidden; }
+.rank .bar i { display: block; height: 100%; width: var(--w); background: var(--k); border-radius: 2px; }
+.rank .x b { font-size: 11.5px; font-weight: 700; text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+.list .dmc-credits { border-top: 1px solid var(--line); padding: 7px 4px 0 2px; margin-top: 6px; font-size: 9.5px; }
 
-/* playground */
-.lab { top: calc(var(--gutter) + env(safe-area-inset-top, 0px) + 184px); right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); width: 264px; padding: 10px 12px 11px; display: grid; gap: 9px; }
-.lab-h { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.lab-h h2 { font-family: var(--display); font-size: 14px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; }
-.lab-toggle { display: none; }
-.lab-reset { font: inherit; font-size: 10.5px; font-weight: 600; color: var(--text-2); background: none; border: 1px solid var(--line); border-radius: 999px; padding: 2px 8px; min-height: 22px; cursor: pointer; }
-.lab-reset:hover { color: var(--text); }
-.lab-reset[disabled] { opacity: .35; cursor: default; }
-.lab-body { display: grid; gap: 9px; }
-.knobrow { display: grid; grid-template-columns: 1fr auto; gap: 1px 8px; align-items: center; }
-.knobrow label { font-size: 11px; color: var(--text-2); }
-.knobrow label b { color: var(--text); font-weight: 600; }
-.knobrow output { font-size: 12px; font-weight: 700; font-variant-numeric: tabular-nums; color: var(--text); }
-.knobrow input { grid-column: 1 / -1; }
-input[type="range"] { -webkit-appearance: none; appearance: none; width: 100%; height: 22px; margin: 0; background: transparent; cursor: pointer; }
-input[type="range"]::-webkit-slider-runnable-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--day-accent) var(--p, 50%), rgba(255, 255, 255, .16) var(--p, 50%)); }
-input[type="range"]::-moz-range-track { height: 3px; border-radius: 3px; background: linear-gradient(90deg, var(--day-accent) var(--p, 50%), rgba(255, 255, 255, .16) var(--p, 50%)); }
-input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5.5px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 3px rgba(var(--day-accent-rgb), .35); }
-input[type="range"]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 3px rgba(var(--day-accent-rgb), .35); }
+/* the reading for the chosen trade */
+.card { right: calc(var(--gutter) + env(safe-area-inset-right, 0px)); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); width: 352px; padding: 12px 14px 12px; display: grid; gap: 9px; }
+.card-h { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 8px; }
+.card-t { min-width: 0; }
+.kick { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--c); }
+.card h2 { font-family: var(--display); font-size: 25px; font-weight: 800; line-height: 1; letter-spacing: .01em; }
+.step { position: relative; width: 30px; height: 30px; display: grid; place-items: center; border-radius: 50%; border: 1px solid var(--line); background: rgba(255, 255, 255, .06); color: var(--text); cursor: pointer; }
+.step::after { content: ""; position: absolute; inset: -7px; }
+.step:hover { background: rgba(255, 255, 255, .13); }
+.step svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+.score { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 4px 12px; }
+.score .big { font-family: var(--display); font-size: 46px; font-weight: 900; line-height: .85; color: var(--c); text-shadow: 0 0 18px rgba(var(--c-rgb), .45); font-variant-numeric: tabular-nums; }
+.score .big small { font-size: 26px; }
+.score p { font-size: 12px; line-height: 1.4; color: var(--text-2); }
+.score p b { color: var(--text); font-weight: 600; }
+.leg { font-size: 10.5px; line-height: 1.4; color: var(--text-2); }
+.leg b { color: var(--c); font-weight: 700; }
+.sq { display: flex; align-items: flex-end; gap: 14px; }
+.sq figure { margin: 0; display: grid; justify-items: start; gap: 4px; }
+.sq figcaption { font-size: 10.5px; line-height: 1.3; color: var(--text-2); }
+.sq figcaption b { display: block; color: var(--text); font-size: 12px; font-variant-numeric: tabular-nums; }
+.sq .box { border: 1.5px dashed rgba(255, 255, 255, .45); border-radius: 2px; }
+.sq .box.t { border: 0; background: var(--c); box-shadow: 0 0 12px rgba(var(--c-rgb), .6); }
+.hots { display: flex; flex-wrap: wrap; gap: 5px; }
+.hots button { display: inline-flex; align-items: baseline; gap: 5px; font: inherit; font-size: 11.5px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .06);
+  border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; min-height: 26px; cursor: pointer; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.hots button b { color: var(--c); font-variant-numeric: tabular-nums; }
+.hots button:hover { background: rgba(var(--c-rgb), .16); }
+.card-f { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.card-f .dmc-btn { display: inline-flex; align-items: center; gap: 6px; }
+.card-f .dmc-btn svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+#open-list { display: none; }
+.hint { font-size: 10.5px; color: var(--text-2); margin-left: auto; }
 
-.hours-h { display: flex; justify-content: space-between; align-items: baseline; font-size: 11px; color: var(--text-2); }
-.hours-h b { color: var(--text); font-weight: 600; }
-.hours { position: relative; height: 46px; margin-top: 2px; touch-action: none; cursor: pointer; }
-.hours svg { position: absolute; inset: 0 0 12px; width: 100%; height: calc(100% - 12px); overflow: visible; }
-.hours .bar { fill: rgba(255, 255, 255, .14); }
-.hours .bin { fill: rgba(255, 255, 255, .5); }
-.hours .bar.pm { fill: rgba(var(--pm-rgb), .35); } .hours .bin.pm { fill: var(--pm); }
-.hours .bar.am { fill: rgba(var(--am-rgb), .3); } .hours .bin.am { fill: var(--am); }
-.hours .night { fill: rgba(120, 140, 255, .07); }
-.thumb { position: absolute; bottom: 0; width: 22px; height: 22px; margin-left: -11px; padding: 0; border: 0; background: none; cursor: grab; }
-.thumb::before { content: ""; position: absolute; left: 50%; bottom: 3px; width: 10px; height: 10px; margin-left: -5px; transform: rotate(45deg); border-radius: 2px; box-shadow: 0 0 0 2px rgba(11, 18, 32, .9); }
-.thumb.pm::before { background: var(--pm); } .thumb.am::before { background: var(--am); }
-.thumb::after { content: ""; position: absolute; inset: -10px -4px -6px; }
-.thumb:focus-visible { outline: none; }
-.thumb:focus-visible::before { box-shadow: 0 0 0 2px #fff; }
-.hours-ax { display: flex; justify-content: space-between; font-size: 9.5px; color: var(--text-2); margin-top: -2px; font-variant-numeric: tabular-nums; }
-
-.nights { display: flex; align-items: center; gap: 6px; }
-.nights > span { font-size: 11px; color: var(--text-2); }
-.nights .dmc-seg { flex: 1; justify-content: space-between; }
-.nights .dmc-seg button { flex: 1; padding: 3px 0; min-height: 24px; font-size: 11px; }
-.why { font-size: 11px; line-height: 1.45; color: var(--text-2); border-top: 1px solid var(--line); padding-top: 8px; }
-.why b { color: var(--text); font-weight: 600; }
-
-/* comparison strip */
-.strip { left: 50%; transform: translateX(-50%); bottom: calc(var(--gutter) + env(safe-area-inset-bottom, 0px)); width: min(880px, calc(100vw - 2 * var(--gutter))); padding: 9px 12px 8px; display: grid; gap: 7px; }
-.strip-h { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
-.strip-h h2 { font-size: 12px; font-weight: 600; }
-.strip-h h2 i { font-style: normal; color: var(--text-2); font-weight: 500; }
-.strip-h p { font-size: 10.5px; color: var(--text-2); white-space: nowrap; }
-.rank { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.rank li { min-width: 0; }
-.rank button { width: 100%; display: grid; gap: 3px; text-align: left; padding: 6px 8px 7px; font: inherit; color: var(--text); background: rgba(255, 255, 255, .045); border: 1px solid rgba(255, 255, 255, .08); border-radius: 9px; cursor: pointer; }
-.rank button:hover { background: rgba(255, 255, 255, .09); }
-.rank .nm { font-size: 11px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.rank .nm em { font-style: normal; color: var(--text-2); font-weight: 500; margin-right: 4px; font-variant-numeric: tabular-nums; }
-.rank .vals { display: flex; align-items: baseline; gap: 5px; font-variant-numeric: tabular-nums; }
-.rank .vals b { font-family: var(--display); font-size: 19px; font-weight: 800; line-height: 1; }
-.rank .vals .p { color: #FFB38A; } .rank .vals .a { color: var(--am); }
-.rank .vals i { font-style: normal; font-size: 11px; color: var(--text-2); }
-.rank .bars { display: grid; gap: 2px; }
-.rank .bars span { display: block; height: 3px; border-radius: 2px; min-width: 2px; }
-.rank .bars .p { background: var(--pm); box-shadow: 0 0 6px rgba(var(--pm-rgb), .6); }
-.rank .bars .a { background: var(--am); box-shadow: 0 0 6px rgba(var(--am-rgb), .6); }
-.rank .wk { font-size: 10px; color: var(--text-2); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.strip .dmc-credits { font-size: 9.5px; }
-
-/* ---- compact screens ---- */
+/* ---- compact screens: the list becomes a sheet you open ---- */
+@media (max-width: 900px) {
+  .list { display: none; }
+  .list.open { display: grid; z-index: 4; }
+  .list-close { display: inline-flex; font: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: rgba(255, 255, 255, .08); border: 1px solid var(--line); border-radius: 999px; padding: 3px 10px; min-height: 26px; cursor: pointer; }
+  #open-list { display: inline-flex; }
+  .hint { display: none; }
+}
 @media (max-width: 640px), (max-height: 520px) {
-  .tag { padding: 5px 8px; }
-  .tag .hr { font-size: 20px; }
-  .tag .hr small { font-size: 10px; }
-  .tag .st { font-size: 10px; }
-  .rank { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; padding-bottom: 1px; }
-  .rank::-webkit-scrollbar { display: none; }
-  .rank li { flex: 0 0 132px; scroll-snap-align: start; }
-  .lab { top: auto; right: auto; left: calc(var(--gutter) + env(safe-area-inset-left, 0px)); width: min(264px, calc(100vw - 2 * var(--gutter))); padding: 7px 10px; gap: 8px; }
-  .lab-toggle { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: 11px; font-weight: 600; color: var(--text); background: none; border: 0; padding: 4px 0; min-height: 28px; cursor: pointer; }
-  .lab-toggle svg { width: 12px; height: 12px; fill: none; stroke: currentColor; stroke-width: 2; transition: transform .2s; }
-  .lab[aria-expanded="true"] .lab-toggle svg { transform: rotate(180deg); }
-  .lab-h h2 { display: none; }
-  .lab:not([aria-expanded="true"]) { width: auto; }
-  .lab:not([aria-expanded="true"]) .lab-body, .lab:not([aria-expanded="true"]) .lab-reset { display: none; }
+  .card { padding: 9px 11px 10px; gap: 7px; }
+  .card h2 { font-size: 21px; }
+  .score .big { font-size: 36px; }
+  .score .big small { font-size: 21px; }
+  .score p { font-size: 11.5px; }
+  .sq, .leg { display: none; }
+  .hots { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; }
+  .hots::-webkit-scrollbar { display: none; }
+  .hots button { flex: none; }
+  .hs-box { font-size: 10px; padding: 2px 7px; }
+  .hs-box b { font-size: 13px; }
+  .hs.top .hs-box { font-size: 11px; }
+  .hs.top .hs-box b { font-size: 15px; }
 }
 @media (max-width: 640px) and (orientation: portrait) {
-  .strip { left: 0; right: 0; transform: none; width: auto; bottom: 0; border-radius: 16px 16px 0 0; border-bottom: 0; padding-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }
-  .strip-h p { display: none; }
-  .tag { top: auto; bottom: calc(var(--strip-h, 150px) + 10px); }
-  .lab { bottom: calc(var(--strip-h, 150px) + 66px); }
-  .knob { width: 36px; height: 36px; }
+  .card { left: 0; right: 0; bottom: 0; width: auto; border-radius: 16px 16px 0 0; border-bottom: 0; padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px)); }
+  .list.open { top: auto; left: var(--gutter); right: var(--gutter); width: auto; bottom: calc(var(--card-h, 220px) + 8px); max-height: calc(100% - var(--card-h, 220px) - 120px); }
 }
 @media (max-height: 520px) and (orientation: landscape) {
-  .strip { left: auto; right: calc(var(--gutter) + 48px); transform: none; width: min(420px, 50vw); }
-  .rank li { flex-basis: 120px; }
-  .lab { top: auto; bottom: var(--gutter); }
-  .tag { top: calc(var(--gutter) + 82px); }   /* clear of the stamp */
-  .strip-h p, .strip .dmc-credits { display: none; }
+  .card { width: min(330px, 46vw); right: calc(var(--gutter) + 48px); }
+  #say { display: none; }
+  .list.open { top: calc(var(--gutter) + 82px); width: 260px; }
 }
 </style>
 </head>
 <body>
-<div id="map-pm" class="dmc-map" role="region" aria-label="Left map: free taxis and their DBSCAN clusters in the evening"></div>
-<div id="map" class="dmc-map" role="region" aria-label="Right map: free taxis and their DBSCAN clusters in the small hours"></div>
+<div id="map" class="dmc-map" role="region" aria-label="Map of Singapore raised into mountains for the chosen trade: the taller the peak, the more of the trade stands there; every live business as faint dust, and the trade as bright dots on the summits"></div>
 
-<div id="divider" class="divider" role="slider" tabindex="0" aria-label="Swipe between the evening map (left) and the night map (right)" aria-valuemin="0" aria-valuemax="100" aria-valuenow="50" aria-valuetext="Divider at 50 percent">
-  <div class="knob dmc-chrome"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 7l-5 5 5 5M15 7l5 5-5 5"/></svg></div>
+<div id="bases" class="dmc-glass dmc-chrome bases" role="group" aria-label="Basemap" hidden>
+  <p class="bases-h">Basemap</p>
+  <div id="bases-l" class="bases-l"></div>
 </div>
-<div id="tag-pm" class="tag pm dmc-glass dmc-chrome" aria-live="polite"><div class="hr"><span id="pm-hr">6 PM</span><small id="pm-day"></small></div><div class="st" id="pm-st">&nbsp;</div></div>
-<div id="tag-am" class="tag am dmc-glass dmc-chrome" aria-live="polite"><div class="hr"><span id="am-hr">2 AM</span><small id="am-day"></small></div><div class="st" id="am-st">&nbsp;</div></div>
 
 <header id="dmc-stamp" class="dmc-glass dmc-stamp" data-dmc-overlay></header>
 
-<section id="lab" class="dmc-glass lab" data-dmc-overlay aria-label="DBSCAN playground" aria-expanded="true">
-  <div class="lab-h">
-    <h2>DBSCAN playground</h2>
-    <button id="lab-toggle" class="lab-toggle" type="button" aria-controls="lab-body" aria-expanded="false">DBSCAN · <span id="lab-sum">200 m · 8</span><svg viewBox="0 0 12 12" aria-hidden="true"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg></button>
-    <button id="reset" class="lab-reset" type="button" disabled>Reset</button>
+<section id="list" class="dmc-glass list" data-dmc-overlay aria-label="Trades, most huddled first">
+  <div class="list-h">
+    <h2>Most huddled trades</h2>
+    <p>× a random mix</p>
+    <button id="list-close" class="list-close" type="button">Close</button>
   </div>
-  <div id="lab-body" class="lab-body">
-    <div class="knobrow">
-      <label for="eps"><b>eps</b> · search radius</label><output id="eps-o" for="eps">200 m</output>
-      <input id="eps" type="range" min="60" max="600" step="10" value="200">
-    </div>
-    <div class="knobrow">
-      <label for="minpts"><b>minPts</b> · cabs to make a crowd</label><output id="minpts-o" for="minpts">8</output>
-      <input id="minpts" type="range" min="3" max="30" step="1" value="8">
-    </div>
-    <div>
-      <div class="hours-h"><span>Hour by hour, <b>Wed 28 Oct</b></span><span id="hours-note">bars: free · clustered</span></div>
-      <div id="hours" class="hours">
-        <svg id="hbars" aria-hidden="true"></svg>
-        <button id="th-pm" class="thumb pm" type="button" role="slider" aria-label="Hour shown on the left map" aria-valuemin="0" aria-valuemax="23" aria-valuenow="18"></button>
-        <button id="th-am" class="thumb am" type="button" role="slider" aria-label="Hour shown on the right map" aria-valuemin="0" aria-valuemax="23" aria-valuenow="2"></button>
-      </div>
-      <div class="hours-ax" aria-hidden="true"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>11p</span></div>
-    </div>
-    <div class="nights"><span>Night</span><div id="nights" class="dmc-seg" role="group" aria-label="Which weeknight: 6 pm that evening against 2 am after"></div></div>
-    <p class="why" id="why">A cab is <b>core</b> when at least <b>minPts</b> free cabs (itself included) sit within <b>eps</b> of it; cores chain into clusters.</p>
-  </div>
-</section>
-
-<section id="strip" class="dmc-glass strip" data-dmc-overlay aria-label="Where taxis gather, left map against right map">
-  <div class="strip-h"><h2 id="strip-t">Biggest taxi crowds <i>6 pm → 2 am</i></h2><p id="strip-n">tap a place to fly there</p></div>
   <ol id="rank" class="rank"></ol>
   <p id="credits" class="dmc-credits"></p>
+</section>
+
+<section id="card" class="dmc-glass card" data-dmc-overlay aria-live="polite" aria-label="The chosen trade">
+  <div class="card-h">
+    <button id="prev" class="step" type="button" aria-label="More huddled trade"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5"/></svg></button>
+    <div class="card-t"><p id="kick" class="kick">&nbsp;</p><h2 id="name">Loading&hellip;</h2></div>
+    <button id="next" class="step" type="button" aria-label="Less huddled trade"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="m6 3 5 5-5 5"/></svg></button>
+  </div>
+  <div class="score">
+    <p id="big" class="big">&nbsp;</p>
+    <p id="say">Reading ACRA's register&hellip;</p>
+  </div>
+  <p id="leg" class="leg"></p>
+  <div id="sq" class="sq" aria-hidden="true"></div>
+  <div id="hots" class="hots" aria-label="Where they gather"></div>
+  <div class="card-f">
+    <button id="scatter" class="dmc-btn" type="button" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="4" r="1.3"/><circle cx="12" cy="3.5" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/><circle cx="3.5" cy="12.5" r="1.3"/><circle cx="12.5" cy="12" r="1.3"/></svg><span>Scatter them</span></button>
+    <button id="open-list" class="dmc-btn" type="button" aria-controls="list" aria-expanded="false">All trades</button>
+    <span class="hint">&larr; &rarr; keys step through the list</span>
+  </div>
 </section>
 
 <script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <script src="kit/dmc.js"></script>
 <script>
 'use strict';
-const DAY = { n: 4, title: 'Where the cabs gather: 6 pm against 2 am',
-  deck: 'Every free taxi in Singapore, run through DBSCAN (200 m, 8 cabs) and stood up as prisms as tall as the crowd. Left is a weekday evening at 6, right is 2 am that night: drag the divider to swipe between them. The airport holds its queue all night while the city centre empties; the playground re-runs the clustering live in your browser.',
-  accent: '#FF8A4C', basemapBg: '#0B1426',
-  styleCredit: 'Basemap: <a href="https://openfreemap.org/" target="_blank" rel="noopener noreferrer">OpenFreeMap</a>, <a href="https://www.openmaptiles.org/" target="_blank" rel="noopener noreferrer">&copy; OpenMapTiles</a>, &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors',
-  camera: { pitch: 50, bearing: 20, tiltPitch: 50 },
-  bounds: [[103.69, 1.255], [104.0, 1.425]], maxBounds: [[102.6, 0.5], [105.0, 2.2]], minZoom: 8,   /* the cab belt: Jurong East to Changi */
-  buildings: false, creditsEl: 'credits',
-  attribution: ['Taxis: <a href="https://data.gov.sg/datasets?query=taxi%20availability" target="_blank" rel="noopener noreferrer">LTA taxi availability via data.gov.sg</a>, Singapore Open Data Licence',
-    'Place names: &copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors via <a href="https://photon.komoot.io/" target="_blank" rel="noopener noreferrer">Photon</a>'],
+const A = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+const DAY = { n: 4, title: 'Where Singapore\'s trades huddle',
+  deck: 'ACRA registers every business in Singapore with an industry code and an address. Pick a trade and the island rises into its mountains: the height is how much of the trade stands within about half a kilometre, on one scale for every trade, so the tallest peaks are where a trade crowds hardest. Its businesses fly in from where the same number of ordinary businesses would sit and settle on the summits, one dot each; scatter them and the land sinks to the low plain a random mix would raise. The score is how much less ground holds half of them than half of a random mix would need. Addresses are the ones registered with ACRA, which for shops and clinics is nearly always the shop; units shared by ten or more firms (company secretaries, registered-office services) are left out, and each address counts once per trade.',
+  accent: '#FFC24B', basemapBg: '#0B1426',
+  styleCredit: 'Basemap: ' + A('https://openfreemap.org/', 'OpenFreeMap') + ', ' + A('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', &copy; ' + A('https://www.openstreetmap.org/copyright', 'OpenStreetMap') + ' contributors',
+  bounds: [[103.72, 1.275], [103.96, 1.41]], buildings: false, creditsEl: 'credits',   // tight: the tilt shrinks the far shore
+  camera: { pitch: 55, bearing: -16, tiltPitch: 55 },
+  attribution: ['Businesses: ' + A('https://data.gov.sg/collections/2/view', 'ACRA Information on Corporate Entities') + ', live entities, October 2026, via data.gov.sg, Singapore Open Data Licence',
+    'Trades: ' + A('https://www.singstat.gov.sg/standard-classifications/national-classifications/singapore-standard-industrial-classification-ssic', 'SSIC 2025') + ', Singapore Department of Statistics',
+    'Postal code locations: ' + A('https://www.onemap.gov.sg/', 'OneMap') + ', Singapore Land Authority, via ' + A('https://github.com/xkjyeah/singapore-postal-codes', 'singapore-postal-codes')],
   author: '', nav: null };
 DMC.mountStamp(DAY);
 const REDUCED = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const COMPACT = matchMedia(DMC.COMPACT_Q);
 const $ = id => document.getElementById(id);
+const fmt = n => n.toLocaleString('en-SG');
+const hexRgb = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 
-/* ---------- maps: right = kit map (2 am, night), left = evening map (dusk) ----------
-   One OpenFreeMap vector style (positron, labels dropped) painted twice: a warm dusk palette
-   and a navy night palette, so both sides show exactly the same streets. */
-const PALETTE = {
-  dusk: { bg: '#EFE4D9', water: '#AFBDD3', green: '#DFD9C4', land: '#EADDD0', building: '#E2D0C0', aero: '#F5E8DC', runway: '#FFF6EE',
-    minor: '#F9EBDF', major: '#FFF7EF', casing: '#DDC1AA', motorway: '#FFDDBF', rail: '#D7C0AD' },
-  night: { bg: '#0B1426', water: '#040915', green: '#0D1A2D', land: '#0D172A', building: '#14213A', aero: '#101C32', runway: '#1D2C49',
-    minor: '#17243D', major: '#1F2F4D', casing: '#0B1426', motorway: '#2C4068', rail: '#17233B' },
+/* ---------- light and dark ---------- */
+// Dark is the page as designed: neon trades on a navy map. Light is a paper map with deeper inks,
+// since the neon would vanish on it. The choice is remembered; ?theme=light or dark in a link wins.
+const LOOK = {
+  dark: { accent: '#FFC24B', bg: '#0B1426', meta: '#0B1220', dust: '#F2E3C8', dustA: [0.16, 0.24],
+    cat: { shop: '#FFC24B', care: '#FF6FB5', health: '#4FE3C1', money: '#A6E86A', service: '#7FB2FF', night: '#C38CFF', motor: '#FF7A45', work: '#56C8FF' },
+    pal: { bg: '#0B1426', water: '#050A16', green: '#0D1A2C', land: '#0D172A', building: '#121E35', aero: '#101B30', runway: '#1A2843',
+      minor: '#15223A', major: '#1C2B48', casing: '#0B1426', motorway: '#27395E', rail: '#16223A' } },
+  light: { accent: '#B97800', bg: '#EDEFF2', meta: '#EDEFF2', dust: '#3E4C63', dustA: [0.08, 0.13],
+    cat: { shop: '#C27A00', care: '#C8317A', health: '#0B8F75', money: '#4C8A12', service: '#2B63C9', night: '#7B42CC', motor: '#D4480F', work: '#0A7DB3' },
+    pal: { bg: '#EDEFF2', water: '#C9D5E3', green: '#E0E8DF', land: '#E7EAEE', building: '#DCE0E6', aero: '#E3E6EB', runway: '#D3D8E0',
+      minor: '#FFFFFF', major: '#FFFFFF', casing: '#D6DBE3', motorway: '#FBFCFD', rail: '#D0D5DD' } },
 };
+const THEME_KEY = 'dmc-day04-theme';
+let LIGHT = (() => {
+  const q = new URLSearchParams(location.search).get('theme');
+  if (q === 'light' || q === 'dark') return q === 'light';
+  try { return localStorage.getItem(THEME_KEY) === 'light'; } catch { return false; }
+})();
+const look = () => LIGHT ? LOOK.light : LOOK.dark;
+const colorOf = t => look().cat[t.cat];
+function paintChrome() {
+  const k = look(), root = document.documentElement;
+  root.classList.toggle('light', LIGHT);
+  root.style.setProperty('--day-accent', k.accent); root.style.setProperty('--day-accent-rgb', hexRgb(k.accent).join(', '));
+  root.style.setProperty('--map-bg', k.bg);
+  document.querySelector('meta[name="theme-color"]').content = k.meta;
+}
+paintChrome();
+function setTheme(light) {
+  LIGHT = light;
+  try { localStorage.setItem(THEME_KEY, light ? 'light' : 'dark'); } catch { /* private mode: not remembered */ }
+  const u = new URL(location.href);
+  if (light) u.searchParams.set('theme', 'light'); else u.searchParams.delete('theme');
+  history.replaceState(null, '', u);
+  paintChrome();
+  $('theme')?.setAttribute('aria-pressed', String(light));
+  if (!map) return;
+  paintBasemap();
+  if (D) {
+    for (const t of D.trades) t.color = colorOf(t);
+    for (const b of $('rank').querySelectorAll('button')) b.style.setProperty('--k', BY_SSIC.get(b.dataset.ssic).color);
+    if (T) paintTrade(T);
+  }
+  map.triggerRepaint();
+}
+// The sun / moon sits in the kit's button stack, above focus mode.
+function addThemeButton() {
+  const box = map.getContainer().querySelector('.dmc-ctrl');
+  if (!box) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'theme'; b.title = 'Light mode'; b.setAttribute('aria-label', 'Light mode');
+  b.setAttribute('aria-pressed', String(LIGHT));
+  b.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><g class="sun"><circle cx="10" cy="10" r="3.3"/>'
+    + '<path d="M10 2.5v1.8M10 15.7v1.8M2.5 10h1.8M15.7 10h1.8M4.7 4.7 6 6M14 14l1.3 1.3M4.7 15.3 6 14M14 6l1.3-1.3"/></g>'
+    + '<path class="moon" d="M15.6 12.4A6 6 0 0 1 7.6 4.4a6 6 0 1 0 8 8z"/></svg>';
+  b.addEventListener('click', () => setTheme(!LIGHT));
+  box.insertBefore(b, box.lastElementChild);
+}
+
+/* ---------- basemaps: the page's own, or one of OneMap's ---------- */
+// OneMap tiles go under everything the page draws. Picking one brings the look that suits it (light
+// inks on the day maps, neon on Night and Satellite); the sun / moon can still change that.
+const BASES = [   // [OneMap style or 'plain', label, look]
+  ['plain', 'Plain', null], ['Default', 'OneMap', 'light'], ['Grey', 'OneMap Grey', 'light'], ['GreyLite', 'OneMap Grey Lite', 'light'],
+  ['Original', 'OneMap Original', 'light'], ['Night', 'OneMap Night', 'dark'], ['Satellite', 'OneMap Satellite', 'dark'], ['LandLot', 'OneMap Land Lot', 'light'],
+];
+const BASE_PAINT = { Default: { 'raster-saturation': -0.3 }, Original: { 'raster-saturation': -0.3 }, Satellite: { 'raster-saturation': -0.2, 'raster-brightness-max': 0.8 } };
+// OneMap's tiles stop at a rectangle; the map beyond takes the colour of each style's sea, so the
+// edge doesn't show in the tilted view (Land Lot is see-through: it keeps the page's own ground).
+const BASE_SEA = { Default: '#7FA8D4', Grey: '#D1D1D1', GreyLite: '#D4D4D4', Original: '#C6D6F0', Night: '#003753', Satellite: '#1D3A44' };
+const groundColor = () => BASE_SEA[BASE] || look().pal.bg;
+const BASE_KEY = 'dmc-day04-base';
+const isBase = n => BASES.some(b => b[0] === n);
+let BASE = (() => {
+  const q = new URLSearchParams(location.search).get('base');
+  if (isBase(q)) return q;
+  try { const s = localStorage.getItem(BASE_KEY); if (isBase(s)) return s; } catch { /* not remembered */ }
+  return 'plain';
+})();
+function addOneMap(name) {
+  const b = DMC.BASEMAPS[name], layers = map.getStyle().layers;
+  const before = (layers.find(l => l.type !== 'background') || {}).id;   // under every map and data layer
+  const paint = { 'raster-fade-duration': 150, ...(BASE_PAINT[name] || {}) };
+  // as in the kit: OneMap starts at z11, so a second layer draws those tiles at 128 px when zoomed out
+  map.addSource(`om-${name}`, { type: 'raster', tiles: b.tiles, tileSize: 256, minzoom: b.minzoom, maxzoom: b.maxzoom });
+  map.addSource(`om-${name}-lo`, { type: 'raster', tiles: b.tiles, tileSize: 128, minzoom: 11, maxzoom: 11 });
+  map.addLayer({ id: `om-${name}-lo`, type: 'raster', source: `om-${name}-lo`, maxzoom: 11, paint }, before);
+  map.addLayer({ id: `om-${name}`, type: 'raster', source: `om-${name}`, minzoom: 9.5, paint }, before);
+  // OneMap's imagery covers about 103.6-104.1 E, 1.16-1.475 N and the rest of its tiles is black:
+  // everything outside that box is covered with the sea
+  if (name === 'Satellite') {
+    const out = [[90, -10], [120, -10], [120, 10], [90, 10], [90, -10]], box = [[103.6, 1.16], [103.6, 1.475], [104.1, 1.475], [104.1, 1.16], [103.6, 1.16]];
+    map.addSource('om-beyond', { type: 'geojson', data: { type: 'Polygon', coordinates: [out, box] } });
+    map.addLayer({ id: 'om-Satellite-mask', type: 'fill', source: 'om-beyond', paint: { 'fill-color': BASE_SEA.Satellite } }, before);
+  }
+}
+function showBase() {
+  if (!D) return;   // start() shows it once the map and data are in
+  if (BASE !== 'plain' && !map.getLayer(`om-${BASE}`)) addOneMap(BASE);
+  for (const [n] of BASES) for (const id of [`om-${n}`, `om-${n}-lo`, `om-${n}-mask`])
+    if (map.getLayer(id)) map.setLayoutProperty(id, 'visibility', n === BASE ? 'visible' : 'none');
+  for (const [id, type] of ROLES)
+    if (map.getLayer(id)) {
+      if (type === 'background') map.setPaintProperty(id, 'background-color', groundColor());
+      else map.setLayoutProperty(id, 'visibility', BASE === 'plain' || BASE === 'LandLot' ? 'visible' : 'none');
+    }
+  const base = BASE === 'plain' ? [DAY.styleCredit] : BASE === 'LandLot' ? [DAY.styleCredit, 'Land lots: ' + DMC.ONEMAP_CREDIT] : ['Basemap: ' + DMC.ONEMAP_CREDIT];
+  const all = [...base, ...DAY.attribution];
+  $('credits').innerHTML = all.join('<br>');
+  const fc = document.querySelector('.dmc-focus-credit');
+  if (fc) fc.innerHTML = all.join(' · ');
+  for (const b of $('bases-l').querySelectorAll('button')) b.setAttribute('aria-pressed', String(b.dataset.base === BASE));
+}
+function setBase(name) {
+  BASE = name;
+  try { localStorage.setItem(BASE_KEY, name); } catch { /* not remembered */ }
+  const u = new URL(location.href);
+  if (name === 'plain') u.searchParams.delete('base'); else u.searchParams.set('base', name);
+  history.replaceState(null, '', u);
+  showBase();
+  const want = BASES.find(b => b[0] === name)[2];
+  if (want && (want === 'light') !== LIGHT) setTheme(want === 'light');
+}
+// A layers button under the sun / moon opens the list beside the button stack.
+function addBaseButton() {
+  const box = map.getContainer().querySelector('.dmc-ctrl'), list = $('bases'), items = $('bases-l');
+  if (!box) return;
+  for (const [n, label] of BASES) {
+    const b = document.createElement('button');
+    b.type = 'button'; b.dataset.base = n; b.setAttribute('aria-pressed', 'false');
+    const sw = document.createElement('span');
+    sw.className = 'sw' + (n === 'plain' ? ' plain' : '');
+    if (n !== 'plain') sw.style.backgroundImage = `url(https://www.onemap.gov.sg/maps/tiles/${n}/13/6459/4066.png)`;   // Marina East
+    b.append(sw, label);
+    b.addEventListener('click', () => { setBase(n); open(false); btn.focus(); });
+    items.append(b);
+  }
+  const btn = document.createElement('button');
+  btn.type = 'button'; btn.title = 'Basemap'; btn.setAttribute('aria-label', 'Basemap');
+  btn.setAttribute('aria-expanded', 'false'); btn.setAttribute('aria-controls', 'bases');
+  btn.innerHTML = '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M10 3 2.5 6.8 10 10.6l7.5-3.8z"/><path d="m2.5 10.2 7.5 3.8 7.5-3.8"/><path d="m2.5 13.6 7.5 3.8 7.5-3.8"/></svg>';
+  box.insertBefore(btn, box.lastElementChild);
+  const open = on => {
+    list.hidden = !on;
+    btn.setAttribute('aria-expanded', String(on));
+    if (!on) return;
+    const r = btn.getBoundingClientRect();
+    list.style.top = `${Math.max(8, Math.min(r.top, innerHeight - list.offsetHeight - 8))}px`;
+    list.style.right = `${innerWidth - r.left + 8}px`;
+    items.querySelector('[aria-pressed="true"]')?.focus();
+  };
+  btn.addEventListener('click', () => open(list.hidden));
+  document.addEventListener('pointerdown', e => { if (!list.hidden && !list.contains(e.target) && !btn.contains(e.target)) open(false); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && !list.hidden) { open(false); btn.focus(); } });
+}
+
+/* ---------- basemap: OpenFreeMap positron, labels dropped, painted navy (or paper) ---------- */
 function roleOf(l) {
   const id = l.id;
   if (l.type === 'symbol' || /boundary|ice_shelf|glacier|dashline|tunnel/.test(id) || l.source === 'ne2_shaded') return null;
@@ -242,11 +386,14 @@ function roleOf(l) {
   if (/major/.test(id)) return 'major';
   return 'minor';
 }
-function paintStyle(base, pal) {
-  const st = JSON.parse(JSON.stringify(base));
+let ROLES = [['background', 'background', 'bg', false]];   // [layer id, type, role, has an outline colour]
+function paintStyle(base) {
+  const st = JSON.parse(JSON.stringify(base)), pal = look().pal;
   delete st.sources.ne2_shaded;
+  ROLES = [];
   st.layers = st.layers.filter(l => roleOf(l)).map(l => {
-    const c = pal[roleOf(l)], p = l.paint || (l.paint = {});
+    const role = roleOf(l), c = pal[role], p = l.paint || (l.paint = {});
+    ROLES.push([l.id, l.type, role, 'fill-outline-color' in p]);
     if (l.type === 'background') p['background-color'] = c;
     else if (l.type === 'fill') { p['fill-color'] = c; delete p['fill-pattern']; if ('fill-outline-color' in p) p['fill-outline-color'] = c; }
     else if (l.type === 'line') p['line-color'] = c;
@@ -254,444 +401,587 @@ function paintStyle(base, pal) {
   });
   return st;
 }
-const FALLBACK = { version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#0B1426' } }] };
-let mapAm, mapPm;
-const ready = {};
-function initMaps(base) {
-  DAY.style = base ? paintStyle(base, PALETTE.night) : FALLBACK;
-  mapAm = DMC.createMap(DAY);
-  mapPm = new maplibregl.Map({
-    container: 'map-pm', style: base ? paintStyle(base, PALETTE.dusk) : FALLBACK,
-    center: mapAm.getCenter(), zoom: mapAm.getZoom(), pitch: mapAm.getPitch(), bearing: mapAm.getBearing(),
-    minZoom: mapAm.getMinZoom(), maxZoom: mapAm.getMaxZoom(), maxPitch: 78, maxBounds: mapAm.getMaxBounds(),
-    attributionControl: false, dragRotate: true, pitchWithRotate: true, touchPitch: true,
-  });
-  { // a warm dusk wash over the evening basemap, under the markers
-    const wash = document.createElement('div'); wash.className = 'dusk';
-    mapPm.getCanvas().after(wash);
-  }
-  let syncing = false;
-  const link = (a, b) => a.on('move', () => {
-    if (syncing) return;
-    syncing = true;
-    b.jumpTo({ center: a.getCenter(), zoom: a.getZoom(), bearing: a.getBearing(), pitch: a.getPitch(), padding: a.getPadding() });
-    syncing = false;
-  });
-  link(mapAm, mapPm); link(mapPm, mapAm);
-  mapPm.jumpTo({ center: mapAm.getCenter(), zoom: mapAm.getZoom(), bearing: mapAm.getBearing(), pitch: mapAm.getPitch() });
-  addEventListener('resize', () => mapPm.resize());
-  mapAm.on('move', queuePlace);
-  ready.pm = new Promise(r => mapPm.on('load', r));
-  ready.am = new Promise(r => mapAm.on('load', r));
-}
-
-/* ---------- divider ---------- */
-const divider = $('divider');
-let split = 0.5;
-function setSplit(f) {
-  const w = innerWidth;
-  const px = Math.max(20, Math.min(w - 64, f * w));
-  split = px / w;
-  document.documentElement.style.setProperty('--split', px + 'px');
-  divider.setAttribute('aria-valuenow', String(Math.round(split * 100)));
-  divider.setAttribute('aria-valuetext', `Divider at ${Math.round(split * 100)} percent`);
-  placeTags();
-}
-divider.addEventListener('pointerdown', e => {
-  divider.setPointerCapture(e.pointerId);
-  const move = ev => setSplit(ev.clientX / innerWidth);
-  const up = () => { divider.removeEventListener('pointermove', move); divider.removeEventListener('pointerup', up); divider.removeEventListener('pointercancel', up); };
-  divider.addEventListener('pointermove', move); divider.addEventListener('pointerup', up); divider.addEventListener('pointercancel', up);
-  e.preventDefault();
-});
-divider.addEventListener('keydown', e => {
-  const step = e.shiftKey ? 0.1 : 0.02;
-  if (e.key === 'ArrowLeft') setSplit(split - step);
-  else if (e.key === 'ArrowRight') setSplit(split + step);
-  else if (e.key === 'Home') setSplit(0);
-  else if (e.key === 'End') setSplit(1);
-  else return;
-  e.preventDefault();
-});
-addEventListener('resize', () => setSplit(split));
-// The tags hug the divider; one that would run off its edge of the screen fades out.
-function placeTags() {
-  const w = innerWidth, x = split * w, pm = $('tag-pm'), am = $('tag-am');
-  pm.style.opacity = x - 14 - pm.offsetWidth < 6 ? 0 : '';
-  am.style.opacity = x + 14 + am.offsetWidth > w - 6 ? 0 : '';
-}
-
-// Once, on arrival: sweep the divider right and back, so the evening side shows the airport too.
-function teaser() {
-  let stop = false;
-  const cancel = () => { stop = true; };
-  for (const ev of ['pointerdown', 'keydown', 'wheel']) addEventListener(ev, cancel, { once: true, capture: true });
-  const t0 = performance.now() + 700, dur = 2600, from = split, to = Math.min(0.8, 1 - 90 / innerWidth);
-  const ease = t => t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
-  const step = now => {
-    if (stop) return;
-    const t = Math.max(0, Math.min(1, (now - t0) / dur));
-    const k = t < 0.5 ? ease(t * 2) : ease((1 - t) * 2);   // out and back
-    setSplit(from + (to - from) * k);
-    if (t < 1) requestAnimationFrame(step);
-  };
-  requestAnimationFrame(step);
-}
-
-/* ---------- data helpers ---------- */
-let D = null, toLL = null;
-const hourLabel = h => `${h % 12 || 12} ${h < 12 ? 'AM' : 'PM'}`;
-const dayLabel = key => new Date(Date.UTC(+key.slice(0, 4), +key.slice(4, 6) - 1, +key.slice(6, 8))).toLocaleDateString('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
-const fmt = n => n.toLocaleString('en-SG');
-
-// DBSCAN on SVY21 metres with a uniform grid index (cell = eps): only the 3 x 3 cells around a
-// point can hold neighbours, so each query touches a few dozen cabs instead of 2,000.
-function dbscan(xy, eps, minPts) {
-  const n = xy.length >> 1, inv = 1 / eps, grid = new Map(), gx = new Int32Array(n), gy = new Int32Array(n);
-  for (let i = 0; i < n; i++) {
-    gx[i] = Math.floor(xy[2 * i] * inv); gy[i] = Math.floor(xy[2 * i + 1] * inv);
-    const k = gx[i] * 8192 + gy[i];
-    let a = grid.get(k); if (!a) grid.set(k, a = []); a.push(i);
-  }
-  const e2 = eps * eps, lab = new Int32Array(n).fill(-2), nb = [], queue = [];
-  const region = i => {
-    nb.length = 0;
-    const x = xy[2 * i], y = xy[2 * i + 1];
-    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) {
-      const a = grid.get((gx[i] + dx) * 8192 + gy[i] + dy);
-      if (a) for (const j of a) { const ux = xy[2 * j] - x, uy = xy[2 * j + 1] - y; if (ux * ux + uy * uy <= e2) nb.push(j); }
+const fallbackStyle = () => ({ version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': look().pal.bg } }] });
+function paintBasemap() {
+  const pal = look().pal;
+  try {
+    for (const [id, type, role, outline] of ROLES) {
+      if (!map.getLayer(id)) continue;
+      if (type === 'background') map.setPaintProperty(id, 'background-color', groundColor());
+      else if (type === 'fill') { map.setPaintProperty(id, 'fill-color', pal[role]); if (outline) map.setPaintProperty(id, 'fill-outline-color', pal[role]); }
+      else if (type === 'line') map.setPaintProperty(id, 'line-color', pal[role]);
     }
-    return nb;
-  };
-  let c = 0;
-  for (let i = 0; i < n; i++) {
-    if (lab[i] !== -2) continue;
-    if (region(i).length < minPts) { lab[i] = -1; continue; }
-    lab[i] = c; queue.length = 0;
-    for (const j of nb) if (j !== i) queue.push(j);
-    for (let q = 0; q < queue.length; q++) {
-      const j = queue[q];
-      if (lab[j] === -1) { lab[j] = c; continue; }     // border cab: joins, does not spread
-      if (lab[j] !== -2) continue;
-      lab[j] = c;
-      if (region(j).length >= minPts) for (const k of nb) if (lab[k] < 0) queue.push(k);
+    if (map.getLayer('dust')) paintDust();
+  } catch { map.once('style.load', paintBasemap); }   // switched before the style finished loading
+}
+function paintDust() {
+  const k = look();
+  map.setPaintProperty('dust', 'circle-color', k.dust);
+  map.setPaintProperty('dust', 'circle-opacity', ['interpolate', ['linear'], ['zoom'], 9, k.dustA[0], 14, k.dustA[1]]);
+}
+
+/* ---------- data ---------- */
+const BY_SSIC = new Map();
+let D = null, PX, PY, PN, CUM;   // postal codes: lng, lat, addresses; cumulative counts for weighted draws
+function decode(d) {
+  const n = d.pn.length;
+  PX = new Float64Array(n); PY = new Float64Array(n); PN = Uint32Array.from(d.pn); CUM = new Float64Array(n);
+  let x = 0, y = 0, c = 0;
+  for (let i = 0; i < n; i++) { x += d.pxy[2 * i]; y += d.pxy[2 * i + 1]; PX[i] = x / 1e5; PY[i] = y / 1e5; c += PN[i]; CUM[i] = c; }
+  d.trades.forEach((t, i) => { t.rank = i + 1; t.color = colorOf(t); BY_SSIC.set(t.ssic, t); });
+}
+function drawPostal() {   // one postal code, weighted by how many businesses it holds
+  const r = Math.random() * CUM[CUM.length - 1];
+  let lo = 0, hi = CUM.length - 1;
+  while (lo < hi) { const m = (lo + hi) >> 1; if (CUM[m] < r) lo = m + 1; else hi = m; }
+  return lo;
+}
+
+/* ---------- the land: each trade raised as mountains ---------- */
+// Height at each grid node is the share of the trade standing nearby, per hectare: a broad
+// Gaussian (sigma 800 m) for the mountain, plus a narrower one (350 m) for its summit. Every trade and
+// the random mix share one scale, so a taller mountain always means more of that trade in one place.
+const KX = 111320 * Math.cos(1.35 * Math.PI / 180), KY = 110574;
+const G0 = [103.6, 1.2], KERNELS = [[800, 0.8], [350, 0.2]];   // [sigma m, weight]
+const REF = 0.0018;   // height 1: 0.18% of the trade per hectare, about the tallest peak of any trade
+                      // (fund managers, in the CBD)
+const HMAX = 16000;   // metres for height 1 at zoom 10.5; see zScale for other zooms
+let STEP = 100, NX = 0, NY = 0, KER = null;
+function gridSetup(step) {
+  STEP = step; NX = Math.ceil(0.45 * KX / STEP) + 1; NY = Math.ceil(0.28 * KY / STEP) + 1;
+  const R = Math.ceil(2.5 * KERNELS[0][0] / STEP), k = [];
+  for (let dy = -R; dy <= R; dy++) for (let dx = -R; dx <= R; dx++) {
+    const d2 = (dx * dx + dy * dy) * STEP * STEP;
+    let w = 0;
+    for (const [s, f] of KERNELS) w += f * Math.exp(-d2 / (2 * s * s)) / (2 * Math.PI * s * s) * 1e4;
+    if (w > 1e-4) k.push(dx, dy, w);
+  }
+  KER = k;
+}
+function splat(p, scale, out) {   // p: [postal index, businesses, ...] -> businesses per hectare * scale
+  out.fill(0);
+  for (let b = 0; b < p.length; b += 2) {
+    const q = p[b], c = p[b + 1] * scale;
+    const ix = Math.round((PX[q] - G0[0]) * KX / STEP), iy = Math.round((PY[q] - G0[1]) * KY / STEP);
+    for (let k = 0; k < KER.length; k += 3) {
+      const x = ix + KER[k], y = iy + KER[k + 1];
+      if (x >= 0 && y >= 0 && x < NX && y < NY) out[y * NX + x] += c * KER[k + 2];
     }
-    c++;
   }
-  return { lab, count: c };
+  return out;
 }
-// Convex hull (monotone chain) of the cabs, each widened to a 40 m octagon.
-function hull(pts, pad) {
-  const P = [];
-  for (const [x, y] of pts) for (let k = 0; k < 8; k++) P.push([x + pad * Math.cos(k * Math.PI / 4), y + pad * Math.sin(k * Math.PI / 4)]);
-  P.sort((a, b) => a[0] - b[0] || a[1] - b[1]);
-  const cross = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
-  const lo = [], up = [];
-  for (const p of P) { while (lo.length >= 2 && cross(lo[lo.length - 2], lo[lo.length - 1], p) <= 0) lo.pop(); lo.push(p); }
-  for (let i = P.length - 1; i >= 0; i--) { const p = P[i]; while (up.length >= 2 && cross(up[up.length - 2], up[up.length - 1], p) <= 0) up.pop(); up.push(p); }
-  const ring = lo.slice(0, -1).concat(up.slice(0, -1));
-  ring.push(ring[0]);
-  return ring;
+function surface(v) {   // -> per node: height, slope east, slope north (per grid step)
+  const s = new Float32Array(NX * NY * 3);
+  for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+    const i = y * NX + x;
+    s[3 * i] = v[i];
+    if (x > 0 && x < NX - 1) s[3 * i + 1] = (v[i + 1] - v[i - 1]) / 2;
+    if (y > 0 && y < NY - 1) s[3 * i + 2] = (v[i + NX] - v[i - NX]) / 2;
+  }
+  return s;
 }
-// Same naming rule as the build: the hand-checked named area holding most of the cluster's cabs
-// (if areas hold 30 %+ of them; "and around" when 3+ areas hold a real share), else the
-// landmark with the best (kind weight − distance / 150 m) within 700 m of the centroid.
-function nameFor(m, cx, cy) {
-  const A = D.areas, cnt = new Array(A.length).fill(0);
-  let inside = 0;
-  for (const [x, y] of m) {
-    let bi = -1, bq = 1;
-    for (let k = 0; k < A.length; k++) { const q = Math.hypot(A[k][1] - x, A[k][2] - y) / A[k][3]; if (q <= bq && (bi < 0 || q < bq)) { bq = q; bi = k; } }
-    if (bi >= 0) { cnt[bi]++; inside++; }
-  }
-  if (inside >= 0.3 * m.length) {
-    let top = 0; for (let k = 1; k < A.length; k++) if (cnt[k] > cnt[top]) top = k;
-    const real = cnt.filter(c => c >= Math.max(3, 0.1 * m.length)).length;
-    return A[top][0] + (real >= 3 ? ' and around' : '');
-  }
-  let best = null, bs = -Infinity;
-  const R = D.params.nameR, R2 = R * R;
-  for (const l of D.landmarks) {
-    const dx = l[2] - cx, dy = l[3] - cy, d2 = dx * dx + dy * dy;
-    if (d2 > R2) continue;
-    const s = D.kinds[l[1]] - Math.sqrt(d2) / 150;
-    if (s > bs) { bs = s; best = l[0]; }
-  }
-  return best;
+function sample(s, lng, lat) {   // bilinear height of a surface at a point
+  const fx = (lng - G0[0]) * KX / STEP, fy = (lat - G0[1]) * KY / STEP, x = Math.floor(fx), y = Math.floor(fy);
+  if (x < 0 || y < 0 || x >= NX - 1 || y >= NY - 1) return 0;
+  const u = fx - x, w = fy - y, i = y * NX + x;
+  return (s[3 * i] * (1 - u) + s[3 * i + 3] * u) * (1 - w) + (s[3 * (i + NX)] * (1 - u) + s[3 * (i + NX) + 3] * u) * w;
 }
-const groupFor = name => { if (!name) return null; for (const [re, g] of D.groupsRe) if (re.test(name)) return g; return name; };
-
-const cache = new Map();
-function analyse(key, eps, minPts) {
-  const id = `${key}|${eps}|${minPts}`;
-  if (cache.has(id)) return cache.get(id);
-  const s = D.snaps[key], xy = s.xy;
-  let res;
-  if (eps === D.params.eps && minPts === D.params.minPts && D.clusters[key]) {
-    // the baked result (identical rule), plus the labels for the dots
-    const { lab } = dbscan(xy, eps, minPts);
-    res = { lab, clusters: D.clusters[key].map(c => ({ ...c })) };
-  } else {
-    const { lab, count } = dbscan(xy, eps, minPts);
-    const members = Array.from({ length: count }, () => []);
-    for (let i = 0; i < lab.length; i++) if (lab[i] >= 0) members[lab[i]].push([xy[2 * i], xy[2 * i + 1]]);
-    const clusters = members.map(m => {
-      let sx = 0, sy = 0; for (const p of m) { sx += p[0]; sy += p[1]; }
-      const cx = sx / m.length, cy = sy / m.length, name = nameFor(m, cx, cy);
-      return { name, group: groupFor(name), n: m.length, c: toLL(cx, cy), hull: hull(m, D.params.pad).map(p => toLL(p[0], p[1])) };
-    }).sort((a, b) => b.n - a.n);
-    res = { lab, clusters };
+const vmax = a => a.reduce((m, v) => v > m ? v : m, 0);
+const nice = x => [0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5, 10, 20, 25, 50].filter(s => s <= x).pop() || 0.1;
+function gridOf(t) {
+  const v = splat(t.p, 1 / (t.n * REF), new Float32Array(NX * NY));
+  t.top = vmax(v);
+  t.lineD = nice(t.top * REF * t.n / 4);   // a contour every so many businesses per hectare
+  t.lineN = t.lineD / (t.n * REF);         // the same, in height units
+  return surface(v);
+}
+// The random mix: every business, scaled to one trade's worth. Too many points to stamp one by one,
+// so they are dropped on the grid and blurred, one axis at a time.
+let RAND = null, RTOP = 0;
+function randomMix() {
+  if (RAND) return;
+  const dep = new Float32Array(NX * NY), tmp = new Float32Array(NX * NY), out = new Float32Array(NX * NY);
+  let tot = 0;
+  for (let q = 0; q < PN.length; q++) {
+    const x = Math.round((PX[q] - G0[0]) * KX / STEP), y = Math.round((PY[q] - G0[1]) * KY / STEP);
+    if (x >= 0 && y >= 0 && x < NX && y < NY) dep[y * NX + x] += PN[q];
+    tot += PN[q];
   }
-  res.inCl = 0; for (const l of res.lab) if (l >= 0) res.inCl++;
-  if (cache.size > 400) cache.clear();
-  cache.set(id, res);
-  return res;
+  for (const [s, f] of KERNELS) {
+    const R = Math.ceil(2.5 * s / STEP), w = [];
+    for (let d = -R; d <= R; d++) w.push(Math.exp(-((d * STEP) ** 2) / (2 * s * s)));
+    const norm = f / (2 * Math.PI * s * s) * 1e4 / (tot * REF);
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+      let a = 0;
+      for (let d = Math.max(-R, -x); d <= Math.min(R, NX - 1 - x); d++) a += dep[y * NX + x + d] * w[d + R];
+      tmp[y * NX + x] = a;
+    }
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+      let a = 0;
+      for (let d = Math.max(-R, -y); d <= Math.min(R, NY - 1 - y); d++) a += tmp[(y + d) * NX + x] * w[d + R];
+      out[y * NX + x] += a * norm;
+    }
+  }
+  RTOP = vmax(out); RAND = surface(out);
 }
 
-/* ---------- map layers ---------- */
-const THEME = {
-  pm: { dot: '#4A3A30', dotOp: 0.42, core: '#E8692E', glow: '#FF8A4C', ramp: ['#FFC27A', '#FF8A4C', '#F0582F', '#C8352A'], line: '#FFE1C8' },
-  am: { dot: '#A9DDFF', dotOp: 0.7, core: '#4FE3FF', glow: '#3FD0FF', ramp: ['#2F7DFF', '#38B8FF', '#4FE3FF', '#D4FBFF'], line: '#E4FDFF' },
+// The surface on screen is a blend of two: CUR (where the last change started) and TGT, mixed by U.
+// A new trade, or scatter, bakes the blend into CUR and morphs on towards the new target.
+let CUR = null, TGT = null, U = 1, cTop = 1, tTop = 1, cLine = 1, tLine = 1;
+function morphTo(s, top, line, dur) {
+  if (!CUR) { CUR = new Float32Array(s.length); cTop = top; cLine = line; }   // first time: rise from flat
+  else if (TGT) {
+    for (let i = 0; i < CUR.length; i++) CUR[i] += (TGT[i] - CUR[i]) * U;
+    cTop += (tTop - cTop) * U; cLine += (tLine - cLine) * U;
+  }
+  TGT = s; tTop = top; tLine = line;
+  peaks.dirtySurf = true;
+  heights();
+  anim('u', 0, 1, dur, v => { U = ease(v); });
+}
+
+/* ---------- the dots: one per business, flying in arcs and settling on the summits ---------- */
+const GA = Math.PI * (3 - Math.sqrt(5));   // golden angle: sunflower packing
+let T = null;            // the chosen trade
+let BI, BK;              // its buildings: postal index, businesses there
+let DB, DJ, DS, SX, SY;  // per dot: building, place in the sunflower, stagger, start lng/lat
+let OX = new Float32Array(0), OY = new Float32Array(0);   // sunflower offsets, in dot pitches
+let G = 1;               // 0 = scattered like a random mix, 1 = huddled
+function sunflower(n) {
+  if (OX.length >= n) return;
+  OX = new Float32Array(n); OY = new Float32Array(n);
+  for (let j = 0; j < n; j++) { const r = Math.sqrt((j + 0.5) / Math.PI), a = j * GA; OX[j] = r * Math.cos(a); OY[j] = r * Math.sin(a); }
+}
+function setTradeDots(t) {
+  const nb = t.p.length / 2;
+  BI = new Uint32Array(nb); BK = new Uint32Array(nb);
+  let n = 0, kMax = 0;
+  for (let b = 0; b < nb; b++) { BI[b] = t.p[2 * b]; BK[b] = t.p[2 * b + 1]; n += BK[b]; kMax = Math.max(kMax, BK[b]); }
+  sunflower(kMax);
+  DB = new Uint32Array(n); DJ = new Uint32Array(n); DS = new Float32Array(n); SX = new Float64Array(n); SY = new Float64Array(n);
+  let i = 0;
+  for (let b = 0; b < nb; b++) for (let j = 0; j < BK[b]; j++, i++) {
+    DB[i] = b; DJ[i] = j; DS[i] = Math.random();
+    const q = drawPostal(), jit = 0.0009;
+    SX[i] = PX[q] + (Math.random() - 0.5) * jit; SY[i] = PY[q] + (Math.random() - 0.5) * jit;
+  }
+}
+const mercX = lng => (lng + 180) / 360;
+const mercY = lat => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2;
+const O = [mercX(103.82), mercY(1.35)];                                   // positions are sent relative to this
+const MERC_PER_M = 1 / (40075016.686 * Math.cos(1.35 * Math.PI / 180));
+// Dot heights on both surfaces (CUR, TGT), at their building and at their scattered start.
+function heights() {
+  if (BI && CUR) {
+    const n = DB.length, hb = new Float32Array(BI.length * 2), a = new Float32Array(n * 11);
+    for (let b = 0; b < BI.length; b++) { const q = BI[b]; hb[2 * b] = sample(CUR, PX[q], PY[q]); hb[2 * b + 1] = sample(TGT, PX[q], PY[q]); }
+    for (let i = 0; i < n; i++) {
+      const b = DB[i], q = BI[b], j = DJ[i], o = i * 11;
+      a[o] = mercX(PX[q]) - O[0]; a[o + 1] = mercY(PY[q]) - O[1];
+      a[o + 2] = mercX(SX[i]) - O[0]; a[o + 3] = mercY(SY[i]) - O[1];
+      a[o + 4] = OX[j]; a[o + 5] = OY[j]; a[o + 6] = DS[i];
+      a[o + 7] = hb[2 * b]; a[o + 8] = hb[2 * b + 1];
+      a[o + 9] = sample(CUR, SX[i], SY[i]); a[o + 10] = sample(TGT, SX[i], SY[i]);
+    }
+    peaks.dots = a; peaks.dirtyDots = true;
+  }
+  for (const s of signs) { s.h0 = sample(CUR, s.lng, s.lat); s.h1 = sample(TGT, s.lng, s.lat); }
+}
+
+/* ---------- animation: named tweens, one frame loop that repaints the map ---------- */
+const ease = t => t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+const TW = {};
+let looping = false;
+function anim(name, from, to, dur, set) {
+  TW[name] = { from, to, t0: performance.now(), dur: REDUCED ? 1 : dur, set };
+  set(from);
+  if (!looping) { looping = true; requestAnimationFrame(loop); }
+}
+function loop(now) {
+  let live = false;
+  for (const k of Object.keys(TW)) {
+    const a = TW[k], p = Math.min(1, Math.max(0, (now - a.t0) / a.dur));
+    a.set(a.from + (a.to - a.from) * p);
+    if (p < 1) live = true; else delete TW[k];
+  }
+  map.triggerRepaint();
+  if (live) requestAnimationFrame(loop); else looping = false;
+}
+const animateTo = (target, dur) => anim('g', G, target, dur, v => { G = v; });
+
+/* ---------- the WebGL layer: surface and dots, in the map's own 3D space ---------- */
+// MapLibre's terrain would lift the camera with the land and can only swap, not morph, so the
+// mountains are drawn here instead. The map below stays flat; the land is lit glass over it.
+const SURF_VS = `
+attribute vec2 aPos; attribute vec3 aA; attribute vec3 aB;
+uniform mat4 uM; uniform float uMix, uZ, uS;
+varying float vV; varying vec3 vN;
+void main() {
+  vec3 s = mix(aA, aB, uMix);
+  vV = s.x; vN = vec3(-s.y * uS, -s.z * uS, 1.0);
+  gl_Position = uM * vec4(aPos, s.x * uZ, 1.0);
+}`;
+const SURF_FS = `
+precision highp float;
+uniform vec3 uC; uniform float uLine, uTop, uFloor, uFill, uLight;
+varying float vV; varying vec3 vN;
+void main() {
+  float v = vV;
+  if (v < uFloor) discard;
+  vec3 n = normalize(vN);
+  float lam = max(dot(n, normalize(vec3(-0.45, 0.55, 0.7))), 0.0);
+  float t = clamp(v / uTop, 0.0, 1.0);
+  // dark: lit glass that whitens toward the summit; light: tinted glass that deepens toward it
+  vec3 dark = mix(uC * (0.3 + 0.8 * lam), vec3(1.0), 0.5 * t * t);
+  vec3 light = mix(mix(uC, vec3(1.0), 0.2), mix(uC, vec3(1.0), 0.72), lam);
+  light = mix(light, uC, 0.55 * t * t);
+  vec3 col = mix(dark, light, uLight);
+  float base = smoothstep(uFloor, uFloor * 5.0, v);
+  float a = smoothstep(uFloor, 0.15, v) * (0.34 + 0.46 * lam + 0.2 * t) * uFill;   // low plains stay faint
+  float c = v / uLine, w = fwidth(c), d = abs(fract(c + 0.5) - 0.5);
+  float line = (1.0 - smoothstep(0.6 * w, 1.7 * w, d)) * step(0.5, c);
+  col = mix(col, mix(min(uC * 1.3 + 0.3, 1.0), uC * 0.55, uLight), line * 0.85);
+  a = max(a, line * 0.9 * base);
+  gl_FragColor = vec4(col * a, a);
+}`;
+const DOT_VS = `
+attribute vec2 aBp; attribute vec2 aSp; attribute vec2 aO; attribute float aD; attribute vec2 aHB; attribute vec2 aHS;
+uniform mat4 uM; uniform float uMix, uZ, uG, uPitch, uSize, uArc; uniform vec2 uPx;   // uPx.y is squashed by the tilt
+void main() {
+  float k = clamp((uG - aD * 0.4) / 0.6, 0.0, 1.0);
+  k = k < 0.5 ? 4.0 * k * k * k : 1.0 - pow(-2.0 * k + 2.0, 3.0) / 2.0;
+  float h = mix(mix(aHS.x, aHS.y, uMix), mix(aHB.x, aHB.y, uMix), k) + uArc * sin(3.14159 * k);
+  gl_Position = uM * vec4(mix(aSp, aBp, k), h * uZ, 1.0);
+  gl_Position.xy += aO * uPitch * k * uPx * gl_Position.w;
+  gl_PointSize = uSize;
+}`;
+const DOT_FS = `
+precision highp float;
+uniform vec4 uCol; uniform float uSoft;
+void main() {
+  vec2 q = gl_PointCoord * 2.0 - 1.0;
+  float r = dot(q, q);
+  if (r > 1.0) discard;
+  gl_FragColor = uCol * (1.0 - smoothstep(uSoft, 1.0, r));
+}`;
+function compile(gl, gl2, vs, fs) {
+  const conv = (src, frag) => gl2
+    ? '#version 300 es\n' + src.replace(/\battribute\b/g, 'in').replace(/\bvarying\b/g, frag ? 'in' : 'out')
+      .replace(/gl_FragColor/g, 'fragColor').replace('precision highp float;', 'precision highp float;\nout vec4 fragColor;')
+    : (frag ? '#extension GL_OES_standard_derivatives : enable\n' : '') + src;
+  const p = gl.createProgram();
+  for (const [type, src] of [[gl.VERTEX_SHADER, conv(vs, false)], [gl.FRAGMENT_SHADER, conv(fs, true)]]) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    gl.attachShader(p, s);
+  }
+  gl.linkProgram(p);
+  if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  const loc = {}, n = gl.getProgramParameter(p, gl.ACTIVE_ATTRIBUTES), m = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+  for (let i = 0; i < n; i++) { const a = gl.getActiveAttrib(p, i).name; loc[a] = gl.getAttribLocation(p, a); }
+  for (let i = 0; i < m; i++) { const u = gl.getActiveUniform(p, i).name; loc[u] = gl.getUniformLocation(p, u); }
+  return { p, loc };
+}
+const peaks = {
+  id: 'peaks', type: 'custom', renderingMode: '3d',
+  dirtySurf: false, dirtyDots: false, dots: null, nDots: 0, M: null, uZ: 0,
+  onAdd(m, gl) {
+    const gl2 = typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext;
+    this.gl2 = gl2; this.u32 = gl2 || !!gl.getExtension('OES_element_index_uint');
+    if (!gl2) { gl.getExtension('OES_standard_derivatives'); this.vaoExt = gl.getExtension('OES_vertex_array_object'); }
+    this.surf = compile(gl, gl2, SURF_VS, SURF_FS);
+    this.dot = compile(gl, gl2, DOT_VS, DOT_FS);
+    const pos = new Float32Array(NX * NY * 2);
+    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
+      const i = y * NX + x;
+      pos[2 * i] = mercX(G0[0] + x * STEP / KX) - O[0]; pos[2 * i + 1] = mercY(G0[1] + y * STEP / KY) - O[1];
+    }
+    const idx = new (this.u32 ? Uint32Array : Uint16Array)((NX - 1) * (NY - 1) * 6);
+    let k = 0;
+    for (let y = 0; y < NY - 1; y++) for (let x = 0; x < NX - 1; x++) {
+      const i = y * NX + x;
+      idx[k++] = i; idx[k++] = i + 1; idx[k++] = i + NX; idx[k++] = i + 1; idx[k++] = i + NX + 1; idx[k++] = i + NX;
+    }
+    this.nIdx = k;
+    this.posBuf = gl.createBuffer(); this.aBuf = gl.createBuffer(); this.bBuf = gl.createBuffer(); this.dotBuf = gl.createBuffer();
+    this.idxBuf = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.posBuf); gl.bufferData(gl.ARRAY_BUFFER, pos, gl.STATIC_DRAW);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.idxBuf); gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, idx, gl.STATIC_DRAW);
+  },
+  render(gl, matrix) {
+    if (!CUR || !T) return;
+    // camera matrix, moved to the origin in double precision so float32 positions stay exact
+    const M = Float64Array.from(matrix);
+    for (let r = 0; r < 4; r++) M[12 + r] += matrix[r] * O[0] + matrix[4 + r] * O[1];
+    // short screens (phones on their side) get lower mountains
+    const hm = HMAX * zScale() * Math.min(1, map.getCanvas().clientHeight / 760), uZ = hm * MERC_PER_M;
+    this.M = M; this.uZ = uZ;
+    const M32 = Float32Array.from(M);
+    // our attributes go on the default vertex array, never on one of MapLibre's
+    if (gl.bindVertexArray) gl.bindVertexArray(null); else if (this.vaoExt) this.vaoExt.bindVertexArrayOES(null);
+    if (this.dirtySurf) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.aBuf); gl.bufferData(gl.ARRAY_BUFFER, CUR, gl.DYNAMIC_DRAW);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.bBuf); gl.bufferData(gl.ARRAY_BUFFER, TGT, gl.DYNAMIC_DRAW);
+      this.dirtySurf = false;
+    }
+    if (this.dirtyDots) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuf); gl.bufferData(gl.ARRAY_BUFFER, this.dots, gl.DYNAMIC_DRAW);
+      this.nDots = this.dots.length / 11; this.dirtyDots = false;
+    }
+    const [r, g, b] = hexRgb(T.color).map(c => c / 255), on = [];
+    const attr = (loc, buf, size, stride, off) => {
+      if (loc === undefined || loc < 0) return;
+      gl.bindBuffer(gl.ARRAY_BUFFER, buf); gl.enableVertexAttribArray(loc); on.push(loc);
+      gl.vertexAttribPointer(loc, size, gl.FLOAT, false, stride, off);
+    };
+    // the land
+    const S = this.surf.loc;
+    gl.useProgram(this.surf.p);
+    attr(S.aPos, this.posBuf, 2, 0, 0); attr(S.aA, this.aBuf, 3, 0, 0); attr(S.aB, this.bBuf, 3, 0, 0);
+    gl.uniformMatrix4fv(S.uM, false, M32);
+    gl.uniform1f(S.uMix, U); gl.uniform1f(S.uZ, uZ); gl.uniform1f(S.uS, hm / STEP);
+    gl.uniform3f(S.uC, r, g, b); gl.uniform1f(S.uLight, LIGHT ? 1 : 0);
+    gl.uniform1f(S.uLine, cLine + (tLine - cLine) * U); gl.uniform1f(S.uTop, Math.max(1e-4, cTop + (tTop - cTop) * U));
+    gl.uniform1f(S.uFloor, 0.008);
+    // close up the camera stands on a slope: the glass fades, the contour lines stay
+    gl.uniform1f(S.uFill, Math.min(1, Math.max(0.12, (15.5 - map.getZoom()) / 2.5)));
+    gl.enable(gl.BLEND); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.idxBuf);
+    gl.drawElements(gl.TRIANGLES, this.nIdx, this.u32 ? gl.UNSIGNED_INT : gl.UNSIGNED_SHORT, 0);
+    on.splice(0).forEach(l => gl.disableVertexAttribArray(l));
+    // the dots, glow then core: added light on the dark map, ink on the light one
+    if (this.nDots) {
+      const D_ = this.dot.loc, st = 44, dpr = map.getPixelRatio(), cv = map.getCanvas();
+      // dot pitch: about 7 m on the ground, never under 1.9 px, so a building's crowd reads as a blob from afar
+      const mpp = 40075016.7 * Math.cos(1.3 * Math.PI / 180) / (512 * 2 ** map.getZoom());
+      const pitch = Math.max(1.9, 7 / mpp), rad = Math.max(0.75, pitch * 0.42);
+      gl.useProgram(this.dot.p);
+      attr(D_.aBp, this.dotBuf, 2, st, 0); attr(D_.aSp, this.dotBuf, 2, st, 8); attr(D_.aO, this.dotBuf, 2, st, 16);
+      attr(D_.aD, this.dotBuf, 1, st, 24); attr(D_.aHB, this.dotBuf, 2, st, 28); attr(D_.aHS, this.dotBuf, 2, st, 36);
+      gl.uniformMatrix4fv(D_.uM, false, M32);
+      gl.uniform1f(D_.uMix, U); gl.uniform1f(D_.uZ, uZ); gl.uniform1f(D_.uG, G); gl.uniform1f(D_.uPitch, pitch);
+      gl.uniform1f(D_.uArc, 0.22); gl.uniform2f(D_.uPx, 2 / cv.clientWidth, 2 / cv.clientHeight * Math.cos(map.getPitch() * Math.PI / 180));   // crowds lie flat
+      gl.disable(gl.DEPTH_TEST);
+      if (LIGHT) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); else gl.blendFunc(gl.ONE, gl.ONE);
+      for (const [scale, alpha, soft] of LIGHT ? [[3.2, 0.1, 0.0], [1, 0.95, 0.55]] : [[3.2, 0.07, 0.0], [1, 0.85, 0.55]]) {
+        gl.uniform1f(D_.uSize, 2 * rad * scale * dpr); gl.uniform1f(D_.uSoft, soft);
+        gl.uniform4f(D_.uCol, r * alpha, g * alpha, b * alpha, alpha);
+        gl.drawArrays(gl.POINTS, 0, this.nDots);
+      }
+      on.splice(0).forEach(l => gl.disableVertexAttribArray(l));
+    }
+    placeSigns();
+  },
 };
-// prism height: metres per cab, gentler as you zoom in so a close look is not a wall
-const PER_CAB = [[9, 60], [11, 34], [13, 10], [15, 4]];
-const perCab = z => { if (z <= PER_CAB[0][0]) return PER_CAB[0][1]; for (let i = 1; i < PER_CAB.length; i++) { const [z1, v1] = PER_CAB[i], [z0, v0] = PER_CAB[i - 1]; if (z <= z1) return v0 + (v1 - v0) * (z - z0) / (z1 - z0); } return PER_CAB.at(-1)[1]; };
-const heightExpr = ['interpolate', ['linear'], ['zoom'], ...PER_CAB.flatMap(([z, v]) => [z, ['*', ['get', 'n'], v]])];
-function addLayers(map, side) {
-  const t = THEME[side], empty = { type: 'FeatureCollection', features: [] };
-  map.addSource('dots', { type: 'geojson', data: empty });
-  map.addSource('hulls', { type: 'geojson', data: empty });
-  map.addSource('cents', { type: 'geojson', data: empty });
-  map.addLayer({ id: 'glow', type: 'circle', source: 'cents', paint: {
-    'circle-color': t.glow, 'circle-blur': 1, 'circle-opacity': side === 'am' ? 0.55 : 0.4, 'circle-pitch-alignment': 'map',
-    'circle-radius': ['interpolate', ['exponential', 2], ['zoom'], 9, ['*', 0.45, ['sqrt', ['get', 'n']]], 15, ['*', 29, ['sqrt', ['get', 'n']]]] } });   // ~70 m × √n on the ground
-  map.addLayer({ id: 'dots', type: 'circle', source: 'dots', paint: {
-    'circle-color': ['case', ['get', 'c'], t.core, t.dot],
-    'circle-opacity': ['case', ['get', 'c'], 0.95, t.dotOp],
-    'circle-radius': ['interpolate', ['linear'], ['zoom'], 9, ['case', ['get', 'c'], 1.6, 1.1], 13, ['case', ['get', 'c'], 3, 2.2], 16, ['case', ['get', 'c'], 5, 4]],
-    'circle-stroke-width': 0, 'circle-pitch-alignment': 'map' } });
-  map.addLayer({ id: 'halo', type: 'line', source: 'hulls', paint: { 'line-color': t.glow, 'line-width': 7, 'line-blur': 6, 'line-opacity': 0.75 } });
-  map.addLayer({ id: 'prism', type: 'fill-extrusion', source: 'hulls', paint: {
-    'fill-extrusion-color': ['interpolate', ['linear'], ['get', 'n'], 8, t.ramp[0], 30, t.ramp[1], 90, t.ramp[2], 220, t.ramp[3]],
-    'fill-extrusion-height': heightExpr, 'fill-extrusion-base': 0,
-    'fill-extrusion-opacity': side === 'am' ? 0.88 : 0.92, 'fill-extrusion-vertical-gradient': true } });
-  map.addLayer({ id: 'rim', type: 'line', source: 'hulls', paint: { 'line-color': t.line, 'line-width': 1, 'line-opacity': 0.8 } });
+// Zoomed out past the island (phones), mountains keep their height on screen. Zooming in they grow,
+// but more slowly than the ground, and from zoom 13 they shrink, so a close-up never puts the camera
+// inside one.
+const zScale = () => { const z = map.getZoom(); return z <= 10.5 ? 2 ** (10.5 - z) : z <= 13 ? 2 ** (-(z - 10.5) * 0.5) : 2 ** (-1.25 - (z - 13) * 1.25); };
+
+/* ---------- half area: the 150 m cells that hold half of the trade ---------- */
+function halfCells(t) {
+  const CELL = D.method.cell, KX = 111320 * Math.cos(1.35 * Math.PI / 180), KY = 110574, m = new Map();
+  for (let b = 0; b < t.p.length; b += 2) {
+    const q = t.p[b], ix = Math.floor(PX[q] * KX / CELL), iy = Math.floor(PY[q] * KY / CELL), k = ix * 100000 + iy;
+    m.set(k, (m.get(k) || 0) + t.p[b + 1]);
+  }
+  const cells = [...m.entries()].sort((a, b) => b[1] - a[1]), feats = [];
+  let acc = 0;
+  for (const [k, c] of cells) {
+    if (acc * 2 >= t.n) break;
+    acc += c;
+    const ix = Math.floor(k / 100000), iy = k - ix * 100000;
+    const w = ix * CELL / KX, e = (ix + 1) * CELL / KX, s = iy * CELL / KY, nn = (iy + 1) * CELL / KY;
+    feats.push({ type: 'Feature', properties: {}, geometry: { type: 'Polygon', coordinates: [[[w, s], [e, s], [e, nn], [w, nn], [w, s]]] } });
+  }
+  return { type: 'FeatureCollection', features: feats };
 }
 
-/* ---------- labels on the prism tops ---------- */
-const labels = { pm: [], am: [] };
-function lift(map, lngLat, h) {
-  const tr = map.transform;
-  const ground = map.project(lngLat);
-  if (tr && typeof tr.coordinatePoint === 'function') {
-    try { const top = tr.coordinatePoint(maplibregl.MercatorCoordinate.fromLngLat(lngLat), h); return [top.x - ground.x, top.y - ground.y]; } catch (e) { /* fall through */ }
-  }
-  const mpp = 40075016.686 * Math.cos(lngLat[1] * Math.PI / 180) / (512 * 2 ** map.getZoom());
-  return [0, -h / mpp * Math.sin(map.getPitch() * Math.PI / 180)];
-}
-function setLabels(side, clusters) {
-  const map = side === 'pm' ? mapPm : mapAm;
-  labels[side].forEach(l => l.marker.remove());
-  labels[side] = clusters.filter(c => c.n >= 10 && c.name).slice(0, 7).map((c, i) => {
-    const el = document.createElement('div');
-    el.className = `cl ${side}`;
-    el.innerHTML = `<div class="cl-in"><div class="cl-box"><b>${c.n}</b><span></span></div><div class="cl-stem"></div></div>`;
-    el.querySelector('span').textContent = c.name;
-    const marker = new maplibregl.Marker({ element: el, anchor: 'top-left' }).setLngLat(c.c).addTo(map);
-    return { marker, el, c, rank: i };
+/* ---------- map ---------- */
+let map;
+const styleP = fetch('https://tiles.openfreemap.org/styles/positron').then(r => r.json()).catch(() => null);
+const dataP = DMC.loadData('data/day04/trades.js', 'DAY04').then(d => { decode(d); return d; });
+styleP.then(base => {
+  DAY.style = base ? paintStyle(base) : fallbackStyle();
+  map = DMC.createMap(DAY);
+  addThemeButton();
+  addBaseButton();
+  signBox = document.createElement('div'); signBox.className = 'signs';
+  map.getCanvasContainer().append(signBox);
+  Promise.all([dataP, new Promise(r => map.loaded() ? r() : map.on('load', r))]).then(([d]) => start(d)).catch(err => {
+    $('name').textContent = 'The register could not be loaded.';
+    $('say').textContent = String(err.message || err);
+    console.error(err);
   });
-  placeLabels(side);
-}
-function placeLabels(side) {
-  const map = side === 'pm' ? mapPm : mapAm, z = map.getZoom(), boxes = [];
-  for (const l of labels[side]) {
-    const [ox, oy] = lift(map, l.c.c, l.c.n * perCab(z));
-    l.marker.setOffset([ox, oy]);
-    const p = map.project(l.c.c), inner = l.el.firstChild;
-    const w = inner.offsetWidth || 90, h = inner.offsetHeight || 30;
-    const b = { x0: p.x + ox - w / 2 - 3, x1: p.x + ox + w / 2 + 3, y0: p.y + oy - h - 2, y1: p.y + oy };
-    const hit = boxes.some(o => b.x0 < o.x1 && b.x1 > o.x0 && b.y0 < o.y1 && b.y1 > o.y0);
-    l.el.classList.toggle('hide', hit);
-    if (!hit) boxes.push(b);
-  }
-}
-let placeQueued = false;
-const queuePlace = () => { if (placeQueued) return; placeQueued = true; requestAnimationFrame(() => { placeQueued = false; placeLabels('pm'); placeLabels('am'); }); };
+});
 
-/* ---------- state ---------- */
-const S = { eps: 200, minPts: 8, pair: 2, hPm: 18, hAm: 2, hourly: false };
-const keyFor = side => S.hourly ? `${D.rep}T${DMC.pad2(side === 'pm' ? S.hPm : S.hAm)}` : D.pairs[S.pair][side];
+function start(d) {
+  D = d;
+  // every business, as dust
+  const dust = { type: 'FeatureCollection', features: [] };
+  for (let i = 0; i < PN.length; i++) dust.features.push({ type: 'Feature', properties: { n: PN[i] }, geometry: { type: 'Point', coordinates: [PX[i], PY[i]] } });
+  map.addSource('dust', { type: 'geojson', data: dust });
+  map.addLayer({ id: 'dust', type: 'circle', source: 'dust', paint: {
+    'circle-color': look().dust, 'circle-blur': 0.4,
+    'circle-radius': ['interpolate', ['exponential', 1.6], ['zoom'], 9, ['min', 3, ['*', 0.28, ['sqrt', ['get', 'n']]]], 13, ['min', 10, ['*', 0.6, ['sqrt', ['get', 'n']]]], 17, ['*', 2.2, ['sqrt', ['get', 'n']]]],
+    'circle-opacity': ['interpolate', ['linear'], ['zoom'], 9, look().dustA[0], 14, look().dustA[1]] } });
+  map.addSource('half', { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+  map.addLayer({ id: 'half-fill', type: 'fill', source: 'half', paint: { 'fill-color': '#FFC24B', 'fill-opacity': 0.1 } });
+  map.addLayer({ id: 'half-line', type: 'line', source: 'half', paint: { 'line-color': '#FFC24B', 'line-opacity': 0.45, 'line-width': 0.8 } });
+  // the land: a finer grid where the GPU takes 32-bit indices (nearly all do)
+  const cvs = map.getCanvas(), gl = cvs.getContext('webgl2') || cvs.getContext('webgl');
+  gridSetup(gl && (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext || gl.getExtension('OES_element_index_uint')) ? 100 : 200);
+  setTimeout(randomMix, 3000);   // ready before anyone scatters
+  map.addLayer(peaks);
 
-function render() {
-  if (!D) return;
-  const out = {};
-  for (const side of ['pm', 'am']) {
-    const key = keyFor(side), snap = D.snaps[key], r = analyse(key, S.eps, S.minPts);
-    out[side] = r;
-    const xy = snap.xy, feats = new Array(xy.length >> 1);
-    for (let i = 0; i < feats.length; i++) feats[i] = { type: 'Feature', properties: { c: r.lab[i] >= 0 }, geometry: { type: 'Point', coordinates: toLL(xy[2 * i], xy[2 * i + 1]) } };
-    const map = side === 'pm' ? mapPm : mapAm;
-    map.getSource('dots').setData({ type: 'FeatureCollection', features: feats });
-    map.getSource('hulls').setData({ type: 'FeatureCollection', features: r.clusters.map(c => ({ type: 'Feature', properties: { n: c.n }, geometry: { type: 'Polygon', coordinates: [c.hull] } })) });
-    map.getSource('cents').setData({ type: 'FeatureCollection', features: r.clusters.map(c => ({ type: 'Feature', properties: { n: c.n }, geometry: { type: 'Point', coordinates: c.c } })) });
-    setLabels(side, r.clusters);
-    const h = +key.slice(-2), real = snap.ts;   // ts is the feed's own time, e.g. 17:59
-    $(`${side}-hr`).textContent = hourLabel(h);
-    $(`${side}-day`).textContent = dayLabel(key);
-    $(`${side}-st`).innerHTML = `<b>${fmt(snap.n)}</b> free · <b>${r.clusters.length}</b> clusters · <b>${Math.round(100 * r.inCl / snap.n)}%</b> in one`;
-    $(`${side}-st`).title = `Feed time ${real.replace('T', ' ')}; ${fmt(snap.raw - snap.n)} duplicate reports merged`;
-  }
-  renderStrip(out.pm, out.am);
-  renderThumbs();
-  placeTags();
+  showBase();
+  buildList();
+  const q = new URLSearchParams(location.search).get('trade');
+  const first = D.trades.find(t => t.ssic === q) || D.trades[0];
+  choose(first, { fly: false });
 }
 
-/* ---------- comparison strip ---------- */
-function agg(clusters) { const g = new Map(); for (const c of clusters) if (c.group) g.set(c.group, (g.get(c.group) || 0) + c.n); return g; }
-function renderStrip(pm, am) {
-  const a = agg(pm.clusters), b = agg(am.clusters);
-  const where = new Map();
-  for (const c of pm.clusters.concat(am.clusters)) if (c.group && !where.has(c.group)) where.set(c.group, c.c);
-  const rows = [...new Set([...a.keys(), ...b.keys()])].map(g => ({ g, p: a.get(g) || 0, q: b.get(g) || 0 }))
-    .sort((x, y) => Math.max(y.p, y.q) - Math.max(x.p, x.q)).slice(0, 6);
-  // the same places over all five weeknights (6 pm vs 2 am), at the current settings
-  let wk = null;
-  if (!S.hourly) {
-    wk = new Map();
-    for (const p of D.pairs) {
-      const ap = agg(analyse(p.pm, S.eps, S.minPts).clusters), aa = agg(analyse(p.am, S.eps, S.minPts).clusters);
-      for (const r of rows) { const w = wk.get(r.g) || [0, 0]; w[0] += (ap.get(r.g) || 0) / 5; w[1] += (aa.get(r.g) || 0) / 5; wk.set(r.g, w); }
-    }
-  }
-  const max = Math.max(1, ...rows.map(r => Math.max(r.p, r.q)));
+/* ---------- list, card, hotspots ---------- */
+const xMax = () => Math.log(D.trades[0].x);
+function buildList() {
   const ol = $('rank');
-  ol.replaceChildren(...rows.map((r, i) => {
-    const li = document.createElement('li'), btn = document.createElement('button');
-    btn.type = 'button';
-    const w = wk && wk.get(r.g);
-    btn.innerHTML = `<span class="nm"><em>${i + 1}</em></span><span class="vals"><b class="p">${r.p}</b><i>→</i><b class="a">${r.q}</b></span>`
-      + `<span class="bars"><span class="p" style="width:${100 * r.p / max}%"></span><span class="a" style="width:${100 * r.q / max}%"></span></span>`
-      + (w ? `<span class="wk">Mon–Fri avg ${Math.round(w[0])} → ${Math.round(w[1])}</span>` : '');
-    btn.querySelector('.nm').append(r.g);
-    btn.title = `${r.g}: ${r.p} free cabs at ${$('pm-hr').textContent}, ${r.q} at ${$('am-hr').textContent}`;
-    btn.setAttribute('aria-label', `${r.g}: ${r.p} cabs on the left map, ${r.q} on the right. Fly there.`);
-    btn.addEventListener('click', () => {
-      const c = where.get(r.g);
-      if (c) mapAm[REDUCED ? 'jumpTo' : 'flyTo']({ center: c, zoom: 14.2, pitch: 55, bearing: mapAm.getBearing(), duration: 2400, essential: true });
+  for (const t of D.trades) {
+    const li = document.createElement('li'), b = document.createElement('button');
+    b.type = 'button'; b.dataset.ssic = t.ssic; b.setAttribute('aria-pressed', 'false');
+    b.style.setProperty('--k', t.color);
+    b.style.setProperty('--w', `${Math.max(3, Math.log(t.x) / xMax() * 100)}%`);
+    b.innerHTML = `<span class="no">${t.rank}</span><span class="nm"></span><span class="x"><span class="bar"><i></i></span><b>${t.x}×</b></span>`;
+    b.querySelector('.nm').textContent = t.name;
+    b.addEventListener('click', () => { clearTimeout(hoverT); if (T !== t) choose(t); if (COMPACT.matches || innerWidth <= 900) setList(false); });
+    // A mouse resting on a row picks it; the pause lets a sweep down the list pass without restarting every row.
+    b.addEventListener('pointerenter', e => {
+      if (e.pointerType !== 'mouse') return;
+      clearTimeout(hoverT);
+      hoverT = setTimeout(() => { if (T !== t) choose(t, { scroll: false }); }, 140);
     });
-    li.append(btn);
-    return li;
-  }));
-  $('strip-t').innerHTML = `Biggest taxi crowds <i>${$('pm-hr').textContent.toLowerCase()} → ${$('am-hr').textContent.toLowerCase()}</i>`;
-  $('strip-n').textContent = S.hourly ? 'Wed 28 Oct · tap a place to fly there' : `${D.pairs[S.pair].label} night · tap a place to fly there`;
-  document.documentElement.style.setProperty('--strip-h', $('strip').offsetHeight + 'px');
-}
-
-/* ---------- hour bars and the two thumbs ---------- */
-const hoursEl = $('hours'), thumbs = { pm: $('th-pm'), am: $('th-am') };
-function renderBars() {
-  const svg = $('hbars'), W = hoursEl.clientWidth || 240, H = 32;
-  const rows = Array.from({ length: 24 }, (_, h) => { const key = `${D.rep}T${DMC.pad2(h)}`; return { h, n: D.snaps[key].n, c: analyse(key, S.eps, S.minPts).inCl }; });
-  const max = Math.max(...rows.map(r => r.n)), bw = W / 24;
-  const y = v => H - H * v / max;
-  let s = `<rect class="night" x="0" y="0" width="${bw * 7}" height="${H}"/><rect class="night" x="${bw * 19}" y="0" width="${bw * 5}" height="${H}"/>`;
-  for (const r of rows) {
-    const cls = S.hPm === r.h ? ' pm' : S.hAm === r.h ? ' am' : '';
-    s += `<rect class="bar${cls}" x="${r.h * bw + 1}" y="${y(r.n)}" width="${bw - 2}" height="${H - y(r.n)}" rx="1"><title>${hourLabel(r.h)}: ${r.n} free, ${r.c} clustered</title></rect>`;
-    s += `<rect class="bin${cls}" x="${r.h * bw + 1}" y="${y(r.c)}" width="${bw - 2}" height="${H - y(r.c)}" rx="1"/>`;
+    b.addEventListener('pointerleave', () => clearTimeout(hoverT));
+    li.append(b); ol.append(li);
   }
-  svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
-  svg.innerHTML = s;
 }
-function renderThumbs() {
-  for (const side of ['pm', 'am']) {
-    const h = side === 'pm' ? S.hPm : S.hAm, t = thumbs[side];
-    t.style.left = `${(h + 0.5) / 24 * 100}%`;
-    t.setAttribute('aria-valuenow', String(h));
-    t.setAttribute('aria-valuetext', `${hourLabel(h)}, Wednesday 28 October`);
+let hoverT;
+const area = km2 => km2 < 1 ? `${fmt(Math.round(km2 * 100))} ha` : `${km2 < 10 ? km2.toFixed(1) : Math.round(km2)} km²`;
+function choose(t, o = {}) {
+  T = t;
+  paintTrade(t);
+  for (const b of $('rank').querySelectorAll('button')) {
+    const on = b.dataset.ssic === t.ssic;
+    b.setAttribute('aria-pressed', String(on));
+    if (on && o.scroll !== false) b.scrollIntoView({ block: 'nearest' });
   }
-  if (D) renderBars();
-  for (const b of $('nights').children) b.setAttribute('aria-pressed', String(!S.hourly && +b.dataset.i === S.pair));
-}
-function setHour(side, h) {
-  h = Math.max(0, Math.min(23, h));
-  if (side === 'pm') S.hPm = h; else S.hAm = h;
-  S.hourly = true;
-  render();
-}
-let dragSide = null;
-hoursEl.addEventListener('pointerdown', e => {
-  const r = hoursEl.getBoundingClientRect(), h = Math.floor((e.clientX - r.left) / r.width * 24);
-  dragSide = e.target === thumbs.am ? 'am' : e.target === thumbs.pm ? 'pm' : (Math.abs(h - S.hPm) <= Math.abs(h - S.hAm) ? 'pm' : 'am');
-  hoursEl.setPointerCapture(e.pointerId);
-  thumbs[dragSide].focus({ preventScroll: true });
-  setHour(dragSide, h);
-});
-hoursEl.addEventListener('pointermove', e => {
-  if (!dragSide) return;
-  const r = hoursEl.getBoundingClientRect(), h = Math.max(0, Math.min(23, Math.floor((e.clientX - r.left) / r.width * 24)));
-  if (h !== (dragSide === 'pm' ? S.hPm : S.hAm)) setHour(dragSide, h);
-});
-for (const ev of ['pointerup', 'pointercancel']) hoursEl.addEventListener(ev, () => { dragSide = null; });
-for (const side of ['pm', 'am']) thumbs[side].addEventListener('keydown', e => {
-  const h = side === 'pm' ? S.hPm : S.hAm;
-  const to = { ArrowLeft: h - 1, ArrowDown: h - 1, ArrowRight: h + 1, ArrowUp: h + 1, Home: 0, End: 23 }[e.key];
-  if (to === undefined) return;
-  e.preventDefault(); setHour(side, to);
-});
-
-/* ---------- eps / minPts ---------- */
-const eps = $('eps'), minpts = $('minpts');
-const paintRange = i => i.style.setProperty('--p', `${100 * (i.value - i.min) / (i.max - i.min)}%`);
-let paramTimer = 0;
-function onParams() {
-  S.eps = +eps.value; S.minPts = +minpts.value;
-  $('eps-o').textContent = `${S.eps} m`; $('minpts-o').textContent = S.minPts;
-  $('lab-sum').textContent = `${S.eps} m · ${S.minPts}`;
-  paintRange(eps); paintRange(minpts);
-  $('reset').disabled = S.eps === 200 && S.minPts === 8;
-  clearTimeout(paramTimer); paramTimer = setTimeout(render, 30);
-}
-eps.addEventListener('input', onParams); minpts.addEventListener('input', onParams);
-$('reset').addEventListener('click', () => { eps.value = 200; minpts.value = 8; onParams(); });
-paintRange(eps); paintRange(minpts);
-
-// phones: the playground folds to one line
-const labEl = $('lab'), labToggle = $('lab-toggle');
-function setLab(open) { labEl.setAttribute('aria-expanded', String(open)); labToggle.setAttribute('aria-expanded', String(open)); }
-labToggle.addEventListener('click', () => setLab(labEl.getAttribute('aria-expanded') !== 'true'));
-const syncLab = () => setLab(!COMPACT.matches);
-COMPACT.addEventListener('change', syncLab); syncLab();
-
-/* ---------- load ---------- */
-// the maps start as soon as the style arrives; the taxis follow
-const mapsP = fetch('https://tiles.openfreemap.org/styles/positron').then(r => r.json()).catch(() => null).then(initMaps);
-Promise.all([DMC.loadData('data/day04/taxis.js', 'DAY04'), mapsP]).then(async ([data]) => {
-  D = data;
-  const g = D.geo;
-  toLL = (x, y) => {
-    const u = (x - g.x0) / g.s, v = (y - g.y0) / g.s, L = g.lon, A = g.lat;
-    return [+(L[0] + L[1] * u + L[2] * v + L[3] * u * u + L[4] * u * v + L[5] * v * v).toFixed(6),
-      +(A[0] + A[1] * u + A[2] * v + A[3] * u * u + A[4] * u * v + A[5] * v * v).toFixed(6)];
-  };
-  D.groupsRe = D.groups.map(([p, gname]) => [new RegExp(p), gname]);
-  const seg = $('nights');
-  D.pairs.forEach((p, i) => {
-    const b = document.createElement('button');
-    b.type = 'button'; b.dataset.i = i; b.textContent = p.label;
-    b.title = `6 pm ${dayLabel(p.pm)} against 2 am ${dayLabel(p.am)}`;
-    b.addEventListener('click', () => { S.pair = i; S.hourly = false; S.hPm = 18; S.hAm = 2; render(); });
-    seg.append(b);
+  $('kick').textContent = `${D.cats[t.cat]} · no. ${t.rank} of ${D.trades.length}`;
+  $('name').textContent = t.name;
+  $('big').innerHTML = `${t.x}<small>×</small>`;
+  const h = t.hot[0];
+  $('say').innerHTML = `Half of Singapore's <b>${fmt(t.n)}</b> ${t.name.toLowerCase()} fit in <b>${area(t.half)}</b>; half of ${fmt(t.n)} businesses picked at random need <b>${area(t.exp)}</b>.`
+    + (h ? ` The biggest huddle: <b>${fmt(h[3])}</b> around ${h[0]}.` : '');
+  // two squares, area to scale
+  const S = 66, s1 = S, s2 = Math.max(3, S * Math.sqrt(t.half / t.exp));
+  $('sq').innerHTML = `<figure><span class="box" style="width:${s1}px;height:${s1}px"></span><figcaption><b>${area(t.exp)}</b>random mix</figcaption></figure>`
+    + `<figure><span class="box t" style="width:${s2}px;height:${s2}px"></span><figcaption><b>${area(t.half)}</b>${t.name.toLowerCase()}<br>(squares on the map)</figcaption></figure>`;
+  TGRID = gridOf(t);
+  $('leg').innerHTML = `Height: how much of the trade stands within about half a kilometre, one scale for every trade. A line every <b>${t.lineD}</b> per hectare.`;
+  const hots = $('hots');
+  hots.replaceChildren();
+  signs.forEach(s => s.el.remove()); signs = [];
+  t.hot.forEach((hh, i) => {
+    const btn = document.createElement('button');
+    btn.type = 'button'; btn.innerHTML = `<b>${fmt(hh[3])}</b><span></span>`; btn.querySelector('span').textContent = hh[0];
+    btn.title = `Fly to ${hh[0]}`;
+    btn.addEventListener('click', () => flyHot(hh));
+    hots.append(btn);
+    if (i >= (COMPACT.matches ? 3 : 4)) return;
+    const el = document.createElement('button');
+    el.type = 'button'; el.className = 'hs' + (i === 0 ? ' top' : '');
+    el.innerHTML = '<span class="hs-box"><b></b><span></span></span><span class="hs-stem"></span>';
+    el.querySelector('b').textContent = fmt(hh[3]); el.querySelector('.hs-box span').textContent = hh[0];
+    el.setAttribute('aria-label', `${hh[3]} ${t.name.toLowerCase()} around ${hh[0]}: fly there`);
+    el.addEventListener('click', () => flyHot(hh));
+    signBox.append(el);
+    signs.push({ el, lng: hh[1], lat: hh[2], h0: 0, h1: 0, w: 0, h: 0 });
   });
-  $('why').innerHTML = `A cab is <b>core</b> when at least <b>minPts</b> free cabs (itself included) sit within <b>eps</b>; cores chain into clusters, the rest is noise. <b>${D.params.eps} m</b> is one airport kerb or a mall frontage: only ${Math.round(D.params.pct200 * 100)}% of cabs have 7 others that close, so what survives is a real crowd. <b>${D.params.minPts}</b> beats the few parked at any HDB carpark.`;
-  await Promise.all([ready.pm, ready.am]);
-  addLayers(mapPm, 'pm'); addLayers(mapAm, 'am');
-  render();
-  if (!REDUCED && !new URLSearchParams(location.search).has('view')) teaser();
-}).catch(err => {
-  console.error(err);
-  $('strip-t').textContent = 'Could not load the taxi snapshots.';
+  map.getSource('half').setData(halfCells(t));
+  setTradeDots(t);
+  morphTo(TGRID, t.top, t.lineN, 2200);
+  setScatter(false);
+  G = 0; animateTo(1, 2400);
+  const u = new URL(location.href); u.searchParams.set('trade', t.ssic); history.replaceState(null, '', u);
+  if (o.fly !== false && map.getZoom() > 12.5) DMC.frame(map);   // back out to the island from a close-up
+}
+let TGRID = null;   // the chosen trade's surface
+// The trade's colour: the page's accents, and its half-area squares on the map.
+function paintTrade(t) {
+  const root = document.documentElement.style, c = t.color;
+  root.setProperty('--c', c); root.setProperty('--c-rgb', hexRgb(c).join(', '));
+  map.setPaintProperty('half-fill', 'fill-color', c); map.setPaintProperty('half-line', 'line-color', c);
+}
+
+// Summit signs ride the land: placed from the same matrix the layer draws with, every frame.
+// A sign that would cover a busier one hides until the map zooms in far enough to part them.
+let signBox, signs = [];
+function placeSigns() {
+  const L = peaks, M = L.M;
+  if (!M) return;
+  const cv = map.getCanvas(), W = cv.clientWidth, H = cv.clientHeight, shown = [];
+  for (const s of signs) {
+    const x = mercX(s.lng) - O[0], y = mercY(s.lat) - O[1], z = (s.h0 + (s.h1 - s.h0) * U) * L.uZ;
+    const cx = M[0] * x + M[4] * y + M[8] * z + M[12], cy = M[1] * x + M[5] * y + M[9] * z + M[13], cw = M[3] * x + M[7] * y + M[11] * z + M[15];
+    if (!s.w) { s.w = s.el.offsetWidth; s.h = s.el.offsetHeight; }
+    const X = (cx / cw + 1) / 2 * W, Y = (1 - cy / cw) / 2 * H - 4;
+    const r = { l: X - s.w / 2, r: X + s.w / 2, t: Y - s.h, b: Y };
+    const hide = cw <= 0 || r.r < 0 || r.l > W || r.b < 0 || r.t > H
+      || shown.some(q => r.l < q.r + 4 && r.r > q.l - 4 && r.t < q.b + 2 && r.b > q.t - 2);
+    s.el.classList.toggle('hide', hide);
+    if (hide) continue;
+    shown.push(r);
+    s.el.style.transform = `translate(${r.l.toFixed(1)}px, ${r.t.toFixed(1)}px)`;
+  }
+}
+function flyHot(h) {
+  map.flyTo({ center: [h[1], h[2]], zoom: 16, duration: REDUCED ? 0 : 1600, essential: true });
+}
+function step(d) {
+  const i = D.trades.indexOf(T), j = Math.max(0, Math.min(D.trades.length - 1, i + d));
+  if (j !== i) choose(D.trades[j]);
+}
+$('prev').addEventListener('click', () => D && step(-1));
+$('next').addEventListener('click', () => D && step(1));
+addEventListener('keydown', e => {
+  // the map keeps its own arrow keys for panning
+  if (!D || e.target.closest('input, textarea, .maplibregl-map') || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' && e.target.closest('#rank')) { step(-1); e.preventDefault(); }
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' && e.target.closest('#rank')) { step(1); e.preventDefault(); }
 });
-setSplit(0.5);
+function setScatter(on) {
+  const b = $('scatter');
+  b.setAttribute('aria-pressed', String(on));
+  b.querySelector('span').textContent = on ? 'Let them huddle' : 'Scatter them';
+  signBox.classList.toggle('off', on);   // no summits on the plain
+}
+$('scatter').addEventListener('click', () => {
+  if (!T) return;
+  const on = $('scatter').getAttribute('aria-pressed') !== 'true';
+  setScatter(on);
+  // scattered, the land sinks to the plain the same number of ordinary businesses would raise
+  randomMix();
+  morphTo(on ? RAND : TGRID, on ? RTOP : T.top, T.lineN, 2000);
+  animateTo(on ? 0 : 1, 2000);
+});
+
+// phones and narrow screens: the list is a sheet over the map
+function setList(open) {
+  $('list').classList.toggle('open', open);
+  $('open-list').setAttribute('aria-expanded', String(open));
+  if (open) $('rank').querySelector('[aria-pressed="true"]')?.scrollIntoView({ block: 'center' });
+}
+$('open-list').addEventListener('click', () => setList(!$('list').classList.contains('open')));
+$('list-close').addEventListener('click', () => setList(false));
+new ResizeObserver(() => document.documentElement.style.setProperty('--card-h', `${$('card').offsetHeight}px`)).observe($('card'));
 </script>
-</body></html>
+</body>
+</html>
