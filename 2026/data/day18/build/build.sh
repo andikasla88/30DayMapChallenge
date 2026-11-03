@@ -8,4 +8,4 @@ PY="${PY:-python}"
 "$PY" -I "$HERE/fetch.py" "$RAW"            # EPSG, OSM (Overpass, Nominatim), Marine Regions, Natural Earth, NOAA, data.gov.sg, STAC search
 "$PY" -I "$HERE/scan.py" "$RAW"             # null-record check of the data.gov.sg point datasets -> $RAW/scan.json
 "$PY" -I "$HERE/s2.py" "$RAW"               # Sentinel-2 crop around SVY21 (0, 0) -> $RAW/s2/
-"$PY" -I "$HERE/process.py" "$RAW" "$HERE/.."   # -> null.js, zero-s2.webp
+"$PY" -I "$HERE/process.py" "$RAW" "$HERE/.."   # -> null.js (the Sentinel-2 crop inside it)

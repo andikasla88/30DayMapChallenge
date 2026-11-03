@@ -3,7 +3,7 @@
 The page has no backend. It shows two kinds of data:
 
 - `kopi.js`: the seed places, built by the scripts here.
-- `pins.js`: the followers' pins, added by hand. It ships empty (`[]`).
+- `pins.js`: the followers' pins, added by hand. It ships empty (`window.DAY16_PINS = [];`).
 
 ## Rebuilding kopi.js
 
@@ -20,7 +20,7 @@ The Python needs `requests osmium shapely pyproj`. No API keys are used.
 
 ## pins.js: the format
 
-The file is a JSON array. Each entry looks like this:
+The file is a script, `window.DAY16_PINS = [...];` (a script, not JSON, so the page also works opened from disk). The array itself is plain JSON. Each entry looks like this:
 
 ```json
 [

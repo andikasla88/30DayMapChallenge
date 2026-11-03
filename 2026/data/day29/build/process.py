@@ -3,11 +3,10 @@
 Requires python 3.10+ with: numpy rasterio pyproj shapely pillow scipy cmcrameri
 usage: python -I process.py <raw-dir> <out-dir>
   reads  <raw-dir>/osm.pkl (osm.py) and <raw-dir>/landsat/* (fetch.py)
-  writes <out-dir>/lst.png   the composite, one byte per 30 m pixel: 0 = sea or outside Singapore,
-                             1 = land with no clear reading, else temperature = 18 + (byte - 2) * 0.2
-                             degC (Web Mercator grid)
-         <out-dir>/lst.pgw   its world file (EPSG:3857), so GIS software can place it
-         <out-dir>/lst.js  grid bounds, scenes, palette, histogram, zone means, hot clusters, outlines
+  writes <out-dir>/lst.js    window.DAY29: grid bounds, scenes, palette, histogram, zone means, hot
+                             clusters, outlines, and the composite as a PNG data URL (png): one byte
+                             per 30 m pixel: 0 = sea or outside Singapore, 1 = land with no clear
+                             reading, else temperature = 18 + (byte - 2) * 0.2 degC (Web Mercator grid)
 
 Method, in plain words
   Temperature  ST_B10 is Landsat's land-surface temperature (Collection 2 Level-2). USGS publishes
@@ -155,8 +154,6 @@ code[valid] = np.clip(np.round((med[valid] - TMIN) / STEP) + 2, 2, 255).astype(n
 buf = io.BytesIO()   # the PNG rides inside lst.js as a data URL (png), so the page also works opened from disk
 Image.fromarray(code, 'L').save(buf, 'PNG', optimize=True)
 png_url = 'data:image/png;base64,' + base64.b64encode(buf.getvalue()).decode()
-with open(os.path.join(OUT, 'lst.pgw'), 'w') as f:   # world file: pixel size, rotation, centre of top-left pixel
-    f.write(f'{RES}\n0\n0\n{-RES}\n{x0 + RES / 2}\n{y1 - RES / 2}\n')
 hist = np.bincount(code[valid], minlength=256)[2:].tolist()   # hist[i] counts code i + 2
 print('png bytes', len(buf.getvalue()))
 

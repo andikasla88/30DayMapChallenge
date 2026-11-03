@@ -10,4 +10,4 @@ mkdir -p "$RAW"
   https://download.openstreetmap.fr/extracts/asia/singapore-latest.osm.pbf
 "$PY" -I "$HERE/osm.py" "$RAW"                 # coastline land, reservoirs, reserves, land use, buildings
 "$PY" -I "$HERE/fetch.py" "$RAW"               # Landsat C2 L2 survey + clear scenes (Planetary Computer)
-"$PY" -I "$HERE/process.py" "$RAW" "$HERE/.."  # -> lst.png, lst.pgw, lst.js
+"$PY" -I "$HERE/process.py" "$RAW" "$HERE/.."  # -> lst.js (the code PNG inside it)
