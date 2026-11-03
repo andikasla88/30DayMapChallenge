@@ -40,7 +40,7 @@
 .dmc-seg button[aria-pressed="true"] { color: #1A1006; background: var(--gold); box-shadow: 0 0 12px rgba(var(--gold-rgb), .45); }
 #orbit:disabled { opacity: .45; cursor: default; }
 #orbit[aria-pressed="true"] { color: var(--gold); border-color: rgba(var(--gold-rgb), .5); }
-#orbit svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
+#orbit svg, #bday svg { width: 13px; height: 13px; vertical-align: -2px; margin-right: 4px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; }
 
 /* ---- find my block ---- */
 .sx-find { position: relative; flex: 1 1 220px; max-width: 300px; }
@@ -144,6 +144,7 @@
         role="combobox" aria-expanded="false" aria-controls="list" aria-autocomplete="list" aria-label="Find a block or building">
       <ul id="list" class="dmc-glass sx-list" role="listbox" aria-label="Matching buildings" hidden></ul>
     </div>
+    <button id="bday" class="dmc-btn" type="button"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1.8v2.4M8 11.8v2.4M1.8 8h2.4M11.8 8h2.4M3.6 3.6l1.7 1.7M10.7 10.7l1.7 1.7M3.6 12.4l1.7-1.7M10.7 5.3l1.7-1.7"/></svg>Birthday finale</button>
     <button id="orbit" class="dmc-btn" type="button" aria-pressed="true"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 8a5.5 5.5 0 1 1-1.6-3.9M13.6 2.2v2.6H11"/></svg>Orbit</button>
   </div>
 </section>
@@ -167,7 +168,7 @@ const BARGE = [103.8575, 1.2862];
 const DAY = {
   n: 5,
   title: 'Who can see the fireworks from home?',
-  deck: 'Every building within 8 km of the Marina Bay barge, traced floor by floor. A floor glows gold when a straight line from its bay-facing side to the bursts clears every tower and hill in between (earth curvature included, trees not). Heights come from OpenStreetMap and HDB floor counts. Pick a building for its ticket, or search for your block.',
+  deck: 'Every building within 8 km of the Marina Bay barge, traced floor by floor. A floor glows gold when a straight line from its bay-facing side to the bursts clears every tower and hill in between (earth curvature included, trees not). Heights come from OpenStreetMap and HDB floor counts. Pick a building for its ticket, or search for your block. Every 45 seconds the show ends with a birthday finale for Singapore at 61: the flag and a greeting, drawn in fireworks.',
   accent: '#FFC15E',
   basemap: 'Night',
   underlay: 'esri-imagery',
@@ -267,7 +268,7 @@ void main() {
   vec2 q = gl_PointCoord * 2.0 - 1.0;
   float d = dot(q, q);
   if (d > 1.0) discard;
-  float g = exp(-d * 5.0) + 0.6 * exp(-d * 28.0);
+  float g = 0.7 * exp(-d * 6.0) + 0.6 * exp(-d * 28.0);
   gl_FragColor = vec4(v_col * g * v_a, 0.0);
 }`;
 // The sight line: beads of light from the window to the burst, drifting towards the show.
@@ -294,6 +295,79 @@ void main() {
   if (d > 1.0) discard;
   gl_FragColor = vec4(u_col * (exp(-d * 2.5) + 0.5 * exp(-d * 12.0)) * v_a * 1.3, 0.0);
 }`;
+// The picture's stars cover what is behind them (they carry alpha), so the words still read where
+// they cross the lit towers; the faint reflection in the bay stays added light.
+const MSG_FS = `
+precision mediump float;
+varying vec3 v_col;
+varying float v_a;
+void main() {
+  vec2 q = gl_PointCoord * 2.0 - 1.0;
+  float d = dot(q, q);
+  if (d > 1.0) discard;
+  float g = 0.8 * exp(-d * 5.0) + 0.6 * exp(-d * 24.0);
+  gl_FragColor = vec4(v_col * g * v_a, min(1.0, g * v_a * 2.2) * 0.9);
+}`;
+/* The birthday finale: a greeting and the flag, drawn in stars. Every star knows its place in the
+   picture (uv, in picture units) and the burst it is thrown from. Shells rise from the barge, burst,
+   and the stars fly to their places, hold and twinkle (the flag waves from its pole), then fall away
+   as glitter. The picture is a fixed board in the sky: it keeps its size and faces one way. */
+const M_RISE = 1.6, M_FLY = 1.1, M_HOLD = 6.5, M_FALL = 3.0;
+const M_LAUNCH = [0, 1.3, 2.6, 3.6];   // the words, SINGAPORE, the flag, then 61st
+// It faces the opening view (bearing 165, looking across the bay from the north): its right-hand axis.
+const FACE = 165 * Math.PI / 180, FACE_R = [Math.cos(FACE), -Math.sin(FACE), 0];
+const M_END = M_LAUNCH[3] + M_RISE + M_FLY + M_HOLD, M_DONE = M_END + M_FALL, M_EVERY = 45, M_FLOATS = 11;
+const MSG_VS = `
+attribute vec2 a_uv;
+attribute vec3 a_col;
+attribute vec4 a_misc;   // seed, group, kind (0 letter, 1 flag, 2 trail, 3 flash), size (picture units)
+attribute vec2 a_src;    // the burst it is thrown from (picture units)
+uniform mat4 u_m;
+uniform vec3 u_o, u_r, u_u;   // picture bottom centre (m from the barge), right and up axes
+uniform vec4 u_launch;
+uniform vec2 u_flag;          // flag hoist x and width, for the wave
+uniform float u_s, u_t, u_k, u_mirror, u_alpha;
+varying vec3 v_col;
+varying float v_a;
+vec3 at(vec2 uv) { return u_o + (u_r * uv.x + u_u * uv.y) * u_s; }
+void main() {
+  float g = a_misc.y, kind = a_misc.z, seed = a_misc.x;
+  float L = g < 0.5 ? u_launch.x : g < 1.5 ? u_launch.y : g < 2.5 ? u_launch.z : u_launch.w;
+  float tb = L + ${M_RISE.toFixed(2)};
+  vec3 B = at(a_src), p = B, col = a_col;
+  float a = 0.0, size = a_misc.w * u_s;
+  if (kind > 2.5) {
+    float tau = u_t - tb;
+    if (tau > 0.0 && tau < 0.9) { a = exp(-tau * 5.0); col = vec3(1.0, 0.9, 0.75); }
+  } else if (kind > 1.5) {
+    float r = (u_t - L - seed) / ${M_RISE.toFixed(2)};   // seed is the trail's lag
+    if (r > 0.0 && r < 1.0) { p = B * (1.0 - (1.0 - r) * (1.0 - r)); a = 0.9 * (1.0 - seed * 2.6); col = vec3(1.0, 0.8, 0.55); }
+  } else {
+    float tau = u_t - tb - seed * 0.25;
+    if (tau > 0.0) {
+      float q = 1.0 - pow(1.0 - clamp(tau / ${M_FLY.toFixed(2)}, 0.0, 1.0), 3.0);
+      p = mix(B, at(a_uv), q);
+      if (kind > 0.5) {   // the flag waves, more towards the fly end
+        float w = sin(a_uv.x * 0.024 - u_t * 3.2 + a_uv.y * 0.006), amp = clamp((a_uv.x - u_flag.x) / u_flag.y, 0.0, 1.0);
+        p += (u_u * 7.0 + cross(u_r, u_u) * 14.0) * w * amp * u_s * q;
+      }
+      col = mix(vec3(1.0, 0.96, 0.88), a_col, smoothstep(0.1, 0.8, tau));
+      a = smoothstep(0.0, 0.08, tau) * (0.78 + 0.22 * sin(seed * 71.0 + u_t * (6.0 + 9.0 * seed)));
+      float f = u_t - ${M_END.toFixed(2)} - seed * 0.8;   // the fall
+      if (f > 0.0) {
+        p.z -= 16.0 * f * f * u_s;
+        col = mix(col, vec3(1.0, 0.45, 0.15), smoothstep(0.0, 1.6, f));
+        a *= 1.0 - smoothstep(0.3, ${(M_FALL - 0.4).toFixed(2)}, f);
+      }
+    }
+  }
+  if (a <= 0.003) { gl_Position = vec4(2.0, 2.0, 2.0, 1.0); gl_PointSize = 0.0; v_a = 0.0; v_col = col; return; }
+  if (u_mirror > 0.5) p.z = -p.z;
+  gl_Position = u_m * vec4(p, 1.0);
+  gl_PointSize = clamp(size * u_k / gl_Position.w, 1.5, 90.0);
+  v_col = col;
+  v_a = a * u_alpha;
+}`;
 
 const mul = (a, b) => {   // column-major 4x4
   const o = new Float64Array(16);
@@ -304,12 +378,14 @@ const mul = (a, b) => {   // column-major 4x4
   }
   return o;
 };
-let rand = Math.random;
-function seeded(s) { return () => { s = (s * 1664525 + 1013904223) >>> 0; return s / 4294967296; }; }
+const rand = Math.random;
 
+// The show runs whatever the system's reduced-motion setting: the fireworks are what the page is
+// about, and the pause button stops them. Only the camera orbit waits to be asked for.
 const fireworks = {
   id: 'fireworks', type: 'custom', renderingMode: '3d',
-  t: 0, start: performance.now(), next: 0, slot: 0, line: null, lineCol: [1, .76, .37],
+  t: 0, last: 0, paused: false, next: 0, slot: 0, line: null, lineCol: [1, .76, .37],
+  msg: null, mDirty: false, mn: 0, fin: -1e6, nextFin: 5, salvo: false,
   onAdd(m, gl) {
     this.map = m; this.gl = gl;
     const prog = (vs, fs, attrs) => {
@@ -324,6 +400,9 @@ const fireworks = {
     };
     this.p = prog(FW_VS, FW_FS, ['a_vel', 'a_col', 'a_misc', 'a_shell']);
     this.sl = prog(SL_VS, SL_FS, ['a_t']);
+    this.mp = prog(MSG_VS, MSG_FS, ['a_uv', 'a_col', 'a_misc', 'a_src']);
+    this.mbuf = gl.createBuffer();
+    this.last = performance.now();
     this.data = new Float32Array(SHELLS * PER * FLOATS);
     for (let i = 0; i < SHELLS * PER; i++) this.data[i * FLOATS + 13] = -1e6;   // never launched
     this.buf = gl.createBuffer();
@@ -337,7 +416,6 @@ const fireworks = {
     const s = merc.meterInMercatorCoordinateUnits();
     // metres east / north / up of the barge -> mercator units
     this.model = new Float64Array([s, 0, 0, 0, 0, -s, 0, 0, 0, 0, s, 0, merc.x, merc.y, 0, 1]);
-    if (reduceMotion) this.still();
   },
   launch(t, rnd = rand) {
     const base = this.slot * PER * FLOATS, d = this.data;
@@ -361,36 +439,45 @@ const fireworks = {
       for (let l = 0; l < LAGS; l++) put(x * v, y * v, z * v, c, seed, l * 0.06, 0, 40 * Math.sqrt(big));
     }
     for (let l = 0; l < TRAIL; l++) put(0, 0, 0, [1, .8, .5], 0, l * 0.025, 1, 10);
-    put(0, 0, 0, [1, .9, .7], 0, 0, 2, 420 * big);
+    put(0, 0, 0, [1, .9, .7], 0, 0, 2, 300 * big);
     const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
     gl.bufferSubData(gl.ARRAY_BUFFER, base * 4, d.subarray(base, base + PER * FLOATS));
     this.slot = (this.slot + 1) % SHELLS;
-  },
-  // Reduced motion: one held moment of the show, no animation.
-  still() {
-    const r = seeded(7);
-    this.t = 100;
-    [[1.1], [0.55], [1.7], [0.25], [2.2]].forEach(([age], i) => this.launch(100 - RISE - age - i * 0.01, r));
   },
   reset() {   // burst height changed: clear the sky, start again
     for (let i = 0; i < SHELLS * PER; i++) this.data[i * FLOATS + 13] = -1e6;
     const gl = this.gl;
     gl.bindBuffer(gl.ARRAY_BUFFER, this.buf);
     gl.bufferData(gl.ARRAY_BUFFER, this.data, gl.DYNAMIC_DRAW);
-    this.next = 0;
-    if (reduceMotion) this.still();
+    this.next = this.t;
+  },
+  finale() {   // the birthday picture, now; and again every M_EVERY seconds
+    const c = this.map.getCanvas(), m = this.msgs[c.clientWidth / c.clientHeight < 0.9 ? 'tall' : 'wide'];
+    if (m !== this.msg) { this.msg = m; this.mDirty = true; }
+    this.fin = this.t; this.nextFin = this.t + M_EVERY; this.salvo = true;
+  },
+  // Where the picture stands: a fixed board in the sky over the barge, upright, facing the opening
+  // view (across the bay from the heartlands to the north), the same size at every zoom.
+  place() {
+    const s = this.msg.s;
+    return { o: [0, 0, 0.08 * this.msg.h * s], r: FACE_R, u: [0, 0, 1], s };
   },
   render(gl, matrix) {
-    const tr = this.map.transform;
-    if (!reduceMotion) {
-      this.t = (performance.now() - this.start) / 1000;
+    const tr = this.map.transform, now = performance.now();
+    if (!this.paused) {
+      this.t += Math.min(0.1, (now - this.last) / 1000);
+      if (this.msg && this.t >= this.nextFin) this.finale();
+      // The sky is kept clear while the picture forms and holds, then a salvo as it falls.
+      const quiet = this.t - this.fin < M_END - 0.6;
+      if (!quiet && this.salvo) { this.salvo = false; for (let i = 0; i < 5; i++) this.launch(this.t + i * 0.14); }
       while (this.t >= this.next) {
-        this.launch(this.next + rand() * 0.1);
+        if (!quiet) this.launch(this.next + rand() * 0.1);
         // Volleys: mostly one every second or so, sometimes a quick salvo.
         this.next = this.t + (rand() < 0.3 ? 0.15 + rand() * 0.2 : 0.45 + rand() * 0.7);
       }
     }
+    this.last = now;
     const M = mul(matrix, this.model);
     const m32 = new Float32Array(M);
     // Point sizes in metres: pixels per metre at the screen centre, scaled by clip w.
@@ -418,6 +505,34 @@ const fireworks = {
       gl.drawArrays(gl.POINTS, 0, SHELLS * PER);
     }
     for (const loc of [1, 2, 3]) gl.disableVertexAttribArray(loc);
+    // the birthday picture
+    if (this.mDirty) {
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.mbuf);
+      gl.bufferData(gl.ARRAY_BUFFER, this.msg.data, gl.STATIC_DRAW);
+      this.mn = this.msg.data.length / M_FLOATS; this.mDirty = false;
+    }
+    const ft = this.t - this.fin;
+    if (this.mn && ft > -0.5 && ft < M_DONE + 0.5) {
+      const pic = this.place(), q = this.mp;
+      gl.useProgram(q);
+      gl.uniformMatrix4fv(q.u('u_m'), false, m32);
+      gl.uniform3fv(q.u('u_o'), pic.o); gl.uniform3fv(q.u('u_r'), pic.r); gl.uniform3fv(q.u('u_u'), pic.u);
+      gl.uniform4fv(q.u('u_launch'), M_LAUNCH);
+      gl.uniform2fv(q.u('u_flag'), this.msg.flag);
+      gl.uniform1f(q.u('u_s'), pic.s); gl.uniform1f(q.u('u_t'), ft); gl.uniform1f(q.u('u_k'), k);
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.mbuf);
+      const msz = M_FLOATS * 4;
+      [[0, 2, 0], [1, 3, 8], [2, 4, 20], [3, 2, 36]].forEach(([loc, n, off]) => { gl.enableVertexAttribArray(loc); gl.vertexAttribPointer(loc, n, gl.FLOAT, false, msz, off); });
+      // its reflection hides behind the towers; the picture itself is drawn over them, so it reads
+      for (const [mirror, alpha] of [[1, 0.16], [0, 1]]) {
+        if (mirror) { gl.enable(gl.DEPTH_TEST); gl.blendFunc(gl.ONE, gl.ONE); } else { gl.disable(gl.DEPTH_TEST); gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); }
+        gl.uniform1f(q.u('u_mirror'), mirror);
+        gl.uniform1f(q.u('u_alpha'), alpha);
+        gl.drawArrays(gl.POINTS, 0, this.mn);
+      }
+      gl.enable(gl.DEPTH_TEST); gl.blendFunc(gl.ONE, gl.ONE);
+      for (const loc of [1, 2, 3]) gl.disableVertexAttribArray(loc);
+    }
     // sight line
     if (this.line) {
       const q = this.sl;
@@ -426,7 +541,7 @@ const fireworks = {
       gl.uniform3fv(q.u('u_a'), this.line[0]);
       gl.uniform3fv(q.u('u_b'), this.line[1]);
       gl.uniform3fv(q.u('u_col'), this.lineCol);
-      gl.uniform1f(q.u('u_t'), reduceMotion ? 0 : this.t);
+      gl.uniform1f(q.u('u_t'), this.t);
       gl.uniform1f(q.u('u_k'), k);
       gl.bindBuffer(gl.ARRAY_BUFFER, this.tbuf);
       gl.enableVertexAttribArray(0);
@@ -442,14 +557,113 @@ const fireworks = {
       const tau = this.t - this.data[i * PER * FLOATS + 13] - RISE;
       if (tau > -0.2 && tau < 3) glow += tau < 0 ? 0 : Math.exp(-tau * 2.2);
     }
+    for (const L of M_LAUNCH) { const tau = ft - L - M_RISE; if (tau > 0 && tau < 3) glow += Math.exp(-tau * 2); }
     if (cw > 0) {
       const W = this.map.getCanvas().clientWidth, H = this.map.getCanvas().clientHeight;
       flashEl.style.transform = `translate(${(cx / cw * 0.5 + 0.5) * W}px, ${(0.5 - cy / cw * 0.5) * H}px)`;
-      flashEl.style.opacity = Math.min(0.85, glow * 0.5).toFixed(3);
+      flashEl.style.opacity = Math.min(0.55, glow * 0.32).toFixed(3);
     } else flashEl.style.opacity = '0';
-    if (!reduceMotion && !document.hidden) this.map.triggerRepaint();
+    if (!this.paused && !document.hidden) this.map.triggerRepaint();
   },
 };
+
+/* ---------- the birthday picture, drawn on a canvas and read back as stars ---------- */
+// Picture units are canvas pixels, origin at the bottom centre. Two layouts: wide (two rows) for
+// landscape screens, tall (four rows) for phones held upright. Groups burst in turn: the words,
+// SINGAPORE, the flag, and last of all 61st. The flag keeps the national flag's layout (2:3, red over
+// white, crescent and five stars in the upper hoist), from its 4320 x 2880 grid.
+const GOLD = '#FFC25E', RED = '#FF3B4A', HOT = '#FF6A4A';
+async function buildMessage(tall) {
+  const CW = tall ? 900 : 1500, CH = tall ? 960 : 480, cv = document.createElement('canvas');
+  cv.width = CW; cv.height = CH;
+  const g = cv.getContext('2d', { willReadFrequently: true });
+  const font = px => `900 ${px}px "Big Shoulders Display", "Arial Narrow", sans-serif`;
+  const capPx = cap => { g.font = font(100); return 100 * cap / g.measureText('H').actualBoundingBoxAscent; };   // font size for a capital height
+  const rects = [];   // [x0, y0, x1, y1, group]: which group a pixel belongs to
+  // One row of words, centred: parts [text, colour, group, small]; small parts ride high, like "st".
+  function row(parts, cap, base, maxW) {
+    let px = capPx(cap);
+    const width = () => parts.reduce((s, [t, , , small]) => { g.font = font(small ? px * 0.46 : px); return s + g.measureText(t).width; }, 0);
+    if (width() > maxW) px *= maxW / width();
+    const c = cap * px / capPx(cap);
+    let x = (CW - width()) / 2;
+    for (const [t, col, grp, small] of parts) {
+      g.font = font(small ? px * 0.46 : px);
+      const w = g.measureText(t).width, y = small ? base - c * 0.52 : base;
+      g.fillStyle = col; g.fillText(t, x, y);
+      rects.push([x, base - c - 12, x + w, base + 12, grp]);
+      x += w;
+    }
+  }
+  // The flag on its pole, top left at (x, y).
+  function flag(x, y, fw) {
+    const fh = fw * 2 / 3, k = fw / 4320;
+    g.fillStyle = '#EF3340'; g.fillRect(x, y, fw, fh / 2);
+    g.fillStyle = '#FFFFFF'; g.fillRect(x, y + fh / 2, fw, fh / 2);
+    g.beginPath(); g.arc(x + 923 * k, y + 720 * k, 533 * k, 0, 2 * Math.PI); g.fill();
+    g.fillStyle = '#EF3340'; g.beginPath(); g.arc(x + 1060 * k, y + 720 * k, 490 * k, 0, 2 * Math.PI); g.fill();
+    g.fillStyle = '#FFFFFF';
+    for (let i = 0; i < 5; i++) {
+      const a = -Math.PI / 2 + i * 2 * Math.PI / 5, sx = x + (1290 + 250 * Math.cos(a)) * k, sy = y + (720 + 250 * Math.sin(a)) * k;
+      g.beginPath();
+      for (let j = 0; j < 10; j++) { const r = (j % 2 ? 40 : 100) * k, b = -Math.PI / 2 + j * Math.PI / 5; g.lineTo(sx + r * Math.cos(b), sy + r * Math.sin(b)); }
+      g.fill();
+    }
+    g.fillStyle = '#FFF3D6'; g.fillRect(x - 9, y - 14, 5, fh + 50);   // the pole
+    rects.push([x - 14, y - 20, x + fw, y + fh + 40, 2]);
+    return [x, y, fw, fh];
+  }
+  let F;
+  if (tall) {
+    row([['HAPPY ', GOLD, 0], ['61', HOT, 3], ['st', HOT, 3, true]], 150, 175, 860);
+    row([['BIRTHDAY', GOLD, 0]], 150, 375, 860);
+    row([['SINGAPORE', RED, 1]], 150, 575, 860);
+    F = flag((CW - 420) / 2, 640, 420);
+  } else {
+    row([['HAPPY ', GOLD, 0], ['61', HOT, 3], ['st', HOT, 3, true], [' BIRTHDAY', GOLD, 0]], 140, 170, 1440);
+    // second row: the flag, then SINGAPORE as tall as the flag
+    const cap = 190, fw = 300, gap = 56;
+    g.font = font(capPx(cap));
+    const ws = g.measureText('SINGAPORE').width, x0 = (CW - (fw + gap + ws)) / 2;
+    F = flag(x0, 235, fw);
+    g.fillStyle = RED; g.fillText('SINGAPORE', x0 + fw + gap, 235 + F[3]);
+    rects.push([x0 + fw + gap, 235 + F[3] - cap - 12, x0 + fw + gap + ws, 235 + F[3] + 12, 1]);
+  }
+  // Read it back: a star every 6 units, every 3.6 in the flag so its crescent and stars survive.
+  const img = g.getImageData(0, 0, CW, CH).data, stars = [];
+  const inFlag = (x, y) => x >= F[0] && x < F[0] + F[2] && y >= F[1] && y < F[1] + F[3];
+  const groupOf = (x, y) => { for (const r of rects) if (x >= r[0] && x < r[2] && y >= r[1] && y < r[3]) return r[4]; return 0; };
+  const take = (x, y) => {
+    const i = (y * CW + x) * 4;
+    if (img[i + 3] < 140) return;
+    const fl = inFlag(x, y);
+    stars.push([x - CW / 2 + (rand() - 0.5) * 1.4, CH - y + (rand() - 0.5) * 1.4, img[i] / 255, img[i + 1] / 255, img[i + 2] / 255, groupOf(x, y), fl ? 1 : 0, fl ? 7.5 : 11]);
+  };
+  for (let y = 0; y < CH; y += 6) for (let x = 0; x < CW; x += 6) if (!inFlag(x, y)) take(x, y);
+  for (let y = F[1]; y < F[1] + F[3]; y += 3.6) for (let x = F[0]; x < F[0] + F[2]; x += 3.6) take(Math.round(x), Math.round(y));
+  // Bursts: one per 450 units along each piece, at its middle; every star flies from its group's nearest.
+  const bursts = [];
+  for (const [x0, y0, x1, y1, grp] of rects) {
+    const n = Math.max(1, Math.round((x1 - x0) / 450));
+    for (let i = 0; i < n; i++) bursts.push([x0 + (x1 - x0) * (i + 0.5) / n - CW / 2, CH - (y0 + y1) / 2, grp]);
+  }
+  const out = [];
+  for (const [u, v, r, gg, b, grp, kind, size] of stars) {
+    let best = bursts[0], bd = Infinity;
+    for (const B of bursts) if (B[2] === grp) { const dd = (B[0] - u) ** 2 + (B[1] - v) ** 2; if (dd < bd) { bd = dd; best = B; } }
+    out.push(u, v, r, gg, b, rand(), grp, kind, size, best[0], best[1]);
+  }
+  for (const [u, v, grp] of bursts) {
+    for (let l = 0; l < 12; l++) out.push(u, v, 1, .8, .5, l * 0.025, grp, 2, 12, u, v);   // the rising trail
+    out.push(u, v, 1, .9, .7, 0, grp, 3, 170, u, v);                                       // the burst flash
+  }
+  // metres per picture unit: about 2.8 km by 0.9 km wide, 1.3 by 1.3 km tall, which fills the sky above
+  // the bay in the opening view of each screen
+  return { data: new Float32Array(out), h: CH, s: tall ? 1.4 : 1.9, flag: [F[0] - CW / 2, F[2]] };
+}
+document.fonts.load('900 200px "Big Shoulders Display"').catch(() => {}).then(() => Promise.all([buildMessage(false), buildMessage(true)]))
+  .then(([wide, tall]) => { fireworks.msgs = { wide, tall }; fireworks.msg = wide; fireworks.mDirty = true; })
+  .catch(err => console.error('Birthday finale:', err));
 
 /* ---------- data ---------- */
 function loadData() {
@@ -738,7 +952,7 @@ function orbitStep(now) {
   requestAnimationFrame(orbitStep);
 }
 function startOrbit() {
-  if (reduceMotion || orbiting) { orbitBtn.setAttribute('aria-pressed', 'false'); return; }
+  if (orbiting) return;
   orbiting = true;
   orbitBtn.setAttribute('aria-pressed', 'true');
   lastT = performance.now();
@@ -747,8 +961,7 @@ function startOrbit() {
 function stopOrbit() { orbiting = false; orbitBtn.setAttribute('aria-pressed', 'false'); }
 orbitBtn.addEventListener('click', () => {
   if (orbiting) { stopOrbit(); return; }
-  if (reduceMotion) return;
-  map.easeTo({ center: BARGE, pitch: 70, zoom: openingZoom(), duration: 1600, padding: barPadding() });
+  map.easeTo({ center: BARGE, pitch: 70, zoom: openingZoom(), duration: reduceMotion ? 0 : 1600, padding: barPadding() });
   map.once('moveend', startOrbit);
 });
 // Any touch on the map or its buttons (zoom, compass, 3D) hands the camera back.
@@ -756,6 +969,33 @@ for (const ev of ['pointerdown', 'touchstart', 'wheel', 'keydown']) map.getConta
 const openingZoom = () => (COMPACT.matches ? 13.3 : 14.1);
 // Lift the bay above the middle so the foreground city fills the lower half.
 const barPadding = () => ({ top: 0, left: 0, right: 0, bottom: Math.round(innerHeight * 0.22 + (innerHeight - $('bar').getBoundingClientRect().top) * 0.5) });
+
+/* ---------- pause, and the birthday finale on demand ---------- */
+// The pause button sits in the kit's map buttons, above focus mode.
+function addPauseButton() {
+  const box = map.getContainer().querySelector('.dmc-ctrl');
+  if (!box) return;
+  const b = document.createElement('button');
+  b.type = 'button'; b.id = 'pause';
+  const sync = () => {
+    const p = fireworks.paused;
+    b.title = p ? 'Play the fireworks' : 'Pause the fireworks';
+    b.setAttribute('aria-label', b.title);
+    b.innerHTML = p ? '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7 4.5v11l9-5.5z"/></svg>'
+      : '<svg viewBox="0 0 20 20" aria-hidden="true"><path d="M7.5 4.5v11M12.5 4.5v11"/></svg>';
+  };
+  b.addEventListener('click', () => { fireworks.paused = !fireworks.paused; sync(); map.triggerRepaint(); });
+  box.insertBefore(b, box.lastElementChild);
+  sync();
+  fireworks.syncPause = sync;
+}
+$('bday').addEventListener('click', () => {
+  if (!fireworks.msg) return;
+  fireworks.paused = false;
+  fireworks.syncPause?.();
+  fireworks.finale();
+  map.triggerRepaint();
+});
 
 /* ---------- place names ---------- */
 const PLACES = [['Toa Payoh', 103.8476, 1.3343], ['Bishan', 103.8485, 1.3508], ['Queenstown', 103.8060, 1.2942], ['Tiong Bahru', 103.8270, 1.2850],
@@ -793,9 +1033,11 @@ map.on('load', async () => {
     if (ownView) select(+want, false); else fly(+want);
   } else if (!ownView) {
     map.jumpTo({ center: BARGE, zoom: openingZoom(), pitch: 70, bearing: 165, padding: barPadding() });
-    startOrbit();
+    // the camera only turns by itself when the system doesn't ask for reduced motion
+    if (!reduceMotion) startOrbit();
   }
-  if (reduceMotion) { orbitBtn.setAttribute('aria-pressed', 'false'); orbitBtn.disabled = true; orbitBtn.title = 'Off: your system asks for reduced motion'; }
+  if (!orbiting) orbitBtn.setAttribute('aria-pressed', 'false');
+  addPauseButton();
   map.once('idle', () => { window.__ready = true; });
 });
 dataP.catch(() => {});
