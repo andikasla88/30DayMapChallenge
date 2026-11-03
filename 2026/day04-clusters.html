@@ -12,7 +12,7 @@
 <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css">
 <link rel="stylesheet" href="kit/dmc.css">
 <style>
-/* ===== Day 04: each trade raised as mountains; one dot per business, flying in from a random mix ===== */
+/* ===== Day 04: each trade raised as mountains; one dot per business, at its own address ===== */
 :root { --c: #FFC24B; --c-rgb: 255, 194, 75; }
 
 /* light mode: paper glass, ink text, no glows */
@@ -49,8 +49,6 @@ html.light #theme .moon { display: inline; }
 
 /* summit signs, placed by script on the land */
 .signs { position: absolute; inset: 0; pointer-events: none; overflow: hidden; transition: opacity .6s; }
-.signs.off { opacity: 0; }
-.signs.off .hs { pointer-events: none; }
 .hs { position: absolute; left: 0; top: 0; pointer-events: auto; will-change: transform; display: grid; justify-items: center; cursor: pointer; background: none; border: 0; padding: 0; font: inherit; color: var(--text); }
 .hs-box { display: flex; align-items: baseline; gap: 6px; padding: 3px 9px 3px 8px; border-radius: 7px; white-space: nowrap; font-size: 11px; font-weight: 600;
   background: rgba(9, 14, 24, .86); border: 1px solid rgba(var(--c-rgb), .55); box-shadow: 0 0 14px rgba(var(--c-rgb), .25); }
@@ -184,7 +182,6 @@ html.light #theme .moon { display: inline; }
   <div id="sq" class="sq" aria-hidden="true"></div>
   <div id="hots" class="hots" aria-label="Where they gather"></div>
   <div class="card-f">
-    <button id="scatter" class="dmc-btn" type="button" aria-pressed="false"><svg viewBox="0 0 16 16" aria-hidden="true"><circle cx="3" cy="4" r="1.3"/><circle cx="12" cy="3.5" r="1.3"/><circle cx="7.5" cy="8" r="1.3"/><circle cx="3.5" cy="12.5" r="1.3"/><circle cx="12.5" cy="12" r="1.3"/></svg><span>Scatter them</span></button>
     <button id="open-list" class="dmc-btn" type="button" aria-controls="list" aria-expanded="false">All trades</button>
     <span class="hint">&larr; &rarr; keys step through the list</span>
   </div>
@@ -196,7 +193,7 @@ html.light #theme .moon { display: inline; }
 'use strict';
 const A = (href, text) => `<a href="${href}" target="_blank" rel="noopener noreferrer">${text}</a>`;
 const DAY = { n: 4, title: 'Where Singapore\'s trades huddle',
-  deck: 'ACRA registers every business in Singapore with an industry code and an address. Pick a trade and the island rises into its mountains: the height is how much of the trade stands within about half a kilometre, on one scale for every trade, so the tallest peaks are where a trade crowds hardest. Its businesses fly in from where the same number of ordinary businesses would sit and settle on the summits, one dot each; scatter them and the land sinks to the low plain a random mix would raise. The score is how much less ground holds half of them than half of a random mix would need. Addresses are the ones registered with ACRA, which for shops and clinics is nearly always the shop; units shared by ten or more firms (company secretaries, registered-office services) are left out, and each address counts once per trade.',
+  deck: 'ACRA registers every business in Singapore with an industry code and an address. Pick a trade and the island rises into its mountains: the height is how much of the trade stands within about half a kilometre, on one scale for every trade, so the tallest peaks are where a trade crowds hardest. Each of its businesses is a dot at its own registered address, lifted onto the land. The score is how much less ground holds half of them than half of the same number of businesses picked at random would need. Addresses are the ones registered with ACRA, which for shops and clinics is nearly always the shop; units shared by ten or more firms (company secretaries, registered-office services) are left out, and each address counts once per trade.',
   accent: '#FFC24B', basemapBg: '#0B1426',
   styleCredit: 'Basemap: ' + A('https://openfreemap.org/', 'OpenFreeMap') + ', ' + A('https://www.openmaptiles.org/', '&copy; OpenMapTiles') + ', &copy; ' + A('https://www.openstreetmap.org/copyright', 'OpenStreetMap') + ' contributors',
   bounds: [[103.72, 1.275], [103.96, 1.41]], buildings: false, creditsEl: 'credits',   // tight: the tilt shrinks the far shore
@@ -422,25 +419,19 @@ function paintDust() {
 
 /* ---------- data ---------- */
 const BY_SSIC = new Map();
-let D = null, PX, PY, PN, CUM;   // postal codes: lng, lat, addresses; cumulative counts for weighted draws
+let D = null, PX, PY, PN;   // postal codes: lng, lat, addresses
 function decode(d) {
   const n = d.pn.length;
-  PX = new Float64Array(n); PY = new Float64Array(n); PN = Uint32Array.from(d.pn); CUM = new Float64Array(n);
-  let x = 0, y = 0, c = 0;
-  for (let i = 0; i < n; i++) { x += d.pxy[2 * i]; y += d.pxy[2 * i + 1]; PX[i] = x / 1e5; PY[i] = y / 1e5; c += PN[i]; CUM[i] = c; }
+  PX = new Float64Array(n); PY = new Float64Array(n); PN = Uint32Array.from(d.pn);
+  let x = 0, y = 0;
+  for (let i = 0; i < n; i++) { x += d.pxy[2 * i]; y += d.pxy[2 * i + 1]; PX[i] = x / 1e5; PY[i] = y / 1e5; }
   d.trades.forEach((t, i) => { t.rank = i + 1; t.color = colorOf(t); BY_SSIC.set(t.ssic, t); });
-}
-function drawPostal() {   // one postal code, weighted by how many businesses it holds
-  const r = Math.random() * CUM[CUM.length - 1];
-  let lo = 0, hi = CUM.length - 1;
-  while (lo < hi) { const m = (lo + hi) >> 1; if (CUM[m] < r) lo = m + 1; else hi = m; }
-  return lo;
 }
 
 /* ---------- the land: each trade raised as mountains ---------- */
 // Height at each grid node is the share of the trade standing nearby, per hectare: a broad
-// Gaussian (sigma 800 m) for the mountain, plus a narrower one (350 m) for its summit. Every trade and
-// the random mix share one scale, so a taller mountain always means more of that trade in one place.
+// Gaussian (sigma 800 m) for the mountain, plus a narrower one (350 m) for its summit. Every trade
+// shares one scale, so a taller mountain always means more of that trade in one place.
 const KX = 111320 * Math.cos(1.35 * Math.PI / 180), KY = 110574;
 const G0 = [103.6, 1.2], KERNELS = [[800, 0.8], [350, 0.2]];   // [sigma m, weight]
 const REF = 0.0018;   // height 1: 0.18% of the trade per hectare, about the tallest peak of any trade
@@ -495,38 +486,9 @@ function gridOf(t) {
   t.lineN = t.lineD / (t.n * REF);         // the same, in height units
   return surface(v);
 }
-// The random mix: every business, scaled to one trade's worth. Too many points to stamp one by one,
-// so they are dropped on the grid and blurred, one axis at a time.
-let RAND = null, RTOP = 0;
-function randomMix() {
-  if (RAND) return;
-  const dep = new Float32Array(NX * NY), tmp = new Float32Array(NX * NY), out = new Float32Array(NX * NY);
-  let tot = 0;
-  for (let q = 0; q < PN.length; q++) {
-    const x = Math.round((PX[q] - G0[0]) * KX / STEP), y = Math.round((PY[q] - G0[1]) * KY / STEP);
-    if (x >= 0 && y >= 0 && x < NX && y < NY) dep[y * NX + x] += PN[q];
-    tot += PN[q];
-  }
-  for (const [s, f] of KERNELS) {
-    const R = Math.ceil(2.5 * s / STEP), w = [];
-    for (let d = -R; d <= R; d++) w.push(Math.exp(-((d * STEP) ** 2) / (2 * s * s)));
-    const norm = f / (2 * Math.PI * s * s) * 1e4 / (tot * REF);
-    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
-      let a = 0;
-      for (let d = Math.max(-R, -x); d <= Math.min(R, NX - 1 - x); d++) a += dep[y * NX + x + d] * w[d + R];
-      tmp[y * NX + x] = a;
-    }
-    for (let y = 0; y < NY; y++) for (let x = 0; x < NX; x++) {
-      let a = 0;
-      for (let d = Math.max(-R, -y); d <= Math.min(R, NY - 1 - y); d++) a += tmp[(y + d) * NX + x] * w[d + R];
-      out[y * NX + x] += a * norm;
-    }
-  }
-  RTOP = vmax(out); RAND = surface(out);
-}
 
 // The surface on screen is a blend of two: CUR (where the last change started) and TGT, mixed by U.
-// A new trade, or scatter, bakes the blend into CUR and morphs on towards the new target.
+// A new trade bakes the blend into CUR and morphs on towards the new target.
 let CUR = null, TGT = null, U = 1, cTop = 1, tTop = 1, cLine = 1, tLine = 1;
 function morphTo(s, top, line, dur) {
   if (!CUR) { CUR = new Float32Array(s.length); cTop = top; cLine = line; }   // first time: rise from flat
@@ -540,13 +502,13 @@ function morphTo(s, top, line, dur) {
   anim('u', 0, 1, dur, v => { U = ease(v); });
 }
 
-/* ---------- the dots: one per business, flying in arcs and settling on the summits ---------- */
+/* ---------- the dots: one per business, at its own address, riding the land ---------- */
 const GA = Math.PI * (3 - Math.sqrt(5));   // golden angle: sunflower packing
 let T = null;            // the chosen trade
 let BI, BK;              // its buildings: postal index, businesses there
-let DB, DJ, DS, SX, SY;  // per dot: building, place in the sunflower, stagger, start lng/lat
+let DB, DJ, DS;          // per dot: building, place in the sunflower, stagger
 let OX = new Float32Array(0), OY = new Float32Array(0);   // sunflower offsets, in dot pitches
-let G = 1;               // 0 = scattered like a random mix, 1 = huddled
+let G = 1;               // how far the dots have appeared, 0 to 1
 function sunflower(n) {
   if (OX.length >= n) return;
   OX = new Float32Array(n); OY = new Float32Array(n);
@@ -558,30 +520,24 @@ function setTradeDots(t) {
   let n = 0, kMax = 0;
   for (let b = 0; b < nb; b++) { BI[b] = t.p[2 * b]; BK[b] = t.p[2 * b + 1]; n += BK[b]; kMax = Math.max(kMax, BK[b]); }
   sunflower(kMax);
-  DB = new Uint32Array(n); DJ = new Uint32Array(n); DS = new Float32Array(n); SX = new Float64Array(n); SY = new Float64Array(n);
+  DB = new Uint32Array(n); DJ = new Uint32Array(n); DS = new Float32Array(n);
   let i = 0;
-  for (let b = 0; b < nb; b++) for (let j = 0; j < BK[b]; j++, i++) {
-    DB[i] = b; DJ[i] = j; DS[i] = Math.random();
-    const q = drawPostal(), jit = 0.0009;
-    SX[i] = PX[q] + (Math.random() - 0.5) * jit; SY[i] = PY[q] + (Math.random() - 0.5) * jit;
-  }
+  for (let b = 0; b < nb; b++) for (let j = 0; j < BK[b]; j++, i++) { DB[i] = b; DJ[i] = j; DS[i] = Math.random(); }
 }
 const mercX = lng => (lng + 180) / 360;
 const mercY = lat => (1 - Math.log(Math.tan(Math.PI / 4 + lat * Math.PI / 360)) / Math.PI) / 2;
 const O = [mercX(103.82), mercY(1.35)];                                   // positions are sent relative to this
 const MERC_PER_M = 1 / (40075016.686 * Math.cos(1.35 * Math.PI / 180));
-// Dot heights on both surfaces (CUR, TGT), at their building and at their scattered start.
+// Dot heights on both surfaces (CUR, TGT) at their building, so the dots ride the land as it changes.
 function heights() {
   if (BI && CUR) {
-    const n = DB.length, hb = new Float32Array(BI.length * 2), a = new Float32Array(n * 11);
+    const n = DB.length, hb = new Float32Array(BI.length * 2), a = new Float32Array(n * 7);
     for (let b = 0; b < BI.length; b++) { const q = BI[b]; hb[2 * b] = sample(CUR, PX[q], PY[q]); hb[2 * b + 1] = sample(TGT, PX[q], PY[q]); }
     for (let i = 0; i < n; i++) {
-      const b = DB[i], q = BI[b], j = DJ[i], o = i * 11;
+      const b = DB[i], q = BI[b], j = DJ[i], o = i * 7;
       a[o] = mercX(PX[q]) - O[0]; a[o + 1] = mercY(PY[q]) - O[1];
-      a[o + 2] = mercX(SX[i]) - O[0]; a[o + 3] = mercY(SY[i]) - O[1];
-      a[o + 4] = OX[j]; a[o + 5] = OY[j]; a[o + 6] = DS[i];
-      a[o + 7] = hb[2 * b]; a[o + 8] = hb[2 * b + 1];
-      a[o + 9] = sample(CUR, SX[i], SY[i]); a[o + 10] = sample(TGT, SX[i], SY[i]);
+      a[o + 2] = OX[j]; a[o + 3] = OY[j]; a[o + 4] = DS[i];
+      a[o + 5] = hb[2 * b]; a[o + 6] = hb[2 * b + 1];
     }
     peaks.dots = a; peaks.dirtyDots = true;
   }
@@ -645,24 +601,27 @@ void main() {
   gl_FragColor = vec4(col * a, a);
 }`;
 const DOT_VS = `
-attribute vec2 aBp; attribute vec2 aSp; attribute vec2 aO; attribute float aD; attribute vec2 aHB; attribute vec2 aHS;
-uniform mat4 uM; uniform float uMix, uZ, uG, uPitch, uSize, uArc; uniform vec2 uPx;   // uPx.y is squashed by the tilt
+attribute vec2 aBp; attribute vec2 aO; attribute float aD; attribute vec2 aHB;
+uniform mat4 uM; uniform float uMix, uZ, uG, uPitch, uSize; uniform vec2 uPx;   // uPx.y is squashed by the tilt
+varying float vA;
 void main() {
-  float k = clamp((uG - aD * 0.4) / 0.6, 0.0, 1.0);
-  k = k < 0.5 ? 4.0 * k * k * k : 1.0 - pow(-2.0 * k + 2.0, 3.0) / 2.0;
-  float h = mix(mix(aHS.x, aHS.y, uMix), mix(aHB.x, aHB.y, uMix), k) + uArc * sin(3.14159 * k);
-  gl_Position = uM * vec4(mix(aSp, aBp, k), h * uZ, 1.0);
+  // each dot fades in at its own address, in turn, and its building's crowd opens out around it
+  float k = clamp((uG - aD * 0.5) / 0.5, 0.0, 1.0);
+  k = k * k * (3.0 - 2.0 * k);
+  vA = k;
+  gl_Position = uM * vec4(aBp, mix(aHB.x, aHB.y, uMix) * uZ, 1.0);
   gl_Position.xy += aO * uPitch * k * uPx * gl_Position.w;
   gl_PointSize = uSize;
 }`;
 const DOT_FS = `
 precision highp float;
 uniform vec4 uCol; uniform float uSoft;
+varying float vA;
 void main() {
   vec2 q = gl_PointCoord * 2.0 - 1.0;
   float r = dot(q, q);
   if (r > 1.0) discard;
-  gl_FragColor = uCol * (1.0 - smoothstep(uSoft, 1.0, r));
+  gl_FragColor = uCol * vA * (1.0 - smoothstep(uSoft, 1.0, r));
 }`;
 function compile(gl, gl2, vs, fs) {
   const conv = (src, frag) => gl2
@@ -727,7 +686,7 @@ const peaks = {
     }
     if (this.dirtyDots) {
       gl.bindBuffer(gl.ARRAY_BUFFER, this.dotBuf); gl.bufferData(gl.ARRAY_BUFFER, this.dots, gl.DYNAMIC_DRAW);
-      this.nDots = this.dots.length / 11; this.dirtyDots = false;
+      this.nDots = this.dots.length / 7; this.dirtyDots = false;
     }
     const [r, g, b] = hexRgb(T.color).map(c => c / 255), on = [];
     const attr = (loc, buf, size, stride, off) => {
@@ -752,16 +711,15 @@ const peaks = {
     on.splice(0).forEach(l => gl.disableVertexAttribArray(l));
     // the dots, glow then core: added light on the dark map, ink on the light one
     if (this.nDots) {
-      const D_ = this.dot.loc, st = 44, dpr = map.getPixelRatio(), cv = map.getCanvas();
+      const D_ = this.dot.loc, st = 28, dpr = map.getPixelRatio(), cv = map.getCanvas();
       // dot pitch: about 7 m on the ground, never under 1.9 px, so a building's crowd reads as a blob from afar
       const mpp = 40075016.7 * Math.cos(1.3 * Math.PI / 180) / (512 * 2 ** map.getZoom());
       const pitch = Math.max(1.9, 7 / mpp), rad = Math.max(0.75, pitch * 0.42);
       gl.useProgram(this.dot.p);
-      attr(D_.aBp, this.dotBuf, 2, st, 0); attr(D_.aSp, this.dotBuf, 2, st, 8); attr(D_.aO, this.dotBuf, 2, st, 16);
-      attr(D_.aD, this.dotBuf, 1, st, 24); attr(D_.aHB, this.dotBuf, 2, st, 28); attr(D_.aHS, this.dotBuf, 2, st, 36);
+      attr(D_.aBp, this.dotBuf, 2, st, 0); attr(D_.aO, this.dotBuf, 2, st, 8); attr(D_.aD, this.dotBuf, 1, st, 16); attr(D_.aHB, this.dotBuf, 2, st, 20);
       gl.uniformMatrix4fv(D_.uM, false, M32);
       gl.uniform1f(D_.uMix, U); gl.uniform1f(D_.uZ, uZ); gl.uniform1f(D_.uG, G); gl.uniform1f(D_.uPitch, pitch);
-      gl.uniform1f(D_.uArc, 0.22); gl.uniform2f(D_.uPx, 2 / cv.clientWidth, 2 / cv.clientHeight * Math.cos(map.getPitch() * Math.PI / 180));   // crowds lie flat
+      gl.uniform2f(D_.uPx, 2 / cv.clientWidth, 2 / cv.clientHeight * Math.cos(map.getPitch() * Math.PI / 180));   // crowds lie flat
       gl.disable(gl.DEPTH_TEST);
       if (LIGHT) gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA); else gl.blendFunc(gl.ONE, gl.ONE);
       for (const [scale, alpha, soft] of LIGHT ? [[3.2, 0.1, 0.0], [1, 0.95, 0.55]] : [[3.2, 0.07, 0.0], [1, 0.85, 0.55]]) {
@@ -832,7 +790,6 @@ function start(d) {
   // the land: a finer grid where the GPU takes 32-bit indices (nearly all do)
   const cvs = map.getCanvas(), gl = cvs.getContext('webgl2') || cvs.getContext('webgl');
   gridSetup(gl && (typeof WebGL2RenderingContext !== 'undefined' && gl instanceof WebGL2RenderingContext || gl.getExtension('OES_element_index_uint')) ? 100 : 200);
-  setTimeout(randomMix, 3000);   // ready before anyone scatters
   map.addLayer(peaks);
 
   showBase();
@@ -908,7 +865,6 @@ function choose(t, o = {}) {
   map.getSource('half').setData(halfCells(t));
   setTradeDots(t);
   morphTo(TGRID, t.top, t.lineN, 2200);
-  setScatter(false);
   G = 0; animateTo(1, 2400);
   const u = new URL(location.href); u.searchParams.set('trade', t.ssic); history.replaceState(null, '', u);
   if (o.fly !== false && map.getZoom() > 12.5) DMC.frame(map);   // back out to the island from a close-up
@@ -956,21 +912,6 @@ addEventListener('keydown', e => {
   if (!D || e.target.closest('input, textarea, .maplibregl-map') || e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' && e.target.closest('#rank')) { step(-1); e.preventDefault(); }
   else if (e.key === 'ArrowRight' || e.key === 'ArrowDown' && e.target.closest('#rank')) { step(1); e.preventDefault(); }
-});
-function setScatter(on) {
-  const b = $('scatter');
-  b.setAttribute('aria-pressed', String(on));
-  b.querySelector('span').textContent = on ? 'Let them huddle' : 'Scatter them';
-  signBox.classList.toggle('off', on);   // no summits on the plain
-}
-$('scatter').addEventListener('click', () => {
-  if (!T) return;
-  const on = $('scatter').getAttribute('aria-pressed') !== 'true';
-  setScatter(on);
-  // scattered, the land sinks to the plain the same number of ordinary businesses would raise
-  randomMix();
-  morphTo(on ? RAND : TGRID, on ? RTOP : T.top, T.lineN, 2000);
-  animateTo(on ? 0 : 1, 2000);
 });
 
 // phones and narrow screens: the list is a sheet over the map
