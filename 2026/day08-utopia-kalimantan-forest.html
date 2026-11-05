@@ -1,0 +1,490 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#F3EDE0">
+<title>Day 08 · Where Kalimantan burned, a forest (print)</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 8, Utopia, print edition: every place a satellite saw fire on Borneo in 2026, planted back as forest. Peat-swamp trees where the fire was on peat, dryland trees elsewhere, beside the forest still standing.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,800;1,9..144,400;1,9..144,600&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap">
+<style>
+/* ===== Day 08, Where Kalimantan burned, a forest: a paper A3 portrait sheet, 1:1 in print, scaled to fit on screen ===== */
+@page { size: 297mm 420mm; margin: 0; }
+:root {
+  --paper: #F3EDE0; --ink: #23301F; --ink-2: rgba(35, 48, 31, .7); --ink-3: rgba(35, 48, 31, .48); --rule: rgba(35, 48, 31, .16);
+  --leaf: #2F6B3E; --swamp: #6E9E77; --fire: #C2410C;
+  --serif: "Fraunces", Georgia, serif; --font: "Instrument Sans", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #CFC6B2; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.stage { width: 100vw; height: 100vh; overflow: hidden; display: grid; place-items: center; place-content: center; }   /* the track centred too: the unscaled sheet is often taller than the window */
+.sheet { width: 297mm; height: 420mm; flex: none; padding: 12mm 12mm 10mm; display: grid; grid-template-rows: auto 1fr auto; gap: 6mm; transform-origin: center; position: relative; overflow: hidden;
+  background: radial-gradient(130% 90% at 50% 40%, transparent 60%, rgba(140, 110, 60, .12)), var(--paper); box-shadow: 0 6px 40px rgba(0, 0, 0, .25); }
+/* Paper grain: fine noise, multiplied in. */
+.sheet::before { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .35; mix-blend-mode: multiply; z-index: 2;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .55 0 0 0 0 .47 0 0 0 0 .35 0 0 0 .22 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
+header { display: grid; gap: 2.5mm; }
+h1 { margin: 0; font-family: var(--serif); font-size: 16.5mm; font-weight: 600; line-height: .92; letter-spacing: -.015em; font-variation-settings: "opsz" 144; }
+h1 em { font-style: italic; color: var(--leaf); }
+/* The subtitle: the title's own style, smaller. */
+.sub { margin: 0; font-family: var(--serif); font-size: 7.5mm; font-weight: 600; line-height: 1; letter-spacing: -.01em; font-variation-settings: "opsz" 72; }
+.sub em { font-style: italic; color: var(--leaf); }
+.mapbox { position: relative; min-height: 0; border: .35mm solid rgba(35, 48, 31, .55); box-shadow: 0 0 0 1.2mm var(--paper), 0 0 0 1.45mm rgba(35, 48, 31, .35); }
+.mapbox { cursor: pointer; }
+.mapbox:focus-visible { outline: .8mm solid var(--leaf); outline-offset: 1.5mm; }
+.mapbox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.mapbox #was { opacity: 0; transition: opacity .6s ease; }
+.sheet.was .mapbox #was { opacity: 1; }
+/* With reduced motion the replanting is a slow cross-fade instead. */
+.sheet.fading .mapbox #was { transition: opacity 4s ease-in-out; }
+.mapbox .status { position: absolute; inset: 0; display: grid; place-items: center; font-size: 3.2mm; color: var(--ink-2); }
+.mapbox .status[hidden] { display: none; }
+.mapbox .state { position: absolute; left: 5mm; top: 4mm; font-family: var(--serif); font-size: 6mm; font-style: italic; font-weight: 600; color: var(--leaf); }
+.sheet.was .mapbox .state { color: var(--fire); }
+.scale { position: absolute; left: 5mm; bottom: 5mm; display: grid; gap: .8mm; font-size: 2.2mm; color: var(--ink-2); }
+.scale i { display: block; height: 1.3mm; border: .3mm solid rgba(35, 48, 31, .7); border-top: 0; }
+.compass { position: absolute; right: 5mm; bottom: 5mm; width: 9mm; height: 13mm; }
+.credit { position: absolute; left: 50%; bottom: 2mm; transform: translateX(-50%); font-size: 1.8mm; color: var(--ink-3); white-space: nowrap; }
+footer { display: block; }
+.nums { display: grid; grid-template-columns: repeat(2, 1fr); gap: 3mm 6mm; }
+.nums div { display: grid; gap: .8mm; align-content: start; }
+.nums strong { font-family: var(--serif); font-size: 8.5mm; font-weight: 600; line-height: .9; font-variant-numeric: lining-nums tabular-nums; color: var(--leaf); }
+.nums .f strong { color: var(--fire); }
+.nums span { font-size: 2.35mm; line-height: 1.3; color: var(--ink-2); }
+/* Phones, narrow windows and short ones (a landscape phone, a small laptop), where the A3 sheet would
+   shrink past reading: a plain page instead, title, then the map at full width, then the numbers,
+   in a column no wider than reads well. */
+@media screen and (max-width: 900px), screen and (max-height: 680px) {
+  html, body { background: var(--paper); }
+  .stage { width: auto; height: auto; display: block; overflow: visible; }
+  .sheet { width: auto; max-width: 820px; height: auto; margin: 0 auto; padding: 18px 14px 32px; display: flex; flex-direction: column; gap: 22px; transform: none !important; box-shadow: none; overflow: visible; }
+  header { gap: 10px; }
+  h1 { font-size: clamp(34px, 9vw, 64px); }
+  .sub { font-size: clamp(19px, 4.6vw, 32px); }
+  .mapbox { aspect-ratio: 273 / 268; margin: 0 -14px; border-left: 0; border-right: 0; box-shadow: none; }
+  .mapbox .state { left: 10px; top: 8px; font-size: clamp(17px, 3.2vw, 24px); }
+  .mapbox .status { font-size: 13px; }
+  .scale { left: 10px; bottom: 10px; font-size: 10px; gap: 3px; }
+  .scale i { height: 5px; border-width: 1px; }
+  .compass { right: 8px; bottom: 8px; width: 22px; height: 32px; }
+  .credit { top: calc(100% + 6px); bottom: auto; left: 14px; right: 14px; transform: none; white-space: normal; font-size: 10px; line-height: 1.35; }
+  footer { margin-top: 48px; }
+  .nums { grid-template-columns: 1fr 1fr; gap: 16px; }
+  .nums strong { font-size: clamp(28px, 7vw, 44px); }
+  .nums span { font-size: clamp(12px, 2.2vw, 14px); }
+}
+@media print {
+  html, body { background: var(--paper); }
+  .mapbox #was, .mapbox .status { display: none !important; }
+  .stage { width: auto; height: auto; display: block; overflow: visible; }
+  .sheet { width: 297mm; height: 420mm; transform: none !important; box-shadow: none; }
+  .sheet.was .mapbox .state { color: var(--leaf); }
+}
+</style>
+</head>
+<body>
+<div class="stage">
+<main class="sheet" id="sheet">
+  <header>
+    <h1>Where Kalimantan burned, <em>a&nbsp;forest</em></h1>
+    <p class="sub">Replanting every fire spot as <em>a&nbsp;tree</em></p>
+  </header>
+  <section class="mapbox" id="mapbox" tabindex="0" aria-label="Map of Borneo with a tree for every place that burned in 2026. Press Enter to watch the fires turn to forest again.">
+    <canvas id="could" role="img" aria-label="As it could be: trees where the fires were"></canvas>
+    <canvas id="was" role="img" aria-label="As it was: the 2026 fire detections"></canvas>
+    <div class="state" id="state">As it could be</div>
+    <svg class="compass" viewBox="0 0 18 26" aria-hidden="true"><path d="M9 3L13 17L9 14.5L5 17Z" fill="#23301F"/><path d="M9 3L9 14.5L5 17Z" fill="#F3EDE0" stroke="#23301F" stroke-width=".6"/><text x="9" y="25" text-anchor="middle" font-family="Fraunces, Georgia, serif" font-size="6.5" font-weight="600" fill="#23301F">N</text></svg>
+    <div class="scale" id="scale"></div>
+    <div class="credit">Fire: NASA FIRMS · Intact forest and peat: Global Forest Watch · Rivers: HydroRIVERS · Relief: AWS Terrain Tiles · Borders: geoBoundaries, © OpenStreetMap contributors · Land: Natural Earth</div>
+    <div class="status" id="status">Planting…</div>
+  </section>
+  <footer>
+    <div class="nums" id="nums"></div>
+  </footer>
+</main>
+</div>
+<script src="data/day08/kalimantan.js"></script>
+<script src="data/day08/kalimantan-relief.js"></script>
+<script>
+'use strict';
+const D = window.DAY08K, RELIEF = window.DAY08K_RELIEF;
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const NARROW = matchMedia('screen and (max-width: 900px), screen and (max-height: 680px)');   // the stacked layout (see the CSS)
+const PX_PER_MM = 300 / 25.4, CSS_MM = 25.4 / 96;
+const MAP_MM = 273;   // the map's printed width: line widths, trees and type are set in printed mm, u() scales them
+
+/* ---------- screen: scale the sheet to the window (print is always 1:1) ---------- */
+function fit() {
+  const s = $('sheet');
+  s.style.transform = NARROW.matches ? '' : `scale(${Math.min((innerWidth - 24) / s.offsetWidth, (innerHeight - 24) / s.offsetHeight)})`;
+}
+addEventListener('resize', fit);
+fit();
+
+/* ---------- geometry (as in the other edition) ---------- */
+const rad = d => d * Math.PI / 180, my = lat => Math.log(Math.tan(Math.PI / 4 + rad(lat) / 2));
+const VIEW = [108.6, -4.25, 119.3, 7.1];
+function projection(W, H, view = VIEW) {
+  const [w, s, e, n] = view;
+  const k = Math.min(W / (rad(e) - rad(w)), H / (my(n) - my(s)));
+  const cx = (rad(w) + rad(e)) / 2, cy = (my(s) + my(n)) / 2;
+  return { W, H, k, P: (lng, lat) => [W / 2 + (rad(lng) - cx) * k, H / 2 - (my(lat) - cy) * k] };
+}
+function decode(str, f = D.meta.q) {
+  const out = [];
+  let i = 0, lat = 0, lng = 0;
+  while (i < str.length) {
+    for (const k of [0, 1]) {
+      let shift = 0, res = 0, b;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (k === 0) lat += d; else lng += d;
+    }
+    out.push([lng / f, lat / f]);
+  }
+  return out;
+}
+const G = {
+  land: D.land.map(e => decode(e)),
+  borneo: D.provinces.map(([id, rs]) => [id, rs.map(e => decode(e))]),
+  peat: D.peat.map(e => decode(e)),
+  ifl: D.ifl.map(e => decode(e)),
+  rivers: D.rivers.map(([c, e]) => [c, decode(e)]),
+};
+function pathOf(proj, rings, close = true, p = new Path2D()) {
+  for (const r of rings) {
+    r.forEach(([lng, lat], i) => { const [x, y] = proj.P(lng, lat); i ? p.lineTo(x, y) : p.moveTo(x, y); });
+    if (close) p.closePath();
+  }
+  return p;
+}
+// Fire cells: [lng, lat, detections, on peat, FRP]; each about 450 m across.
+const CELLS = (() => {
+  const c = D.cells, [w, , , n] = D.meta.bbox, s = D.meta.cell, out = [];
+  let x = 0, y = 0;
+  for (let i = 0; i < c.length; i += 5) {
+    if (c[i + 1]) { y += c[i + 1]; x = c[i]; } else x += c[i];
+    out.push([w + (x + .5) * s, n - (y + .5) * s, c[i + 2], c[i + 3], c[i + 4]]);
+  }
+  return out;
+})();
+const hash = (a, b) => { let h = Math.imul(Math.round(a * 97) ^ Math.round(b * 131), 2654435761); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
+// One tree per GROVE-degree square of burned cells (about 5.5 km; 1.3 mm in print), at the centre of
+// its cells, nudged a little so the forest has no rows. The grid is on the ground, not the screen,
+// so every screen and the print grow the same forest.
+const GROVE = 0.05;
+function groves(proj, g) {
+  const m = new Map();
+  for (const c of CELLS) {
+    const [x, y] = proj.P(c[0], c[1]);
+    const k = Math.floor(c[0] / GROVE) * 100000 + Math.floor(c[1] / GROVE);
+    const b = m.get(k) || { x: 0, y: 0, cells: 0, peat: 0 };
+    b.x += x; b.y += y; b.cells++; if (c[3] * 2 >= c[2]) b.peat++;
+    m.set(k, b);
+  }
+  return [...m.values()].map(b => {
+    const x = b.x / b.cells, y = b.y / b.cells;
+    return { x: x + (hash(x, y) - .5) * g * .8, y: y + (hash(y, x) - .5) * g * .8, cells: b.cells, swamp: b.peat * 2 > b.cells, r: hash(x * 3, y * 7) };
+  }).sort((a, b) => a.y - b.y);
+}
+
+/* ---------- trees ---------- */
+const DRY = [['#2F6B3E', '#4C8C4F', '#1F4D2C'], ['#3B7A41', '#5E9C55', '#285A30'], ['#285F37', '#467F48', '#1A4426']];
+const SWAMP = [['#6E9E77', '#94BD94', '#4F7C5A'], ['#7BA879', '#A2C79A', '#5A8862'], ['#5F9170', '#88B28E', '#46735A']];
+// A tree standing at (x, y), crown radius s. Dryland: a broad, layered dipterocarp crown on a tall
+// trunk. Peat swamp: a lower, rounder, paler crown on a short trunk with stilt roots.
+function tree(ctx, x, y, s, swamp, r) {
+  const [base, light, dark] = (swamp ? SWAMP : DRY)[Math.floor(r * 3)];
+  ctx.fillStyle = 'rgba(70, 55, 30, .16)';
+  ctx.beginPath(); ctx.ellipse(x + s * .45, y, s * 1.05, s * .3, 0, 0, 2 * Math.PI); ctx.fill();
+  ctx.strokeStyle = '#6B4A2E'; ctx.lineCap = 'round';
+  if (swamp) {
+    ctx.lineWidth = s * .14;
+    ctx.beginPath(); ctx.moveTo(x - s * .35, y); ctx.lineTo(x, y - s * .5); ctx.lineTo(x + s * .35, y); ctx.moveTo(x, y - s * .2); ctx.lineTo(x, y - s * 1.0); ctx.stroke();
+    const cy = y - s * 1.35;
+    ctx.fillStyle = dark; ctx.beginPath(); ctx.arc(x + s * .08, cy + s * .08, s * .82, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = base; ctx.beginPath(); ctx.arc(x, cy, s * .78, 0, 2 * Math.PI); ctx.fill();
+    ctx.fillStyle = light; ctx.beginPath(); ctx.arc(x - s * .25, cy - s * .25, s * .36, 0, 2 * Math.PI); ctx.fill();
+  } else {
+    ctx.lineWidth = s * .2;
+    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x, y - s * 1.4); ctx.stroke();
+    const cy = y - s * 1.75;
+    const blobs = [[-.62, .22, .55], [.62, .2, .55], [0, -.1, .72], [-.3, -.35, .45], [.32, -.38, .45]];
+    ctx.fillStyle = dark; ctx.beginPath();
+    for (const [dx, dy, rr] of blobs) { ctx.moveTo(x + dx * s + rr * s + s * .08, cy + dy * s + s * .1); ctx.arc(x + dx * s + s * .08, cy + dy * s + s * .1, rr * s, 0, 2 * Math.PI); }
+    ctx.fill();
+    ctx.fillStyle = base; ctx.beginPath();
+    for (const [dx, dy, rr] of blobs) { ctx.moveTo(x + dx * s + rr * s, cy + dy * s); ctx.arc(x + dx * s, cy + dy * s, rr * s, 0, 2 * Math.PI); }
+    ctx.fill();
+    ctx.fillStyle = light; ctx.beginPath(); ctx.arc(x - s * .3, cy - s * .42, s * .3, 0, 2 * Math.PI); ctx.arc(x + s * .28, cy - s * .5, s * .2, 0, 2 * Math.PI); ctx.fill();
+  }
+}
+const treeSize = (u, cells) => Math.min(u(1.55), u(.36) + u(.12) * Math.sqrt(cells));
+
+/* ---------- drawing ---------- */
+const PLACES_SIDE = { 'Nusantara (IKN)': 'l', Sandakan: 'l', Tawau: 'l', 'Kota Kinabalu': 'l', Miri: 'l', Tarakan: 'l' };
+const MAJOR = new Set(['Pontianak', 'Palangka Raya', 'Banjarmasin', 'Samarinda', 'Balikpapan', 'Kuching', 'Kota Kinabalu', 'Nusantara (IKN)', 'Sampit', 'Tarakan']);
+const REGIONS = [
+  ['WEST KALIMANTAN', 110.75, 0.55], ['CENTRAL KALIMANTAN', 113.15, -0.55], ['SOUTH\nKALIMANTAN', 115.55, -2.55], ['EAST KALIMANTAN', 116.15, 0.85],
+  ['NORTH\nKALIMANTAN', 116.1, 3.05], ['SARAWAK', 112.75, 2.05], ['SABAH', 116.85, 5.2], ['BRUNEI', 114.75, 4.62],
+];
+const SEAS = [['South China Sea', 112.2, 6.0, 0], ['Java Sea', 112.4, -3.95, 0], ['Karimata Strait', 109.0, -1.0, -90], ['Makassar Strait', 118.25, -1.2, -72], ['Celebes Sea', 118.9, 3.3, 0], ['Sulu Sea', 118.9, 6.75, 0]];
+
+function base(ctx, proj, u, { relief, rivers = true, ifl = true, waterlines = true, borders = true }) {
+  const { W, H } = proj;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  const SEA = '#DCE5E2';
+  ctx.fillStyle = SEA; ctx.fillRect(0, 0, W, H);
+  const land = pathOf(proj, G.land), borneo = new Path2D();
+  for (const [, rs] of G.borneo) pathOf(proj, rs, true, borneo);
+  // Engraved waterlines along every coast: each is a wide stroke in ink, then a slightly narrower one in sea colour.
+  if (waterlines) {
+    for (const [d, a] of [[4.2, .12], [2.9, .18], [1.8, .26], [.9, .36]]) {
+      ctx.lineWidth = u(2 * d); ctx.strokeStyle = `rgba(80, 120, 125, ${a})`; ctx.stroke(land);
+      ctx.lineWidth = u(2 * d) - u(.2); ctx.strokeStyle = SEA; ctx.stroke(land);
+    }
+  }
+  ctx.fillStyle = '#E9E1CF'; ctx.fill(land);
+  ctx.fillStyle = '#F5EFE1'; ctx.fill(borneo);
+  if (relief) {
+    const [x0, y0] = proj.P(RELIEF.bounds[0], RELIEF.bounds[3]), [x1, y1] = proj.P(RELIEF.bounds[2], RELIEF.bounds[1]);
+    ctx.save(); ctx.clip(land); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = .55;
+    ctx.drawImage(relief, x0, y0, x1 - x0, y1 - y0);
+    // and a warm tint in the shadows, multiplied
+    ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .16; ctx.drawImage(relief, x0, y0, x1 - x0, y1 - y0);
+    ctx.restore();
+  }
+  // Intact forest: a soft green wash with a fine stipple.
+  if (ifl) {
+    const f = pathOf(proj, G.ifl);
+    ctx.save(); ctx.globalAlpha = .5; ctx.fillStyle = '#A9C493'; ctx.fill(f, 'evenodd'); ctx.restore();
+    const t = document.createElement('canvas'), ts = Math.max(4, Math.round(u(1.1)));
+    t.width = t.height = ts;
+    const tc = t.getContext('2d'); tc.fillStyle = 'rgba(70, 105, 60, .45)';
+    tc.beginPath(); tc.arc(ts * .25, ts * .3, Math.max(.6, u(.09)), 0, 2 * Math.PI); tc.arc(ts * .75, ts * .8, Math.max(.6, u(.07)), 0, 2 * Math.PI); tc.fill();
+    ctx.save(); ctx.fillStyle = ctx.createPattern(t, 'repeat'); ctx.fill(f, 'evenodd'); ctx.restore();
+    ctx.strokeStyle = 'rgba(95, 130, 80, .55)'; ctx.lineWidth = u(.14); ctx.stroke(f);
+  }
+  ctx.strokeStyle = 'rgba(70, 100, 105, .85)'; ctx.lineWidth = u(.24); ctx.stroke(land);
+  if (borders) {
+    ctx.save(); ctx.strokeStyle = 'rgba(120, 95, 65, .6)'; ctx.lineWidth = u(.22); ctx.setLineDash([u(.05), u(.7)]);
+    for (const [id, rs] of G.borneo) if (id !== 8) ctx.stroke(pathOf(proj, rs));
+    ctx.restore();
+  }
+  if (rivers) {
+    ctx.save(); ctx.strokeStyle = '#5B8FAE';
+    for (const [c, pts] of G.rivers) { ctx.lineWidth = u([0, .13, .2, .32, .48, .7][c]); ctx.stroke(pathOf(proj, [pts], false)); }
+    ctx.restore();
+  }
+  // The equator.
+  const [, ey] = proj.P(110, 0);
+  ctx.save(); ctx.strokeStyle = 'rgba(35, 48, 31, .35)'; ctx.lineWidth = u(.2); ctx.setLineDash([u(2), u(1.2)]);
+  ctx.beginPath(); ctx.moveTo(0, ey); ctx.lineTo(W, ey); ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.fillStyle = 'rgba(35, 48, 31, .55)'; ctx.font = `italic 500 ${u(2.2)}px "Instrument Sans", sans-serif`; ctx.textBaseline = 'bottom';
+  ctx.fillText('Equator', u(3), ey - u(.6)); ctx.restore();
+  return { land, borneo };
+}
+function forest(ctx, proj, u) {
+  const gs = groves(proj, proj.k * rad(GROVE));
+  for (const g of gs) tree(ctx, g.x, g.y + treeSize(u, g.cells) * .9, treeSize(u, g.cells), g.swamp, g.r);
+  return gs;
+}
+// 2026 as it was, on paper: scorch first (dark, multiplied), then the fire.
+function burning(ctx, proj, u) {
+  const { W, H } = proj;
+  const layer = document.createElement('canvas'); layer.width = W; layer.height = H;
+  const lc = layer.getContext('2d');
+  for (const c of CELLS) {
+    const [x, y] = proj.P(c[0], c[1]);
+    lc.fillStyle = c[4] / c[2] > 12 ? '#F59E0B' : '#E4521B';
+    lc.globalAlpha = Math.min(1, .55 + c[2] / 12);
+    lc.beginPath(); lc.arc(x, y, Math.min(u(.55), u(.16) + u(.05) * Math.sqrt(c[2])), 0, 2 * Math.PI); lc.fill();
+  }
+  const scorch = document.createElement('canvas'); scorch.width = W; scorch.height = H;
+  const sc = scorch.getContext('2d');
+  sc.filter = `blur(${u(2.2)}px)`; sc.drawImage(layer, 0, 0); sc.filter = 'none';
+  sc.globalCompositeOperation = 'source-in'; sc.fillStyle = '#5A2A12'; sc.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalCompositeOperation = 'multiply'; ctx.globalAlpha = .55; ctx.drawImage(scorch, 0, 0); ctx.restore();
+  ctx.drawImage(layer, 0, 0);
+}
+function labels(ctx, proj, u, minPx, all) {
+  const font = (wt, mm, it = '') => `${it}${wt} ${Math.max(minPx, u(mm))}px "Instrument Sans", system-ui, sans-serif`;
+  ctx.save(); ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  const halo = 'rgba(245, 239, 225, .9)';
+  const text = (s, x, y) => { ctx.strokeStyle = halo; ctx.lineWidth = Math.max(minPx, u(2.5)) * .3; ctx.strokeText(s, x, y); ctx.fillText(s, x, y); };
+  ctx.fillStyle = 'rgba(60, 100, 110, .8)'; ctx.font = `italic 500 ${Math.max(minPx, u(2.9))}px Fraunces, Georgia, serif`;
+  for (const [s, lng, lat, rot] of SEAS) {
+    const [x, y] = proj.P(lng, lat);
+    ctx.save(); ctx.translate(x, y); ctx.rotate(rot * Math.PI / 180); ctx.textAlign = 'center';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${u(.45)}px`;
+    ctx.fillText(s, 0, 0); ctx.restore();
+  }
+  ctx.fillStyle = 'rgba(105, 80, 50, .62)'; ctx.font = font(600, 2.2); ctx.textAlign = 'center';
+  if ('letterSpacing' in ctx) ctx.letterSpacing = `${u(.65)}px`;
+  for (const [s, lng, lat] of REGIONS) {
+    const [x, y] = proj.P(lng, lat), ls = s.split('\n');
+    ls.forEach((l, i) => text(l, x, y + (i - (ls.length - 1) / 2) * u(2.9)));
+  }
+  if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  for (const [name, lng, lat] of D.places) {
+    if (!all && !MAJOR.has(name)) continue;
+    const [x, y] = proj.P(lng, lat), left = PLACES_SIDE[name] === 'l', capital = name.startsWith('Nusantara');
+    ctx.fillStyle = '#23301F'; ctx.strokeStyle = halo; ctx.lineWidth = u(.35);
+    ctx.beginPath();
+    if (capital) { const r = u(.8); ctx.rect(x - r, y - r, 2 * r, 2 * r); } else ctx.arc(x, y, u(.6), 0, 2 * Math.PI);
+    ctx.stroke(); ctx.fill();
+    ctx.font = font(MAJOR.has(name) ? 600 : 500, MAJOR.has(name) ? 2.7 : 2.3);
+    ctx.textAlign = left ? 'right' : 'left';
+    text(name, x + (left ? -1 : 1) * u(1.4), y);
+  }
+  ctx.restore();
+}
+
+/* ---------- the sheet ---------- */
+const box = $('mapbox');
+function px() {
+  const r = box.getBoundingClientRect();
+  if (NARROW.matches) { const w = Math.min(2400, Math.round(r.width * (devicePixelRatio || 1) * 1.6)); return [w, Math.round(w * r.height / r.width)]; }
+  return [Math.round(box.offsetWidth * CSS_MM * PX_PER_MM), Math.round(box.offsetHeight * CSS_MM * PX_PER_MM)];
+}
+function sized(id, W, H) { const c = $(id); c.width = W; c.height = H; return c.getContext('2d'); }
+const img = new Image();
+const imgReady = new Promise(res => { img.onload = res; img.onerror = res; img.src = RELIEF.img; });
+const fmtDate = d => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
+
+let keysDone = false;
+async function draw() {
+  await Promise.all([imgReady, document.fonts.load('600 12px "Instrument Sans"'), document.fonts.load('italic 500 12px Fraunces'), document.fonts.ready]);
+  const [W, H] = px();
+  const proj = projection(W, H), u = mm => mm * W / MAP_MM;
+  const minPx = NARROW.matches ? 10 * (W / box.getBoundingClientRect().width) : 0;
+
+  let ctx = sized('could', W, H);
+  base(ctx, proj, u, { relief: img.width ? img : null });
+  const gs = forest(ctx, proj, u);
+  labels(ctx, proj, u, minPx, !NARROW.matches);
+
+  ctx = sized('was', W, H);
+  base(ctx, proj, u, { relief: img.width ? img : null, ifl: false });
+  burning(ctx, proj, u);
+  labels(ctx, proj, u, minPx, !NARROW.matches);
+
+  // Keep the fires, untouched, for the replanting to rub away (see below), and where each tree stands.
+  wasSrc = document.createElement('canvas'); wasSrc.width = W; wasSrc.height = H;
+  wasSrc.getContext('2d').drawImage($('was'), 0, 0);
+  const cellPx = proj.k * rad(GROVE);
+  plots = gs.map(g => {
+    const sz = treeSize(u, g.cells), fx = g.x / W, fy = g.y / H;
+    // Start time, 0 to 1: a slow wave across the island, broken up so it greens in patches.
+    const wave = .5 + .5 * Math.sin(fx * 5.1 + fy * 3.7) * Math.cos(fy * 4.3 - fx * 2.2);
+    return { x: g.x, y: g.y - sz * .3, r: Math.max(cellPx * 1.05, sz * 2.3), t: .6 * wave + .4 * hash(g.y, g.x) };
+  }).sort((a, b) => a.t - b.t);
+
+  const barKm = 200, barFrac = barKm / (6371 / proj.k) / W;
+  $('scale').innerHTML = `<i style="width:${(barFrac * box.offsetWidth).toFixed(1)}px"></i><span>${barKm} km at the equator</span>`;
+
+  if (!keysDone) {
+    keysDone = true;
+    const S = D.stats, kal = gs.length;
+    $('nums').innerHTML = `
+      <div class="f"><strong>${nf.format(S.cells)}</strong><span>places on Borneo, each about 450 m across, where a satellite saw fire in 2026</span></div>
+      <div><strong>${nf.format(kal)}</strong><span>trees drawn: one for each 5 km square where something burned</span></div>`;
+  }
+  drawnWidth = box.getBoundingClientRect().width;
+  $('status').hidden = true;
+  document.body.dataset.ready = '1';
+}
+// Open on the 2026 fires, hold a moment, then replant (or, linked with #was, stay on the fires).
+show('was');
+draw().then(() => {
+  if (location.hash === '#was') return;
+  introTimer = setTimeout(replant, 1800);
+}).catch(e => { $('status').textContent = `Could not draw the map: ${e.message}`; console.error(e); });
+
+/* ---------- the replanting: fire to forest, place by place ----------
+   The fires sit on their own canvas over the finished forest. Replanting rubs that canvas away
+   with a soft brush, one tree's square at a time, each over about a second, in a slow patchy
+   wave; a last fade takes what the brush missed. The untouched fires are kept in wasSrc, so
+   "2026, as it was" can always bring them back and the replanting can run again. */
+let wasSrc = null, plots = [], anim = 0, introTimer = 0;
+const GROW_MS = 9000, EACH_MS = 1100;
+const REDUCED = matchMedia('(prefers-reduced-motion: reduce)');
+const BRUSH = (() => {
+  const c = document.createElement('canvas'); c.width = c.height = 64;
+  const x = c.getContext('2d'), g = x.createRadialGradient(32, 32, 0, 32, 32, 32);
+  g.addColorStop(0, '#000'); g.addColorStop(.5, 'rgba(0, 0, 0, .9)'); g.addColorStop(1, 'rgba(0, 0, 0, 0)');
+  x.fillStyle = g; x.fillRect(0, 0, 64, 64);
+  return c;
+})();
+function show(state) {   // 'was', 'growing' or 'could'
+  $('sheet').classList.toggle('was', state !== 'could');
+  $('state').textContent = state === 'was' ? '2026, as it was' : state === 'growing' ? 'Replanting…' : 'As it could be';
+}
+function stop() { cancelAnimationFrame(anim); anim = 0; clearTimeout(introTimer); $('sheet').classList.remove('fading'); }
+function restoreFires() {
+  const ctx = $('was').getContext('2d');
+  ctx.globalCompositeOperation = 'copy'; ctx.drawImage(wasSrc, 0, 0); ctx.globalCompositeOperation = 'source-over';
+}
+function showWas() { stop(); if (wasSrc) restoreFires(); show('was'); }
+function finish() { stop(); show('could'); }
+function replant() {
+  stop();
+  if (!wasSrc) { finish(); return; }
+  restoreFires();
+  show('growing');
+  if (REDUCED.matches) {   // no brush: the whole map fades from fire to forest
+    $('sheet').classList.add('fading');
+    requestAnimationFrame(() => requestAnimationFrame(() => $('sheet').classList.remove('was')));
+    introTimer = setTimeout(finish, 4200);
+    return;
+  }
+  const ctx = $('was').getContext('2d'), t0 = performance.now(), live = [];
+  let next = 0;
+  const frame = now => {
+    const e = now - t0;
+    while (next < plots.length && plots[next].t * GROW_MS <= e) live.push(plots[next++]);
+    ctx.globalCompositeOperation = 'destination-out';
+    for (let i = live.length - 1; i >= 0; i--) {
+      const p = live[i], k = Math.min(1, (e - p.t * GROW_MS) / EACH_MS), r = p.r * (.35 + .65 * k);
+      ctx.globalAlpha = k >= 1 ? 1 : .16;
+      ctx.drawImage(BRUSH, p.x - r, p.y - r, 2 * r, 2 * r);
+      if (k >= 1) live.splice(i, 1);
+    }
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+    if (next < plots.length || live.length) anim = requestAnimationFrame(frame);
+    else finish();
+  };
+  anim = requestAnimationFrame(frame);
+}
+
+/* ---------- replay ----------
+   A click or tap on the map (or Enter on it) brings the fires back, then replants them. */
+function replay() {
+  if (!wasSrc || anim || $('state').textContent !== 'As it could be') return;
+  showWas();
+  introTimer = setTimeout(replant, 1200);
+}
+box.addEventListener('click', replay);
+box.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); replay(); } });
+addEventListener('beforeprint', finish);
+let lastNarrow = NARROW.matches;
+// Printing flips the screen query too; the canvases must not be redrawn (and so cleared) then.
+const PRINTING = matchMedia('print');
+NARROW.addEventListener('change', () => { if (!PRINTING.matches && NARROW.matches !== lastNarrow) { lastNarrow = NARROW.matches; fit(); stop(); draw().then(finish); } });
+// In the stacked layout the map is drawn for its width; redraw when that changes by a fifth or more.
+let drawnWidth = 0, resizeTimer = 0;
+addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    const w = box.getBoundingClientRect().width;
+    if (PRINTING.matches || !NARROW.matches || !drawnWidth || Math.abs(w / drawnWidth - 1) < .2) return;
+    stop(); draw().then(finish);
+  }, 250);
+});
+</script>
+</body>
+</html>

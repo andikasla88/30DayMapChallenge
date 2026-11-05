@@ -1,0 +1,539 @@
+<!DOCTYPE html>
+<html lang="en-SG">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="theme-color" content="#07101C">
+<title>Day 08 · Kalimantan, wet again (print)</title>
+<meta name="description" content="#30DayMapChallenge 2026, day 8, Utopia, print edition: Borneo's 2026 fire season redrawn as it could have been, with every peat dome rewetted. Where a satellite saw fire on peat this year, a ripple.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800;900&family=Instrument+Sans:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&display=swap">
+<style>
+/* ===== Day 08, Kalimantan, wet again: a night-blue A3 landscape sheet, 1:1 in print, scaled to fit on screen ===== */
+@page { size: 420mm 297mm; margin: 0; }
+:root {
+  --night: #07101C; --ink: #E7EEF3; --ink-2: rgba(231, 238, 243, .66); --ink-3: rgba(231, 238, 243, .42); --rule: rgba(231, 238, 243, .14);
+  --water: #5FD6E3; --water-deep: #0E4A5E; --ember: #F2A65A;
+  --display: "Big Shoulders Display", "Arial Narrow", sans-serif; --font: "Instrument Sans", system-ui, sans-serif;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; background: #02060C; color: var(--ink); font-family: var(--font); -webkit-font-smoothing: antialiased; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.stage { width: 100vw; height: 100vh; overflow: hidden; display: grid; place-items: center; }
+.sheet { width: 420mm; height: 297mm; flex: none; padding: 10mm; display: grid; grid-template-columns: 104mm 1fr; gap: 8mm; transform-origin: center; position: relative; overflow: hidden;
+  background: radial-gradient(120% 100% at 70% 45%, #0C1828 0%, var(--night) 70%); box-shadow: 0 6px 50px rgba(0, 0, 0, .6); }
+.side { position: relative; display: flex; flex-direction: column; gap: 5mm; min-height: 0; }
+.badge { display: flex; align-items: center; gap: 3mm; }
+.badge .n { font-family: var(--display); font-size: 21mm; font-weight: 900; line-height: .78; color: var(--water); }
+.badge .t { display: grid; gap: 1mm; }
+.badge .t b { font-family: var(--display); font-size: 6.5mm; font-weight: 800; letter-spacing: .03em; line-height: 1; text-transform: uppercase; }
+.badge .t span { font-size: 2.6mm; color: var(--ink-2); }
+h1 { margin: 0; font-family: var(--display); font-size: 15mm; font-weight: 900; line-height: .86; letter-spacing: .005em; text-transform: uppercase; }
+h1 em { font-style: normal; color: var(--water); text-shadow: 0 0 4mm rgba(95, 214, 227, .45); }
+.lede { margin: 0; font-size: 3.15mm; line-height: 1.42; color: var(--ink-2); }
+.lede b { color: var(--ink); font-weight: 600; }
+.key { display: grid; gap: 2.2mm; font-size: 2.75mm; line-height: 1.3; color: var(--ink-2); }
+.key .row { display: grid; grid-template-columns: 9mm 1fr; align-items: center; gap: 2.5mm; }
+.key svg { width: 9mm; height: 6mm; display: block; }
+.key b { color: var(--ink); font-weight: 600; }
+.nums { display: grid; grid-template-columns: 1fr 1fr; gap: 3mm 4mm; }
+.nums div { display: grid; gap: .6mm; align-content: start; }
+.nums strong { font-family: var(--display); font-size: 10mm; font-weight: 800; line-height: .9; font-variant-numeric: tabular-nums; }
+.nums .w strong { color: var(--water); }
+.nums .e strong { color: var(--ember); }
+.nums span { font-size: 2.45mm; line-height: 1.3; color: var(--ink-2); }
+h2 { margin: 0 0 1.2mm; font-size: 2.4mm; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; color: var(--ink); }
+.chart svg { display: block; width: 100%; height: auto; overflow: visible; }
+.table { width: 100%; border-collapse: collapse; font-size: 2.6mm; font-variant-numeric: tabular-nums; }
+.table th, .table td { padding: .9mm 0; text-align: right; border-bottom: .2mm solid var(--rule); }
+.table th { font-weight: 600; color: var(--ink-3); font-size: 2.05mm; line-height: 1.2; letter-spacing: .05em; text-transform: uppercase; vertical-align: bottom; }
+.table th + th, .table td + td { padding-left: 2mm; }
+.table th:first-child, .table td:first-child { text-align: left; }
+.table td:first-child { font-weight: 600; color: var(--ink); }
+.table td { color: var(--ink-2); }
+.table td.p { color: var(--water); font-weight: 600; }
+.table tr.my td { color: var(--ink-3); }
+.table tr.my td:first-child { color: var(--ink-2); font-weight: 500; }
+.notes { margin-top: auto; font-size: 2.05mm; line-height: 1.42; color: var(--ink-3); display: grid; gap: 1.4mm; }
+.notes p { margin: 0; }
+.notes a { color: inherit; }
+/* The map: one canvas per state, "as it could be" under "as it was"; the toggle fades between them. */
+.mapbox { position: relative; min-height: 0; border: .3mm solid rgba(231, 238, 243, .22); }
+.mapbox canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+.mapbox #was { opacity: 0; transition: opacity .6s ease; }
+.sheet.was .mapbox #was { opacity: 1; }
+.mapbox .status { position: absolute; inset: 0; display: grid; place-items: center; font-size: 3.2mm; color: var(--ink-2); }
+.mapbox .status[hidden] { display: none; }
+.mapbox .state { position: absolute; right: 4mm; top: 3.5mm; font-family: var(--display); font-size: 7mm; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; color: var(--water); text-shadow: 0 0 3mm rgba(95, 214, 227, .5); }
+.sheet.was .mapbox .state { color: #FFB066; text-shadow: 0 0 3mm rgba(255, 120, 40, .6); }
+.inset { position: absolute; left: 4mm; top: 4mm; width: 64mm; display: grid; gap: 1.2mm; transition: opacity .4s; }
+.sheet.was .inset { opacity: 0; pointer-events: none; }
+.inset .frame { position: relative; aspect-ratio: 1 / 1; border: .3mm solid rgba(255, 176, 102, .55); background: #050A12; box-shadow: 0 0 6mm rgba(0, 0, 0, .7); }
+.inset canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.inset p { margin: 0; font-size: 2.3mm; line-height: 1.35; color: var(--ink-2); text-shadow: 0 0 1.5mm #050A12; }
+.inset p b { font-family: var(--display); font-size: 4.6mm; font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: #FFB066; display: block; line-height: 1; margin-bottom: .6mm; }
+.scale { position: absolute; left: 5mm; bottom: 5mm; display: grid; gap: .8mm; font-size: 2.2mm; color: var(--ink-2); }
+.scale i { display: block; height: 1.3mm; border: .3mm solid rgba(231, 238, 243, .7); border-top: 0; }
+.credit { position: absolute; right: 3mm; bottom: 2mm; font-size: 1.85mm; color: var(--ink-3); }
+/* On-screen controls: never printed. */
+.controls { position: fixed; z-index: 10; right: 14px; top: 14px; display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; max-width: calc(100vw - 28px); font-size: 13px; }
+.controls .seg { display: flex; padding: 3px; border-radius: 99px; background: rgba(7, 16, 28, .88); border: 1px solid var(--rule); backdrop-filter: blur(6px); }
+.controls button, .controls a { font: inherit; font-weight: 600; color: var(--ink-2); background: none; border: 0; border-radius: 99px; padding: 7px 13px; cursor: pointer; text-decoration: none; white-space: nowrap; }
+.controls .seg button[aria-pressed="true"] { color: #04121A; background: var(--water); }
+.controls .seg button.was[aria-pressed="true"] { background: #FFB066; }
+.controls .solo { background: rgba(7, 16, 28, .88); border: 1px solid var(--rule); backdrop-filter: blur(6px); }
+.controls button:hover, .controls a:hover { color: var(--ink); }
+.controls :focus-visible { outline: 2px solid var(--water); outline-offset: 2px; }
+/* Phones and narrow windows: no A3 sheet to scale down. Title and story first, then the map at full width. */
+@media screen and (max-width: 900px) {
+  html, body { background: var(--night); }
+  .stage { width: auto; height: auto; display: block; overflow: visible; }
+  .sheet { width: auto; height: auto; padding: 18px 14px 96px; display: flex; flex-direction: column; gap: 22px; transform: none !important; box-shadow: none; overflow: visible; }
+  .side { display: contents; }
+  .badge { order: 1; gap: 10px; }
+  .badge .n { font-size: 60px; }
+  .badge .t { gap: 3px; }
+  .badge .t b { font-size: 22px; }
+  .badge .t span { font-size: 11px; }
+  h1 { order: 2; font-size: clamp(40px, 13vw, 60px); }
+  .lede { order: 3; font-size: 15px; }
+  .mapbox { order: 4; aspect-ratio: 1 / 1; margin: 0 -14px; border-left: 0; border-right: 0; }
+  .mapbox .state { right: 10px; top: 8px; font-size: 20px; }
+  .mapbox .status { font-size: 13px; }
+  .inset { left: 8px; top: 8px; width: 30%; gap: 3px; }
+  .inset p { font-size: 0; }
+  .inset p b { font-size: 11px; margin: 0; }
+  .scale { left: 10px; bottom: 10px; font-size: 10px; gap: 3px; }
+  .scale i { height: 5px; border-width: 1px; }
+  .credit { display: none; }
+  .key { order: 6; gap: 10px; font-size: 13px; }
+  .key .row { grid-template-columns: 34px 1fr; gap: 10px; }
+  .key svg { width: 34px; height: 22px; }
+  .nums { order: 7; gap: 14px 16px; }
+  .nums strong { font-size: 34px; }
+  .nums span { font-size: 12px; }
+  h2 { font-size: 11px; margin-bottom: 6px; }
+  .chart { order: 8; }
+  .tablewrap { order: 9; }
+  .table { font-size: 13px; }
+  .table th { font-size: 10px; }
+  .table th, .table td { padding: 6px 0; }
+  .table th + th, .table td + td { padding-left: 8px; }
+  .notes { order: 10; margin-top: 0; font-size: 11px; gap: 6px; }
+  .controls { top: auto; bottom: 12px; right: 50%; transform: translateX(50%); justify-content: center; width: max-content; }
+  .controls .solo.print { display: none; }
+}
+@media print {
+  html, body { background: var(--night); }
+  .controls, .mapbox #was, .mapbox .status { display: none !important; }
+  .stage { width: auto; height: auto; display: block; overflow: visible; }
+  .sheet { width: 420mm; height: 297mm; transform: none !important; box-shadow: none; }
+  .sheet.was .inset { opacity: 1; }
+  .sheet.was .mapbox .state { color: var(--water); }
+}
+</style>
+</head>
+<body>
+<div class="stage">
+<main class="sheet" id="sheet">
+  <aside class="side">
+    <div class="badge"><span class="n">08</span><span class="t"><b>Utopia</b><span>#30DayMapChallenge 2026 · print edition</span></span></div>
+    <h1>Kalimantan, <em>wet again</em></h1>
+    <p class="lede">Borneo's 2026 fire season, redrawn as it could have been: every peat dome rewetted, its drainage canals blocked and its water back near the surface. Wet peat barely burns. <b>Wherever a satellite saw fire on peat this year, there is a ripple instead.</b></p>
+    <div class="key" aria-label="Map key">
+      <div class="row"><svg viewBox="0 0 34 22" aria-hidden="true"><rect x="1" y="2" width="32" height="18" rx="2" fill="#0E4A5E" stroke="#5FD6E3" stroke-width=".8"/><path d="M3 8q3.5-2 7 0t7 0 7 0 7 0M3 14q3.5-2 7 0t7 0 7 0 7 0" fill="none" stroke="#9BEAF2" stroke-width=".7" opacity=".7"/></svg><span><b>Peat, rewetted</b>: the peat maps of Indonesia and Malaysia</span></div>
+      <div class="row"><svg viewBox="0 0 34 22" aria-hidden="true"><circle cx="17" cy="11" r="8" fill="none" stroke="#E6FDFF" stroke-width="1.1" opacity=".8"/><circle cx="17" cy="11" r="4.2" fill="none" stroke="#E6FDFF" stroke-width=".9" opacity=".55"/></svg><span><b>A ripple</b>: fire on peat in 2026. Bigger: more of it nearby</span></div>
+      <div class="row"><svg viewBox="0 0 34 22" aria-hidden="true"><circle cx="11" cy="12" r="2.4" fill="#F2A65A" opacity=".85"/><circle cx="20" cy="9" r="1.6" fill="#F2A65A" opacity=".7"/><circle cx="25" cy="14" r="1.2" fill="#F2A65A" opacity=".6"/></svg><span><b>An ember</b>: fire off peat, which rewetting would not reach</span></div>
+      <div class="row"><svg viewBox="0 0 34 22" aria-hidden="true"><path d="M2 16C9 15 12 7 19 8s9 6 13 4" fill="none" stroke="#3E8FB0" stroke-width="1.6" stroke-linecap="round"/></svg><span>Rivers, wider where more water flows</span></div>
+    </div>
+    <div class="nums" id="nums"></div>
+    <div class="chart"><h2>Fire detections in Kalimantan, by month</h2><div id="chart"></div></div>
+    <div class="tablewrap">
+      <table class="table" aria-label="Peat and fire by province">
+        <thead><tr><th></th><th>Peat<br>km²</th><th>Fire<br>detections</th><th>On<br>peat</th></tr></thead>
+        <tbody id="stats"></tbody>
+      </table>
+    </div>
+    <div class="notes">
+      <p id="dates"></p>
+      <p>What could be: on 4 Nov 2026 Indonesia's Environment Ministry ordered more than 400 companies on peat to keep their concessions wet, blocking canals and raising water tables (<i>The Jakarta Post</i>). This map imagines all of Borneo's peat wet at once. Peat can still burn in an extreme drought, and the embers on dry land would need other answers.</p>
+      <p>Fire: NASA FIRMS, VIIRS on NOAA-20, 375 m, nominal and high confidence, via NASA GIBS. Peat: Indonesia Ministry of Agriculture (2011) and Wetlands International (Malaysia), via Global Forest Watch. Rivers: HydroRIVERS (WWF). Relief: AWS Terrain Tiles. Borders: geoBoundaries, © OpenStreetMap contributors. Land: Natural Earth.</p>
+    </div>
+  </aside>
+  <section class="mapbox" id="mapbox" aria-label="Map of Borneo with its peat rewetted and this year's fires">
+    <canvas id="could" role="img" aria-label="As it could be: peat rewetted, fires on peat drawn as ripples"></canvas>
+    <canvas id="was" role="img" aria-label="As it was: 2026 fire detections glowing over dry peat"></canvas>
+    <div class="state" id="state">As it could be</div>
+    <figure class="inset" id="inset">
+      <div class="frame"><canvas id="inset-canvas" role="img" aria-label="Small map of 2026 as it was"></canvas></div>
+      <p><b>2026, as it was</b>Every fire detection this year, glowing over dried peat.</p>
+    </figure>
+    <div class="scale" id="scale"></div>
+    <div class="credit">Kalimantan is Indonesian for all of Borneo: the map shows the whole island.</div>
+    <div class="status" id="status">Drawing…</div>
+  </section>
+</main>
+</div>
+<nav class="controls" aria-label="Sheet controls">
+  <div class="seg" role="group" aria-label="Which Kalimantan">
+    <button type="button" id="btn-could" aria-pressed="true">As it could be</button>
+    <button type="button" id="btn-was" class="was" aria-pressed="false">2026, as it was</button>
+  </div>
+  <a class="solo" href="day08-utopia-kalimantan-forest.html">Other edition →</a>
+  <button type="button" class="solo print" id="btn-print">Print A3</button>
+</nav>
+<script src="data/day08/kalimantan.js"></script>
+<script src="data/day08/kalimantan-relief.js"></script>
+<script>
+'use strict';
+const D = window.DAY08K, RELIEF = window.DAY08K_RELIEF;
+const $ = id => document.getElementById(id);
+const nf = new Intl.NumberFormat('en-SG');
+const NARROW = matchMedia('screen and (max-width: 900px)');
+const PX_PER_MM = 300 / 25.4, CSS_MM = 25.4 / 96;
+const MAP_MM = 286;   // the map's printed width: line widths and type are set in printed mm, u() scales them
+
+/* ---------- screen: scale the sheet to the window (print is always 1:1) ---------- */
+function fit() {
+  const s = $('sheet');
+  s.style.transform = NARROW.matches ? '' : `scale(${Math.min((innerWidth - 24) / s.offsetWidth, (innerHeight - 24) / s.offsetHeight)})`;
+}
+addEventListener('resize', fit);
+fit();
+
+/* ---------- the sidebar ---------- */
+const S = D.stats, KAL = S.provinces.filter(p => p.country === 'IDN');
+const kalPeatKm2 = KAL.reduce((a, p) => a + p.peatKm2, 0);
+const pct = (a, b) => `${Math.round(100 * a / b)}%`;
+const fmtDate = d => new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'UTC' }).format(new Date(`${d}T00:00:00Z`));
+$('nums').innerHTML = `
+  <div><strong>${nf.format(S.kal)}</strong><span>fire detections in Kalimantan, ${fmtDate(D.meta.from)} to ${fmtDate(D.meta.to)} 2026</span></div>
+  <div class="w"><strong>${pct(S.kalPeat, S.kal)}</strong><span>of them on peat: ${nf.format(S.kalPeat)} that wet peat would have starved</span></div>
+  <div class="w"><strong>${(kalPeatKm2 / 1e4).toFixed(1)} M ha</strong><span>of peat to rewet in Kalimantan, ${pct(kalPeatKm2, KAL.reduce((a, p) => a + p.landKm2, 0))} of its land</span></div>
+  <div class="e"><strong>${nf.format(S.peak.n)}</strong><span>detections on the worst day, ${fmtDate(S.peak.day)}</span></div>`;
+$('stats').innerHTML = S.provinces.filter(p => p.fires > 500 || p.peatKm2 > 1000).map(p =>
+  `<tr class="${p.country === 'IDN' ? '' : 'my'}"><td>${p.name}</td><td>${nf.format(Math.round(p.peatKm2 / 100) * 100)}</td><td>${nf.format(p.fires)}</td><td class="p">${p.fires ? pct(p.firesPeat, p.fires) : '–'}</td></tr>`).join('');
+$('dates').textContent = `A fire detection is one 375 m satellite pixel seen burning on one overpass; a long fire is seen many times. They are not burned area. Data to ${fmtDate(D.meta.to)} 2026.`;
+
+// Monthly bars, peat (water) under off-peat (ember). Months with no data yet are left out.
+(function chart() {
+  const M = ['J', 'F', 'M', 'A', 'M', 'J', 'J', 'A', 'S', 'O', 'N', 'D'];
+  const last = +D.meta.to.slice(5, 7);
+  const rows = S.monthly.slice(0, last), max = Math.max(...rows.map(r => r[0] + r[1]));
+  const W = 100, H = 30, bw = W / rows.length, top = Math.ceil(max / 20000) * 20000;
+  const y = v => H - v / top * H;
+  let s = `<svg viewBox="0 -3 ${W} ${H + 8}" role="img" aria-label="Monthly fire detections in Kalimantan: ${rows.map((r, i) => `${M[i]} ${r[0] + r[1]}`).join(', ')}">`;
+  for (let g = 0; g <= top; g += 20000) s += `<line x1="0" x2="${W}" y1="${y(g)}" y2="${y(g)}" stroke="rgba(231,238,243,.12)" stroke-width=".2"/>` + (g ? `<text x="${W}" y="${y(g) - .8}" text-anchor="end" font-size="2.1" fill="rgba(231,238,243,.42)">${g / 1000}k</text>` : '');
+  rows.forEach(([off, on], i) => {
+    const x = i * bw + bw * .14, w = bw * .72;
+    s += `<rect x="${x}" y="${y(on)}" width="${w}" height="${H - y(on)}" fill="#5FD6E3"/>`;
+    s += `<rect x="${x}" y="${y(on + off)}" width="${w}" height="${y(on) - y(on + off)}" fill="#F2A65A" opacity=".9"/>`;
+    s += `<text x="${x + w / 2}" y="${H + 3.6}" text-anchor="middle" font-size="2.4" fill="rgba(231,238,243,.6)">${M[i]}</text>`;
+    if (on + off > max * .3) s += `<text x="${x + w / 2}" y="${y(on + off) - 1}" text-anchor="middle" font-size="2.2" font-weight="600" fill="rgba(231,238,243,.85)">${Math.round((on + off) / 1000)}k</text>`;
+  });
+  s += `<text x="0" y="${H + 7.6}" font-size="2.2" fill="#5FD6E3">■ on peat</text><text x="18" y="${H + 7.6}" font-size="2.2" fill="#F2A65A">■ off peat</text>`;
+  s += `<text x="${W}" y="${H + 7.6}" text-anchor="end" font-size="2.1" fill="rgba(231,238,243,.42)">${last < 12 ? `${M[last - 1]}: to ${fmtDate(D.meta.to)}` : ''}</text></svg>`;
+  $('chart').innerHTML = s;
+})();
+
+/* ---------- geometry ---------- */
+const rad = d => d * Math.PI / 180, my = lat => Math.log(Math.tan(Math.PI / 4 + rad(lat) / 2));
+const VIEW = [108.6, -4.25, 119.3, 7.1];   // Borneo, west south east north
+function projection(W, H, view = VIEW) {
+  const [w, s, e, n] = view;
+  const k = Math.min(W / (rad(e) - rad(w)), H / (my(n) - my(s)));   // the whole view fits; sea fills the rest
+  const cx = (rad(w) + rad(e)) / 2, cy = (my(s) + my(n)) / 2;
+  return {
+    W, H, k,
+    P: (lng, lat) => [W / 2 + (rad(lng) - cx) * k, H / 2 - (my(lat) - cy) * k],
+    lng: x => (cx + (x - W / 2) / k) * 180 / Math.PI,
+    lat: y => Math.atan(Math.sinh(cy - (y - H / 2) / k)) * 180 / Math.PI,
+  };
+}
+function decode(str, f = D.meta.q) {   // Google polyline at 1/f degrees -> [[lng, lat]]
+  const out = [];
+  let i = 0, lat = 0, lng = 0;
+  while (i < str.length) {
+    for (const k of [0, 1]) {
+      let shift = 0, res = 0, b;
+      do { b = str.charCodeAt(i++) - 63; res |= (b & 31) << shift; shift += 5; } while (b >= 32);
+      const d = res & 1 ? ~(res >> 1) : res >> 1;
+      if (k === 0) lat += d; else lng += d;
+    }
+    out.push([lng / f, lat / f]);
+  }
+  return out;
+}
+const G = {   // decoded once
+  land: D.land.map(e => decode(e)),
+  borneo: D.provinces.map(([id, rs]) => [id, rs.map(e => decode(e))]),
+  peat: D.peat.map(e => decode(e)),
+  rivers: D.rivers.map(([c, e]) => [c, decode(e)]),
+};
+function pathOf(proj, rings, close = true, p = new Path2D()) {
+  for (const r of rings) {
+    r.forEach(([lng, lat], i) => { const [x, y] = proj.P(lng, lat); i ? p.lineTo(x, y) : p.moveTo(x, y); });
+    if (close) p.closePath();
+  }
+  return p;
+}
+// Fire cells: [lng, lat, detections, on peat, FRP].
+const CELLS = (() => {
+  const c = D.cells, [w, , , n] = D.meta.bbox, s = D.meta.cell, out = [];
+  let x = 0, y = 0;
+  for (let i = 0; i < c.length; i += 5) {
+    if (c[i + 1]) { y += c[i + 1]; x = c[i]; } else x += c[i];
+    out.push([w + (x + .5) * s, n - (y + .5) * s, c[i + 2], c[i + 3], c[i + 4]]);
+  }
+  return out;
+})();
+// Gather cells into bins of g pixels; each bin sits at the detection-weighted centre of its cells.
+function bins(proj, g, keep) {
+  const m = new Map();
+  for (const c of CELLS) {
+    if (!keep(c)) continue;
+    const [x, y] = proj.P(c[0], c[1]);
+    const k = Math.floor(x / g) * 100000 + Math.floor(y / g);
+    const b = m.get(k) || { x: 0, y: 0, n: 0, cells: 0 };
+    const wt = c[2];
+    b.x += x * wt; b.y += y * wt; b.n += wt; b.cells++;
+    m.set(k, b);
+  }
+  // A little jitter, so dense fire does not line up on the bin grid.
+  return [...m.values()].map(b => { const x = b.x / b.n, y = b.y / b.n; return { x: x + (hash(x, y) - .5) * g * .7, y: y + (hash(y, x) - .5) * g * .7, n: b.n, cells: b.cells }; });
+}
+const hash = (a, b) => { let h = Math.imul(Math.round(a * 97) ^ Math.round(b * 131), 2654435761); h ^= h >>> 15; return (h >>> 0) / 4294967296; };
+
+/* ---------- drawing ---------- */
+const PLACES_SIDE = { 'Nusantara (IKN)': 'l', Sandakan: 'l', Tawau: 'l', 'Kota Kinabalu': 'l', Miri: 'l', Tarakan: 'l', 'Bandar Seri Begawan': 'r' };
+const MAJOR = new Set(['Pontianak', 'Palangka Raya', 'Banjarmasin', 'Samarinda', 'Balikpapan', 'Kuching', 'Kota Kinabalu', 'Nusantara (IKN)', 'Sampit', 'Tarakan']);
+const REGIONS = [
+  ['WEST KALIMANTAN', 110.75, 0.55], ['CENTRAL KALIMANTAN', 113.15, -0.55], ['SOUTH\nKALIMANTAN', 115.55, -2.55], ['EAST KALIMANTAN', 116.15, 0.85],
+  ['NORTH\nKALIMANTAN', 116.1, 3.05], ['SARAWAK', 112.75, 2.05], ['SABAH', 116.85, 5.2], ['BRUNEI', 114.75, 4.62],
+];
+const SEAS = [['South China Sea', 112.2, 6.4, 0], ['Java Sea', 112.4, -4.05, 0], ['Karimata Strait', 108.95, -1.0, -90], ['Makassar Strait', 118.35, -1.0, -72], ['Celebes Sea', 119.0, 3.1, 0], ['Sulu Sea', 118.9, 6.85, 0]];
+
+function base(ctx, proj, u, { landFill, borneoFill, coast, relief, reliefAlpha, rivers, riverAlpha, borders, graticule }) {
+  const { W, H } = proj;
+  ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+  // Sea, with the faintest light from the north-west.
+  const g = ctx.createRadialGradient(W * .35, H * .3, 0, W * .5, H * .5, Math.hypot(W, H) * .7);
+  g.addColorStop(0, '#0D1A2B'); g.addColorStop(1, '#060D17');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  // Graticule, every degree; the equator dashed and brighter.
+  if (graticule) {
+    ctx.save(); ctx.strokeStyle = 'rgba(160, 190, 215, .09)'; ctx.lineWidth = u(.15);
+    for (let lng = 108; lng <= 120; lng++) { const [x] = proj.P(lng, 0); ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
+    for (let lat = -5; lat <= 8; lat++) { if (!lat) continue; const [, y] = proj.P(110, lat); ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+    ctx.restore();
+  }
+  const land = pathOf(proj, G.land), borneo = new Path2D();
+  for (const [, rs] of G.borneo) pathOf(proj, rs, true, borneo);
+  ctx.fillStyle = landFill; ctx.fill(land);
+  ctx.fillStyle = borneoFill; ctx.fill(borneo);
+  // Relief: flat land is mid-grey in the image, so "overlay" lightens the sunny slopes and darkens the shaded ones.
+  if (relief) {
+    const [x0, y0] = proj.P(RELIEF.bounds[0], RELIEF.bounds[3]), [x1, y1] = proj.P(RELIEF.bounds[2], RELIEF.bounds[1]);
+    ctx.save(); ctx.clip(land); ctx.globalCompositeOperation = 'overlay'; ctx.globalAlpha = reliefAlpha;
+    ctx.drawImage(relief, x0, y0, x1 - x0, y1 - y0);
+    ctx.restore();
+  }
+  ctx.strokeStyle = coast; ctx.lineWidth = u(.2); ctx.stroke(land);
+  if (borders) {
+    ctx.save(); ctx.strokeStyle = borders; ctx.lineWidth = u(.18); ctx.setLineDash([u(.9), u(.6)]);
+    for (const [id, rs] of G.borneo) if (id !== 8) ctx.stroke(pathOf(proj, rs));
+    ctx.restore();
+  }
+  if (rivers) {
+    ctx.save(); ctx.strokeStyle = rivers; ctx.globalAlpha = riverAlpha;
+    for (const [c, pts] of G.rivers) { ctx.lineWidth = u([0, .13, .2, .32, .48, .7][c]); ctx.stroke(pathOf(proj, [pts], false)); }
+    ctx.restore();
+  }
+  // The equator, over land and sea.
+  if (graticule) {
+    const [, y] = proj.P(110, 0);
+    ctx.save(); ctx.strokeStyle = 'rgba(200, 225, 240, .3)'; ctx.lineWidth = u(.22); ctx.setLineDash([u(1.6), u(1.1)]);
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); ctx.restore();
+  }
+  return { land, borneo };
+}
+
+// Peat, wet: deep water with a glow at its edges and fine ripple lines across it.
+function wetPeat(ctx, proj, u) {
+  const peat = pathOf(proj, G.peat), { W, H } = proj;
+  const glow = document.createElement('canvas'); glow.width = W; glow.height = H;
+  const gc = glow.getContext('2d');
+  gc.filter = `blur(${u(1.6)}px)`; gc.fillStyle = '#2BB5C9'; gc.fill(peat, 'evenodd'); gc.filter = 'none';
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .35; ctx.drawImage(glow, 0, 0); ctx.restore();
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  g.addColorStop(0, '#11607A'); g.addColorStop(1, '#0B4157');
+  ctx.fillStyle = g; ctx.fill(peat, 'evenodd');
+  ctx.save(); ctx.clip(peat, 'evenodd');
+  ctx.strokeStyle = 'rgba(155, 234, 242, .22)'; ctx.lineWidth = u(.12);
+  const step = u(.75), amp = u(.18), wl = u(3.2);
+  ctx.beginPath();
+  for (let y = 0; y < H; y += step) {
+    const ph = (y / step) * 1.7;
+    for (let x = 0; x <= W; x += u(.6)) { const yy = y + Math.sin(x / wl * 2 * Math.PI + ph) * amp; x ? ctx.lineTo(x, yy) : ctx.moveTo(x, yy); }
+  }
+  ctx.stroke();
+  ctx.restore();
+  ctx.strokeStyle = 'rgba(95, 214, 227, .75)'; ctx.lineWidth = u(.16); ctx.stroke(peat);
+  return peat;
+}
+// Fire on peat, as ripples on the water: two rings, size by how much fire the bin held.
+function ripples(ctx, proj, u) {
+  const bs = bins(proj, u(1.5), c => c[3] > 0).sort((a, b) => a.n - b.n);
+  ctx.save(); ctx.strokeStyle = '#E6FDFF';
+  for (const b of bs) {
+    const r = Math.min(u(2.6), u(.38) + u(.2) * Math.sqrt(b.n));
+    ctx.globalAlpha = Math.min(.85, .35 + b.n / 60);
+    ctx.lineWidth = u(.14); ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 2 * Math.PI); ctx.stroke();
+    if (r > u(.75)) { ctx.globalAlpha *= .6; ctx.lineWidth = u(.11); ctx.beginPath(); ctx.arc(b.x, b.y, r * .55, 0, 2 * Math.PI); ctx.stroke(); }
+  }
+  ctx.restore();
+  return bs;
+}
+// Fire off peat: small embers, the fires a wet peat dome does not reach.
+function embers(ctx, proj, u) {
+  const bs = bins(proj, u(1.2), c => c[3] === 0);
+  ctx.save();
+  for (const b of bs) {
+    const r = Math.min(u(.6), u(.13) + u(.06) * Math.sqrt(b.n));
+    ctx.globalAlpha = Math.min(.75, .32 + b.n / 100);
+    ctx.fillStyle = '#F2A65A'; ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 2 * Math.PI); ctx.fill();
+  }
+  ctx.restore();
+}
+// 2026 as it was: dried peat, then every detection glowing, then the haze they made.
+function burning(ctx, proj, u) {
+  const { W, H } = proj, peat = pathOf(proj, G.peat);
+  ctx.fillStyle = '#2A1C14'; ctx.fill(peat, 'evenodd');
+  ctx.strokeStyle = 'rgba(160, 100, 60, .35)'; ctx.lineWidth = u(.12); ctx.stroke(peat);
+  const layer = document.createElement('canvas'); layer.width = W; layer.height = H;
+  const lc = layer.getContext('2d');
+  for (const c of CELLS) {
+    const [x, y] = proj.P(c[0], c[1]);
+    const r = Math.min(u(.6), u(.17) + u(.05) * Math.sqrt(c[2]));
+    lc.fillStyle = c[4] / c[2] > 12 ? '#FFD27A' : '#FF8A3A';
+    lc.globalAlpha = Math.min(1, .5 + c[2] / 12);
+    lc.beginPath(); lc.arc(x, y, r, 0, 2 * Math.PI); lc.fill();
+  }
+  // Haze: the fires blurred very wide, in smoke brown.
+  const haze = document.createElement('canvas'); haze.width = W; haze.height = H;
+  const hc = haze.getContext('2d');
+  hc.filter = `blur(${u(9)}px)`; hc.drawImage(layer, 0, 0); hc.filter = 'none';
+  hc.globalCompositeOperation = 'source-in'; hc.fillStyle = 'rgb(150, 110, 80)'; hc.fillRect(0, 0, W, H);
+  ctx.save(); ctx.globalAlpha = .55; ctx.drawImage(haze, 0, 0); ctx.restore();
+  // Glow, then the fires themselves.
+  const glow = document.createElement('canvas'); glow.width = W; glow.height = H;
+  const gc = glow.getContext('2d');
+  gc.filter = `blur(${u(1.4)}px)`; gc.drawImage(layer, 0, 0); gc.filter = 'none';
+  ctx.save(); ctx.globalCompositeOperation = 'lighter'; ctx.globalAlpha = .9; ctx.drawImage(glow, 0, 0); ctx.globalAlpha = .7; ctx.drawImage(layer, 0, 0); ctx.restore();
+}
+
+function labels(ctx, proj, u, { ink, halo, minPx, sea, regions, all }) {
+  const font = (wt, mm, it = '') => `${it}${wt} ${Math.max(minPx, u(mm))}px "Instrument Sans", system-ui, sans-serif`;
+  ctx.save(); ctx.textBaseline = 'middle'; ctx.lineJoin = 'round';
+  const text = (s, x, y, stroke) => { if (stroke) { ctx.strokeStyle = halo; ctx.lineWidth = Math.max(minPx, u(2.5)) * .32; ctx.strokeText(s, x, y); } ctx.fillText(s, x, y); };
+  if (sea) {
+    ctx.fillStyle = 'rgba(150, 190, 215, .55)'; ctx.font = font(500, 2.5, 'italic ');
+    for (const [s, lng, lat, rot] of SEAS) {
+      const [x, y] = proj.P(lng, lat);
+      ctx.save(); ctx.translate(x, y); ctx.rotate(rot * Math.PI / 180); ctx.textAlign = 'center';
+      if ('letterSpacing' in ctx) ctx.letterSpacing = `${u(.5)}px`;
+      ctx.fillText(s, 0, 0); ctx.restore();
+    }
+  }
+  if (regions) {
+    ctx.fillStyle = 'rgba(231, 238, 243, .34)'; ctx.font = font(600, 2.2); ctx.textAlign = 'center';
+    if ('letterSpacing' in ctx) ctx.letterSpacing = `${u(.65)}px`;
+    for (const [s, lng, lat] of REGIONS) {
+      const [x, y] = proj.P(lng, lat), ls = s.split('\n');
+      ls.forEach((l, i) => text(l, x, y + (i - (ls.length - 1) / 2) * u(2.9), true));
+    }
+    if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+  }
+  for (const [name, lng, lat] of D.places) {
+    if (!all && !MAJOR.has(name)) continue;
+    const [x, y] = proj.P(lng, lat), left = PLACES_SIDE[name] === 'l', capital = name.startsWith('Nusantara');
+    ctx.fillStyle = ink; ctx.strokeStyle = halo; ctx.lineWidth = u(.3);
+    ctx.beginPath();
+    if (capital) { const r = u(.8); ctx.rect(x - r, y - r, 2 * r, 2 * r); } else ctx.arc(x, y, u(.55), 0, 2 * Math.PI);
+    ctx.stroke(); ctx.fill();
+    ctx.font = font(MAJOR.has(name) ? 600 : 500, MAJOR.has(name) ? 2.7 : 2.3);
+    ctx.textAlign = left ? 'right' : 'left';
+    text(name, x + (left ? -1 : 1) * u(1.4), y, true);
+  }
+  ctx.restore();
+}
+
+/* ---------- the sheet ---------- */
+const box = $('mapbox');
+function px() {   // canvas size: print resolution on the A3 layout, a sharp screen size on phones
+  const r = box.getBoundingClientRect();
+  if (NARROW.matches) { const w = Math.min(2400, Math.round(r.width * (devicePixelRatio || 1) * 1.6)); return [w, Math.round(w * r.height / r.width)]; }
+  return [Math.round(box.offsetWidth * CSS_MM * PX_PER_MM), Math.round(box.offsetHeight * CSS_MM * PX_PER_MM)];
+}
+function sized(id, W, H) { const c = $(id); c.width = W; c.height = H; return c.getContext('2d'); }
+const img = new Image();
+const imgReady = new Promise(res => { img.onload = res; img.onerror = res; img.src = RELIEF.img; });
+
+async function draw() {
+  await Promise.all([imgReady, document.fonts.load('600 12px "Instrument Sans"'), document.fonts.load('italic 500 12px "Instrument Sans"'), document.fonts.ready]);
+  const [W, H] = px();
+  const proj = projection(W, H), u = mm => mm * W / MAP_MM;
+  const minPx = NARROW.matches ? 10 * (W / box.getBoundingClientRect().width) : 0;
+  const style = { landFill: '#121C29', borneoFill: '#192432', coast: 'rgba(120, 150, 175, .55)', relief: img.width ? img : null, reliefAlpha: .55,
+    rivers: '#3E8FB0', riverAlpha: .85, borders: 'rgba(200, 220, 235, .28)', graticule: true };
+
+  // As it could be.
+  let ctx = sized('could', W, H);
+  base(ctx, proj, u, style);
+  wetPeat(ctx, proj, u);
+  embers(ctx, proj, u);
+  ripples(ctx, proj, u);
+  labels(ctx, proj, u, { ink: '#EEF4F7', halo: 'rgba(6, 12, 22, .85)', minPx, sea: true, regions: true, all: !NARROW.matches });
+
+  // As it was: the same base, burning.
+  ctx = sized('was', W, H);
+  base(ctx, proj, u, { ...style, riverAlpha: .45, rivers: '#2E6C86' });
+  burning(ctx, proj, u);
+  labels(ctx, proj, u, { ink: '#FFF3E6', halo: 'rgba(20, 8, 2, .85)', minPx, sea: true, regions: true, all: !NARROW.matches });
+
+  // The inset, for print: as it was, small. Drawn at its own size so lines stay fine.
+  const inset = $('inset-canvas'), ir = inset.getBoundingClientRect();
+  const IW = NARROW.matches ? Math.min(1200, Math.round(ir.width * (devicePixelRatio || 1) * 1.5)) : Math.round(inset.offsetWidth * CSS_MM * PX_PER_MM);
+  const iproj = projection(IW, IW), iu = mm => mm * IW / 64 * .42;
+  ctx = sized('inset-canvas', IW, IW);
+  base(ctx, iproj, iu, { ...style, relief: null, rivers: null, borders: null, graticule: false });
+  burning(ctx, iproj, iu);
+
+  // Scale bar: 200 km at the equator (Mercator: 6371 / k km per canvas pixel there).
+  const barKm = 200, barFrac = barKm / (6371 / proj.k) / W;
+  $('scale').innerHTML = `<i style="width:${(barFrac * box.offsetWidth).toFixed(1)}px"></i><span>${barKm} km at the equator</span>`;
+  $('status').hidden = true;
+  document.body.dataset.ready = '1';
+}
+draw().catch(e => { $('status').textContent = `Could not draw the map: ${e.message}`; console.error(e); });
+
+/* ---------- controls ---------- */
+function setWas(on) {
+  $('sheet').classList.toggle('was', on);
+  $('btn-was').setAttribute('aria-pressed', String(on));
+  $('btn-could').setAttribute('aria-pressed', String(!on));
+  $('state').textContent = on ? '2026, as it was' : 'As it could be';
+}
+$('btn-could').addEventListener('click', () => setWas(false));
+$('btn-was').addEventListener('click', () => setWas(true));
+$('btn-print').addEventListener('click', () => { setWas(false); print(); });
+if (location.hash === '#was') setWas(true);
+addEventListener('beforeprint', () => setWas(false));
+let lastNarrow = NARROW.matches;
+// Printing flips the screen query too; the canvases must not be redrawn (and so cleared) then.
+const PRINTING = matchMedia('print');
+NARROW.addEventListener('change', () => { if (!PRINTING.matches && NARROW.matches !== lastNarrow) { lastNarrow = NARROW.matches; fit(); draw(); } });
+</script>
+</body>
+</html>
